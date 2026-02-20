@@ -1,11 +1,11 @@
 {
   "name": "pickety",
-  "displayName": "pickety",
+  "displayName": "Pickety",
   "description": "a high-performance architectural enforcement engine for TypeScript projects",
   "author": {
     "name": "Dan Serio"
   },
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "danserio",
   "icon": "resources/icon.png",
   "license": "MIT",
@@ -29,7 +29,11 @@
     "Other"
   ],
   "activationEvents": [
-    "workspaceContains:pickety.json"
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact",
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact",
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "bin": {
@@ -37,6 +41,11 @@
   },
   "contributes": {
     "commands": [
+      {
+        "command": "pickety.init",
+        "title": "Pickety: Initialize Configuration",
+        "category": "Pickety"
+      },
       {
         "command": "pickety.refresh",
         "title": "Pickety: Refresh Configuration",
@@ -51,12 +60,12 @@
     "jsonValidation": [
       {
         "fileMatch": "pickety.json",
-        "url": "./src/pickety.schema.json"
+        "url": "./resources/pickety.schema.json"
       }
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run build",
+    "vscode:prepublish": "npm run build && npm run build:cli",
     "compile": "npm run build",
     "build": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --main-fields=module,main --minify",
     "build:cli": "esbuild ./src/cli.ts --bundle --outfile=out/cli.js --format=cjs --platform=node --main-fields=module,main --minify",

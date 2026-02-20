@@ -27,7 +27,7 @@ Enforce isolation between features and ensure they only depend on the `shared` l
         },
         {
           "importer": "entities",
-          "imports": ["features", "widgets", "pages"],
+          "imports": "src/{features,widgets,pages}/**/*",
           "message": "FSD: Entities cannot depend on higher layers."
         },
         {
@@ -58,7 +58,7 @@ Ensure the Domain and Application layers don't depend on Infrastructure.
       "rules": [
         {
           "importer": "domain",
-          "imports": ["app", "infra"],
+          "imports": "src/{application,infrastructure}/**/*",
           "message": "Domain layer must have zero external dependencies."
         },
         {

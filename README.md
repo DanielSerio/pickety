@@ -6,10 +6,7 @@ Pickety is a VS Code extension that enforces import boundaries in real time. Def
 
 No CI pipeline. No build step. No review cycle. Just immediate, visual enforcement.
 
-<!--
-![Pickety in action](resources/demo.gif)
-TODO: Add animated GIF showing a violation appearing as the user types an import
--->
+![Pickety in action](resources/illegal-route-import.gif)
 
 ---
 
@@ -105,29 +102,37 @@ Map logical module names to file glob patterns. Each file belongs to the **first
 
 Each rule defines an import boundary between modules.
 
-| Field         | Type      | Required | Description                                                 |
-| ------------- | --------- | -------- | ----------------------------------------------------------- |
-| `imports`     | `string`  | Yes      | Target module name, glob, or file path pattern               |
-| `importer`    | `string`  | Conditional| Source module name or glob pattern. Required unless using `containedTo`. |
-| `allow`       | `boolean` | No       | `true` = permit, `false` = forbid. Default: `false`         |
-| `only`        | `boolean` | No       | `true` = the `imports` target can ONLY be used by this `importer`. |
-| `containedTo` | `string`  | No       | Shortcut for `only: true`. Restricts `imports` to this path pattern. |
-| `message`     | `string`  | No       | Custom diagnostic message shown in the editor               |
-| `severity`    | `string`  | No       | `"error"` or `"warn"`. Overrides the global severity        |
-| `name`        | `string`  | No       | Rule identifier. Shown in diagnostics and quick fix labels  |
+| Field         | Type      | Required    | Description                                                              |
+| ------------- | --------- | ----------- | ------------------------------------------------------------------------ |
+| `imports`     | `string`  | Yes         | Target module name, glob, or file path pattern                           |
+| `importer`    | `string`  | Conditional | Source module name or glob pattern. Required unless using `containedTo`. |
+| `allow`       | `boolean` | No          | `true` = permit, `false` = forbid. Default: `false`                      |
+| `only`        | `boolean` | No          | `true` = the `imports` target can ONLY be used by this `importer`.       |
+| `containedTo` | `string`  | No          | Shortcut for `only: true`. Restricts `imports` to this path pattern.     |
+| `message`     | `string`  | No          | Custom diagnostic message shown in the editor                            |
+| `severity`    | `string`  | No          | `"error"` or `"warn"`. Overrides the global severity                     |
+| `name`        | `string`  | No          | Rule identifier. Shown in diagnostics and quick fix labels               |
 
 ### Glob Patterns
 
 Both `importer` and `imports` support glob syntax. Use `*` to match all modules:
 
 ```json
-{ "importer": "utils", "imports": "*", "message": "Utils must remain dependency-free" }
+{
+  "importer": "utils",
+  "imports": "*",
+  "message": "Utils must remain dependency-free"
+}
 ```
 
 When `imports` contains a `/`, it matches against the resolved file's relative path, letting you target subdirectories:
 
 ```json
-{ "importer": "routes", "imports": "features/**/components", "message": "Routes cannot import feature components" }
+{
+  "importer": "routes",
+  "imports": "features/**/components",
+  "message": "Routes cannot import feature components"
+}
 ```
 
 ### Strict Enforcement (`only` & `containedTo`)
@@ -202,10 +207,10 @@ You can also generate diagrams on demand via the command palette: **Pickety: Gen
 
 ## Commands
 
-| Command                                | Description                                   |
-| -------------------------------------- | --------------------------------------------- |
-| `Pickety: Refresh Configuration`       | Reload `pickety.json`, aliases, and file index |
-| `Pickety: Generate Boundary Diagram`   | Generate a Mermaid diagram of your boundaries  |
+| Command                              | Description                                    |
+| ------------------------------------ | ---------------------------------------------- |
+| `Pickety: Refresh Configuration`     | Reload `pickety.json`, aliases, and file index |
+| `Pickety: Generate Boundary Diagram` | Generate a Mermaid diagram of your boundaries  |
 
 ---
 
@@ -270,12 +275,12 @@ For more patterns -- Feature-Sliced Design, Onion Architecture, scoped utilities
 
 ## Documentation
 
-| Resource | Description |
-| -------- | ----------- |
-| [Setup Guide](docs/setup.md) | Get running in under 3 minutes |
-| [Configuration Reference](docs/pickety-json.md) | Full `pickety.json` specification |
-| [Rule Recipes](docs/recipes.md) | Common architectural patterns (FSD, Onion, etc.) |
-| [Roadmap](docs/ROADMAP.md) | What's been built and what's planned |
+| Resource                                        | Description                                      |
+| ----------------------------------------------- | ------------------------------------------------ |
+| [Setup Guide](docs/setup.md)                    | Get running in under 3 minutes                   |
+| [Configuration Reference](docs/pickety-json.md) | Full `pickety.json` specification                |
+| [Rule Recipes](docs/recipes.md)                 | Common architectural patterns (FSD, Onion, etc.) |
+| [Roadmap](docs/ROADMAP.md)                      | What's been built and what's planned             |
 
 ---
 

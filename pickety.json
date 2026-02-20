@@ -1,11 +1,11 @@
 {
-  "$schema": "./src/pickety.schema.json",
+  "$schema": "./resources/pickety.schema.json",
   "modules": {
     "core": "src/core/*",
     "extension": "src/extension.ts",
     "controller": "src/controller.ts",
     "cli": "src/cli.ts",
-    "vscode-impl": "src/(statusBar|diagnostics|navigation|codeActions).ts"
+    "vscode-impl": "src/{statusBar,diagnostics,navigation,codeActions}.ts"
   },
   "rules": {
     "module-boundaries": {

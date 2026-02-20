@@ -10,6 +10,8 @@ import type {
 } from "../types";
 import { CONFIG_FILENAME, normalizePath } from "./utils";
 
+
+
 /**
  * Loads and validates pickety.json from the given workspace root.
  * Returns a Result type indicating success or a list of validation errors.

@@ -36,16 +36,19 @@ export class PicketyController {
   }
 
   public async activate() {
+    this.outputChannel.appendLine(`Pickety: Extension activated for workspace: ${this.workspaceRoot}`);
     this.registerWatchers();
     this.registerCommands();
     this.registerProviders();
     this.registerEventListeners();
 
     // Initial run
+    this.outputChannel.appendLine("Pickety: Performing initial scan...");
     this.reload();
     this.reloadAliases();
     await this.refreshKnownFiles();
     this.analyzeOpenEditors();
+    this.statusBar.update(this.config, this.diagnosticCollection);
   }
 
   public dispose() {
@@ -238,9 +241,13 @@ export class PicketyController {
       this.config = result.config;
       this.outputChannel.appendLine("Pickety: Import boundaries active");
       this.dependencyGraph.clear(); // Clear cache when config changes
-      const diagramPath = generateMermaidDiagram(result.config, this.workspaceRoot);
-      if (diagramPath) {
-        this.outputChannel.appendLine(`Pickety: Generated boundary diagram at ${diagramPath}`);
+      try {
+        const diagramPath = generateMermaidDiagram(result.config, this.workspaceRoot);
+        if (diagramPath) {
+          this.outputChannel.appendLine(`Pickety: Generated boundary diagram at ${diagramPath}`);
+        }
+      } catch (e) {
+        this.outputChannel.appendLine(`Pickety: Failed to generate boundary diagram: ${e instanceof Error ? e.message : String(e)}`);
       }
       this.analyzeOpenEditors();
       this.statusBar.update(this.config, this.diagnosticCollection);

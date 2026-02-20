@@ -1,0 +1,44 @@
+graph LR
+
+  %% Module definitions
+  %% core: src/core/*
+  %% extension: src/extension.ts
+  %% controller: src/controller.ts
+  %% cli: src/cli.ts
+  %% vscode-impl: src/{statusBar,diagnostics,navigation,codeActions}.ts
+
+  subgraph rule_0 ["ALLOW: rule#lsqb;0#rsqb; (error)"]
+    r0_from["core"]
+    r0_to["core"]
+    r0_from --> r0_to
+  end
+
+  subgraph rule_1 ["DENY: rule#lsqb;1#rsqb; (error)"]
+    r1_from["core"]
+    r1_to["vscode-impl"]
+    r1_from -.-> |"Core logic must remain platform-agnostic. No VS Code dependencies in src/core."| r1_to
+  end
+
+  subgraph rule_2 ["ALLOW: rule#lsqb;2#rsqb; (error)"]
+    r2_from["extension"]
+    r2_to["controller"]
+    r2_from --> r2_to
+  end
+
+  subgraph rule_3 ["ALLOW: rule#lsqb;3#rsqb; (error)"]
+    r3_from["controller"]
+    r3_to["core"]
+    r3_from --> r3_to
+  end
+
+  subgraph rule_4 ["ALLOW: rule#lsqb;4#rsqb; (error)"]
+    r4_from["cli"]
+    r4_to["core"]
+    r4_from --> r4_to
+  end
+
+  linkStyle 0 stroke:#22c55e,stroke-width:2px
+  linkStyle 1 stroke:#ef4444,stroke-width:2px,stroke-dasharray:5
+  linkStyle 2 stroke:#22c55e,stroke-width:2px
+  linkStyle 3 stroke:#22c55e,stroke-width:2px
+  linkStyle 4 stroke:#22c55e,stroke-width:2px

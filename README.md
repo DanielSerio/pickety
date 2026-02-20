@@ -1,6 +1,24 @@
+<p align="center">
+  <img src="resources/icon.png" width="128" height="128" alt="Pickety Logo">
+</p>
+
 # Pickety
 
 **Architectural guardrails for TypeScript projects.**
+
+<p align="left">
+  <a href="https://marketplace.visualstudio.com/items?itemName=DanSerio.pickety">
+    <img src="https://img.shields.io/visual-studio-marketplace/v/DanSerio.pickety?style=for-the-badge&logo=visual-studio-code" alt="Visual Studio Marketplace Version">
+  </a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=DanSerio.pickety">
+    <img src="https://img.shields.io/visual-studio-marketplace/i/DanSerio.pickety?style=for-the-badge" alt="Visual Studio Marketplace Installs">
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/github/license/DanielSerio/pickety?style=for-the-badge" alt="License">
+  </a>
+</p>
+
+---
 
 Pickety is a VS Code extension that enforces import boundaries in real time. Define your module structure once, and every illegal import lights up instantly -- in your editor, as you type.
 

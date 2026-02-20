@@ -14,9 +14,9 @@
 
 ---
 
-Pickety is a VS Code extension that enforces import boundaries in real time. Define your module structure once, and every illegal import lights up instantly -- in your editor, as you type.
+Pickety is a VS Code extension that stops architecture erosion before it starts. Define your module boundaries once in a simple JSON file, and every illegal import lights up instantly -- right in your editor, as you type. No more "we don't import that here" comments in code review. No more accidental coupling that quietly rots your codebase over months.
 
-No CI pipeline. No build step. No review cycle. Just immediate, visual enforcement.
+Zero dependencies. Zero build steps. Just drop in a config and your entire team gets real-time, visual enforcement of the rules that actually matter.
 
 ![Pickety in action](resources/illegal-route-import.gif)
 

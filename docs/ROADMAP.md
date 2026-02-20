@@ -1,199 +1,69 @@
 # Pickety Roadmap
 
-Improvements to make pickety more useful for keeping agents (and humans) on rails.
+Improvements to make Pickety more useful for keeping agents (and humans) on rails.
 
-## Phase 1: Foundational DX
+## Legend
 
-These improvements address the biggest pain points — silent failures and delayed feedback.
-
-### 1.1 Config Validation Error Messages
-
-**Problem:** `loadConfig` returns `undefined` for every failure mode. Invalid JSON, missing fields, wrong types — the user gets zero feedback. Pickety just silently doesn't activate.
-
-**Solution:**
-
-- Change `loadConfig` to return a result type with structured errors:
-  ```ts
-  type ConfigResult =
-    | { ok: true; config: PicketyConfig }
-    | { ok: false; errors: ConfigError[] };
-  ```
-- Each `ConfigError` includes a human-readable message and, where possible, a JSON path (e.g., `rules.module-boundaries.severity`).
-- Surface config errors as VS Code diagnostics on `pickety.json` itself — red squiggles on the invalid field.
-- Show an output channel message on activation failure so users know pickety is broken.
-
-**Files to change:**
-- `src/types.ts` — add `ConfigError` type
-- `src/core/config.ts` — rewrite `validateConfig` to collect errors instead of returning early
-- `src/extension.ts` — handle error results, show diagnostics on `pickety.json`
-- `src/test/core/config.test.ts` — update tests for new return type
-
-**Validation messages to support:**
-- `pickety.json is not valid JSON: <parse error>`
-- `"modules" is required and must be an object`
-- `Module "<name>" pattern must be a string, got <type>`
-- `"rules" is required and must be an object`
-- `"rules.module-boundaries" is required and must be an object`
-- `"rules.module-boundaries.severity" must be "error" or "warn", got "<value>"`
-- `"rules.module-boundaries.rules" must be an array`
-- `Rule #<n>: "importer" is required and must be a string`
-- `Rule #<n>: "imports" is required and must be a string`
-- `Rule #<n>: "allow" must be a boolean`
-- `Rule #<n>: "message" must be a string`
+- [x] **Completed**: Implemented and tested.
+- [>] **In Progress**: Currently being worked on or partially implemented.
+- [ ] **Planned**: Future enhancement.
 
 ---
 
-### 1.2 Real-Time Analysis on Text Change
+## Phase 1: Foundational DX [Completed]
 
-**Problem:** Violations only appear on file save. Users write bad imports, keep coding, then get surprised when they save.
+Addresses the biggest pain points — silent failures and delayed feedback.
 
-**Solution:**
-
-- Add `onDidChangeTextDocument` listener in `extension.ts`.
-- Debounce analysis (300ms) to avoid running on every keystroke.
-- Clear stale diagnostics immediately when a file is modified so old violations don't linger.
-
-**Files to change:**
-- `src/extension.ts` — add change listener with debounce
+- [x] **1.1 Config Validation Errors**: Structured errors for `pickety.json` with human-readable messages and workspace diagnostics.
+- [x] **1.2 Real-Time Analysis**: Debounced analysis on text change (300ms) with immediate stale diagnostic clearing.
+- [x] **1.3 Path Alias Support**: Full support for `tsconfig.json` path aliases and `baseUrl` resolution.
 
 ---
 
-### 1.3 tsconfig.json Path Alias Support
+## Phase 2: Better Violation Context [Completed]
 
-**Problem:** `resolveImport` accepts an `aliases` parameter but it's never populated. Most TypeScript projects use `@/*` path aliases via `tsconfig.json`. Without this, pickety silently skips all aliased imports — a major blind spot.
+Makes violations easier to understand and act on.
 
-**Solution:**
-
-- Read `tsconfig.json` (and `tsconfig.app.json`, etc.) from the workspace root on activation.
-- Extract `compilerOptions.paths` and `compilerOptions.baseUrl`.
-- Convert tsconfig paths to the alias format `resolveImport` already supports.
-- Watch for `tsconfig.json` changes and reload aliases.
-
-**Files to change:**
-- `src/core/config.ts` — add `loadTsConfigAliases` function
-- `src/extension.ts` — call alias loader, pass aliases to `checkBoundaries`
-- `src/core/boundaries.ts` — pass aliases through to `resolveImport`
-- `src/core/imports.ts` — no changes needed (already supports aliases)
-- `src/test/core/imports.test.ts` — add alias integration tests
+- [x] **2.1 Per-Rule Severity**: Support for `severity` overrides on individual rules ("error" vs "warn").
+- [x] **2.2 Rule Identification**: Support for `name` field in rules. Violations now include rule identifiers.
+- [x] **2.3 Documentation Links**: Clickable diagnostic codes that link directly to rule documentation on GitHub.
 
 ---
 
-## Phase 2: Better Violation Context
-
-These improvements make violations easier to understand and act on.
-
-### 2.1 Per-Rule Severity
-
-**Problem:** Severity is global — every rule is either `error` or `warn`. In practice, some boundaries are hard lines (never cross) while others are soft preferences (we'd rather you didn't).
-
-**Solution:**
-
-- Add optional `severity` field to `BoundaryRule` that overrides the global severity.
-- Fall back to the global `rules.module-boundaries.severity` when not specified.
-
-**Files to change:**
-- `src/types.ts` — add optional `severity` to `BoundaryRule`
-- `src/core/config.ts` — validate per-rule severity
-- `src/core/boundaries.ts` — use rule-level severity when present
-- `src/test/core/boundaries.test.ts` — add per-rule severity tests
-
----
-
-### 2.2 Rule Identification in Violations
-
-**Problem:** When a user sees `Module "routes" cannot import from "features"`, they have to manually search `pickety.json` to find which rule caused it. This is tedious with many rules.
-
-**Solution:**
-
-- Add optional `name` field to `BoundaryRule`.
-- Include rule name (or index fallback) in violation messages:
-  ```
-  [no-cross-feature] Module "routes" cannot import from "features" (importing "../features/auth")
-  ```
-- Include rule info in the diagnostic's `code` field for VS Code UI.
-
-**Files to change:**
-- `src/types.ts` — add optional `name` to `BoundaryRule`
-- `src/core/config.ts` — validate rule name
-- `src/core/boundaries.ts` — include rule name in violation messages
-- `src/extension.ts` — set `diagnostic.code` with rule name
-
----
-
-### 2.3 Diagnostic Codes with Documentation Links
-
-**Problem:** Violations show a message but offer no path to learn more. Users new to pickety don't know what to do.
-
-**Solution:**
-
-- Set `diagnostic.code` with a `target` URI that links to documentation.
-- The link appears as a clickable code in VS Code's Problems panel.
-
-**Files to change:**
-- `src/extension.ts` — set `diagnostic.code` with value and target URI
-
----
-
-## Phase 3: Editor Integration
+## Phase 3: Editor Integration [Completed]
 
 Deeper VS Code integration for a smoother workflow.
 
-### 3.1 Status Bar Indicator
-
-**Problem:** When pickety is inactive (broken config, no `pickety.json`), there's no visible indication. Users may think they're protected when they're not.
-
-**Solution:**
-
-- Add a status bar item that shows one of:
-  - `Pickety: active` — config loaded, monitoring
-  - `Pickety: 3 violations` — click to show Problems panel
-  - `Pickety: config error` — click to open `pickety.json`
-  - `Pickety: inactive` — no `pickety.json` found
-- Update the status bar on config load, analysis completion, and config errors.
-
-**Files to change:**
-- `src/extension.ts` — create and manage status bar item
+- [x] **3.1 Status Bar Indicator**: Persistent indicator in the status bar showing Pickety's status and violation count.
+- [x] **3.2 Quick Fixes**:
+  - [x] "Go to rule": Instantly jump to the rule in `pickety.json`.
+  - [ ] "Suppress this line": Insert `// pickety-ignore-next-line` (Planned).
+- [ ] **3.3 Boundary Diagram Visualizer**: Instead of just generating a Mermaid file, provide a "Show Diagram" command that opens a live preview in a Webview.
 
 ---
 
-### 3.2 Quick Fixes via Code Actions
+## Phase 4: Production Readiness [In Progress]
 
-**Problem:** When a violation is flagged, the only option is to manually fix the import or update the config. There's no assisted path.
+Polishing Pickety for Marketplace release and high performance.
 
-**Solution:**
+### 4.1 Branding & Marketplace Presence
 
-- Register a `CodeActionProvider` for pickety diagnostics.
-- Offer these quick fixes:
-  - **"Suppress this line"** — insert `// pickety-ignore-next-line` comment above the import
-  - **"Go to rule"** — open `pickety.json` and jump to the rule that triggered the violation
-- This requires:
-  - A comment-based suppression system in `boundaries.ts`
-  - Tracking which rule index triggered each violation
+- [x] **Icon**: Professional logo integration.
+- [x] **Manifest Polish**: Added publisher ID, repository links, license, and keywords to `package.json`.
+- [ ] **Media**: Add an animated GIF to `README.md` (Planned).
 
-**Files to change:**
-- `src/types.ts` — add rule index to `Violation`
-- `src/core/boundaries.ts` — detect suppression comments, attach rule index
-- `src/extension.ts` — register `CodeActionProvider`
-- `src/test/core/boundaries.test.ts` — test suppression comments
+### 4.2 Performance & Build Optimization
 
----
+- [x] **esbuild Bundling**: Production build pipeline with `esbuild` (minification, bundling, bundling into `out/extension.js`).
+- [ ] **Lazy Loading**: (Planned).
 
-## Implementation Order
+### 4.3 Robustness & UX
 
-```
-Phase 1 (Foundation)
-  1.1 Config validation errors     ← start here
-  1.2 Real-time analysis
-  1.3 tsconfig alias support
+- [x] **jsonc-parser Integration**: Switched to `jsonc-parser` for 100% accurate rule navigation.
+- [x] **Progress Notifications**: Added scan indicator for large project file discovery.
+- [x] **Improved JSON Schema**: Enhanced with markdown descriptions and rule examples.
 
-Phase 2 (Context)
-  2.1 Per-rule severity
-  2.2 Rule identification
-  2.3 Diagnostic links
+### 4.4 Documentation
 
-Phase 3 (Integration)
-  3.1 Status bar
-  3.2 Quick fixes
-```
-
-Each item is independently shippable. Within each phase, items are ordered by dependency — earlier items inform later ones (e.g., rule identification in 2.2 is used by quick fixes in 3.2).
+- [x] **Getting Started Guide**: Created `docs/setup.md`.
+- [x] **Rule Recipes**: Created `docs/recipes.md` with common patterns (FSD, Onion, etc.).

@@ -183,6 +183,22 @@ function validateConfig(parsed: unknown): ConfigResult {
 
       }
 
+      // boundary-diagrams validation
+      let boundaryDiagrams: boolean | string | undefined = undefined;
+      if (obj["boundary-diagrams"] !== undefined) {
+        if (
+          typeof obj["boundary-diagrams"] !== "boolean" &&
+          typeof obj["boundary-diagrams"] !== "string"
+        ) {
+          errors.push({
+            message: '"boundary-diagrams" must be a boolean or a string',
+            path: "boundary-diagrams",
+          });
+        } else {
+          boundaryDiagrams = obj["boundary-diagrams"] as boolean | string;
+        }
+      }
+
       if (errors.length === 0) {
         return {
           ok: true,
@@ -194,6 +210,7 @@ function validateConfig(parsed: unknown): ConfigResult {
                 rules: bObj.rules as any[],
               },
             },
+            "boundary-diagrams": boundaryDiagrams,
           },
         };
       }
@@ -202,6 +219,7 @@ function validateConfig(parsed: unknown): ConfigResult {
 
   return { ok: false, errors };
 }
+
 
 /**
  * Loads tsconfig.json and returns path aliases.

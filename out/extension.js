@@ -38,13 +38,16 @@ exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
+const jsonc = __importStar(require("jsonc-parser"));
 const config_1 = require("./core/config");
 const boundaries_1 = require("./core/boundaries");
+const diagram_1 = require("./core/diagram");
 let config;
 let aliases = {};
 let knownFiles;
 let diagnosticCollection;
 let outputChannel;
+let statusBarItem;
 let analysisTimeout;
 function activate(context) {
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -55,11 +58,22 @@ function activate(context) {
     context.subscriptions.push(outputChannel);
     diagnosticCollection = vscode.languages.createDiagnosticCollection("pickety");
     context.subscriptions.push(diagnosticCollection);
+    statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+    statusBarItem.command = "pickety.refresh";
+    context.subscriptions.push(statusBarItem);
+    updateStatusBar();
+    statusBarItem.show();
     // Discover all source files in the workspace for import resolution
     knownFiles = new Set();
     const refreshKnownFiles = async () => {
-        const files = await vscode.workspace.findFiles("**/*.{ts,tsx,js,jsx,mjs,cjs}", "**/node_modules/**");
-        knownFiles = new Set(files.map((f) => f.fsPath.replace(/\\/g, "/")));
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: "Pickety: Scanning workspace...",
+            cancellable: false,
+        }, async () => {
+            const files = await vscode.workspace.findFiles("**/*.{ts,tsx,js,jsx,mjs,cjs}", "**/node_modules/**");
+            knownFiles = new Set(files.map((f) => f.fsPath.replace(/\\/g, "/")));
+        });
     };
     // Analyze a single document and update its diagnostics
     const analyzeDocument = (document) => {
@@ -88,6 +102,7 @@ function activate(context) {
             return diagnostic;
         });
         diagnosticCollection.set(document.uri, diagnostics);
+        updateStatusBar();
     };
     // Analyze all currently open text editors
     const analyzeOpenEditors = () => {
@@ -100,11 +115,17 @@ function activate(context) {
         if (result.ok) {
             config = result.config;
             outputChannel.appendLine("Pickety: Import boundaries active");
+            const diagramPath = (0, diagram_1.generateMermaidDiagram)(result.config, workspaceRoot);
+            if (diagramPath) {
+                outputChannel.appendLine(`Pickety: Generated boundary diagram at ${diagramPath}`);
+            }
             analyzeOpenEditors();
+            updateStatusBar();
         }
         else {
             config = undefined;
             reportConfigErrors(result.errors, workspaceRoot);
+            updateStatusBar();
         }
     };
     const reportConfigErrors = (errors, root) => {
@@ -180,6 +201,20 @@ function activate(context) {
         refreshKnownFiles().then(analyzeOpenEditors);
         vscode.window.showInformationMessage("Pickety: Configuration refreshed");
     }));
+    // Register Generate Diagram command
+    context.subscriptions.push(vscode.commands.registerCommand("pickety.generateDiagram", () => {
+        if (!config) {
+            vscode.window.showErrorMessage("Pickety: No active configuration. Check pickety.json for errors.");
+            return;
+        }
+        const diagramPath = (0, diagram_1.generateMermaidDiagram)(config, workspaceRoot);
+        if (diagramPath) {
+            vscode.window.showInformationMessage(`Pickety: Generated boundary diagram at ${diagramPath}`);
+        }
+        else {
+            vscode.window.showErrorMessage("Pickety: Failed to generate diagram. Is 'boundary-diagrams' enabled in pickety.json?");
+        }
+    }));
     // Register Go to Rule command (called by Code Action)
     context.subscriptions.push(vscode.commands.registerCommand("pickety.goToRule", (root, rule) => goToRule(root, rule)));
     // Register Code Action Provider for "Go to Rule"
@@ -232,34 +267,73 @@ async function goToRule(workspaceRoot, ruleName) {
     const document = await vscode.workspace.openTextDocument(vscode.Uri.file(configPath));
     const editor = await vscode.window.showTextDocument(document);
     const text = document.getText();
-    let offset = -1;
-    // Search for the rule name or index in the JSON text
-    if (typeof ruleName === "string" && !ruleName.startsWith("rule[")) {
-        // Try to find the rule name in quotes
-        offset = text.indexOf(`"${ruleName}"`);
+    const root = jsonc.parseTree(text);
+    if (!root) {
+        return;
     }
-    else {
-        // For rule index (e.g., "rule[1]"), try to find the Nth occurrence of "importer"
-        // (This is a heuristic since we don't have a full JSON parser with positions)
-        const indexMatch = String(ruleName).match(/rule\[(\d+)\]/);
-        const index = indexMatch ? parseInt(indexMatch[1]) : -1;
-        if (index !== -1) {
-            let currentIdx = 0;
-            let pos = -1;
-            while (currentIdx <= index) {
-                pos = text.indexOf('"importer"', pos + 1);
-                if (pos === -1) {
+    let offset = -1;
+    // Search for the rule in the JSON tree
+    const boundariesNode = jsonc.findNodeAtLocation(root, ["rules", "module-boundaries", "rules"]);
+    if (boundariesNode && boundariesNode.children) {
+        if (typeof ruleName === "string" && !ruleName.startsWith("rule[")) {
+            // Find rule by name
+            for (const ruleNode of boundariesNode.children) {
+                const nameNode = jsonc.findNodeAtLocation(ruleNode, ["name"]);
+                if (nameNode && nameNode.value === ruleName) {
+                    offset = ruleNode.offset;
                     break;
                 }
-                currentIdx++;
             }
-            offset = pos;
+            // Fallback: if name not found, maybe ruleName IS the importer (old behavior)
+            if (offset === -1) {
+                for (const ruleNode of boundariesNode.children) {
+                    const importerNode = jsonc.findNodeAtLocation(ruleNode, ["importer"]);
+                    if (importerNode && importerNode.value === ruleName) {
+                        offset = importerNode.offset;
+                        break;
+                    }
+                }
+            }
+        }
+        else {
+            // Find rule by index (e.g., "rule[1]")
+            const indexMatch = String(ruleName).match(/rule\[(\d+)\]/);
+            const index = indexMatch ? parseInt(indexMatch[1]) : -1;
+            if (index !== -1 && boundariesNode.children[index]) {
+                offset = boundariesNode.children[index].offset;
+            }
         }
     }
     if (offset !== -1) {
         const position = document.positionAt(offset);
         editor.selection = new vscode.Selection(position, position);
         editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
+    }
+}
+// Update the status bar text and tooltip
+function updateStatusBar() {
+    if (!statusBarItem) {
+        return;
+    }
+    if (!config) {
+        statusBarItem.text = "$(warning) Pickety: No Config";
+        statusBarItem.tooltip = "Pickety is inactive. Check pickety.json for errors.";
+        statusBarItem.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
+        return;
+    }
+    let violationCount = 0;
+    diagnosticCollection.forEach((uri, diagnostics) => {
+        violationCount += diagnostics.filter((d) => d.source === "pickety").length;
+    });
+    if (violationCount > 0) {
+        statusBarItem.text = `$(shield) Pickety: ${violationCount} issue(s)`;
+        statusBarItem.tooltip = `Found ${violationCount} architectural violations. Click to refresh.`;
+        statusBarItem.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
+    }
+    else {
+        statusBarItem.text = "$(check) Pickety";
+        statusBarItem.tooltip = "Architectural boundaries are secure. Click to refresh.";
+        statusBarItem.backgroundColor = undefined;
     }
 }
 // Returns true if the document is a TypeScript/JavaScript source file

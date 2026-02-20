@@ -209,6 +209,20 @@ function validateConfig(parsed) {
                     }
                 });
             }
+            // boundary-diagrams validation
+            let boundaryDiagrams = undefined;
+            if (obj["boundary-diagrams"] !== undefined) {
+                if (typeof obj["boundary-diagrams"] !== "boolean" &&
+                    typeof obj["boundary-diagrams"] !== "string") {
+                    errors.push({
+                        message: '"boundary-diagrams" must be a boolean or a string',
+                        path: "boundary-diagrams",
+                    });
+                }
+                else {
+                    boundaryDiagrams = obj["boundary-diagrams"];
+                }
+            }
             if (errors.length === 0) {
                 return {
                     ok: true,
@@ -220,6 +234,7 @@ function validateConfig(parsed) {
                                 rules: bObj.rules,
                             },
                         },
+                        "boundary-diagrams": boundaryDiagrams,
                     },
                 };
             }

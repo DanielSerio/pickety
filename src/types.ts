@@ -31,7 +31,9 @@ export interface PicketyConfig {
       rules: BoundaryRule[];
     };
   };
+  "boundary-diagrams"?: boolean | string;
 }
+
 
 // An extracted import statement with position info
 export interface ImportStatement {

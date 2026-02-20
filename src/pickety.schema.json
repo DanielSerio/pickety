@@ -1,21 +1,25 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Pickety Configuration",
+  "description": "Configuration for Pickety, a high-performance architectural enforcement engine for TypeScript.",
   "type": "object",
   "properties": {
     "modules": {
       "type": "object",
-      "description": "Definition of modules and their file glob patterns.",
+      "description": "Map module names to file glob patterns. Files belong to the first module that matches.",
+      "markdownDescription": "Map module names to file glob patterns. Files belong to the first module that matches.\n\nExample:\n```json\n{\n  \"features\": \"src/features/*\",\n  \"components\": \"src/components/**/*\"\n}\n```",
       "additionalProperties": {
         "type": "string",
-        "description": "Glob pattern for the module files (e.g., 'src/features/*')."
+        "description": "Glob pattern for the module files."
       }
     },
     "rules": {
       "type": "object",
+      "description": "Architectural rules enforcement.",
       "properties": {
         "module-boundaries": {
           "type": "object",
+          "description": "Import boundary rules.",
           "properties": {
             "severity": {
               "type": "string",
@@ -23,10 +27,12 @@
                 "error",
                 "warn"
               ],
-              "default": "error"
+              "default": "error",
+              "description": "Default severity for all violations."
             },
             "rules": {
               "type": "array",
+              "description": "List of boundary rules.",
               "items": {
                 "type": "object",
                 "required": [
@@ -36,20 +42,22 @@
                 "properties": {
                   "importer": {
                     "type": "string",
-                    "description": "Name of the importing module or a glob pattern."
+                    "description": "Source module name or glob pattern.",
+                    "markdownDescription": "Source module name or glob pattern.\n\nSupports `$variable` interpolation to match importer subdirectories with target subdirectories."
                   },
                   "imports": {
                     "type": "string",
-                    "description": "Name of the imported module or a glob pattern (supports $variables)."
+                    "description": "Target module name, glob, or relative path pattern.",
+                    "markdownDescription": "Target module name, glob, or relative path pattern.\n\nSupports `$variable` interpolation."
                   },
                   "allow": {
                     "type": "boolean",
-                    "description": "Whether the import is allowed. Defaults to false (deny).",
+                    "description": "Permit or deny the import. Defaults to false (deny).",
                     "default": false
                   },
                   "message": {
                     "type": "string",
-                    "description": "Custom error message when the rule is violated."
+                    "description": "Custom error message shown in the editor."
                   },
                   "severity": {
                     "type": "string",
@@ -57,11 +65,11 @@
                       "error",
                       "warn"
                     ],
-                    "description": "Override global severity for this rule."
+                    "description": "Override the global severity for this specific rule."
                   },
                   "name": {
                     "type": "string",
-                    "description": "Optional name for identification / documentation."
+                    "description": "Unique identifier for the rule. Used in diagnostics and 'Go to Rule' navigation."
                   }
                 }
               }
@@ -75,6 +83,18 @@
       "required": [
         "module-boundaries"
       ]
+    },
+    "boundary-diagrams": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "description": "Generate a Mermaid diagram on save.",
+      "markdownDescription": "Automatically generate a Mermaid diagram of module boundaries on every save.\n\n- `true`: Writes to `picket-boundaries.mermaid` in workspace root.\n- `\"path/to/file.mermaid\"`: Writes to a custom path."
     }
   },
   "required": [

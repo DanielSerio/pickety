@@ -6,10 +6,26 @@
     "name": "Dan Serio"
   },
   "version": "0.0.1",
+  "publisher": "danserio",
+  "icon": "resources/icon.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/danserio/pickety.git"
+  },
+  "keywords": [
+    "architecture",
+    "typescript",
+    "SOLID",
+    "boundaries",
+    "mermaid"
+  ],
   "engines": {
     "vscode": "^1.107.0"
   },
   "categories": [
+    "Linters",
+    "Visualization",
     "Other"
   ],
   "activationEvents": [
@@ -22,6 +38,11 @@
         "command": "pickety.refresh",
         "title": "Pickety: Refresh Configuration",
         "category": "Pickety"
+      },
+      {
+        "command": "pickety.generateDiagram",
+        "title": "Pickety: Generate Boundary Diagram",
+        "category": "Pickety"
       }
     ],
     "jsonValidation": [
@@ -32,9 +53,11 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run build",
+    "compile": "npm run build",
+    "build": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --minify",
+    "watch": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --watch",
+    "type-check": "tsc -p ./ --noEmit",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
@@ -46,12 +69,14 @@
     "@types/vscode": "^1.107.0",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.27.3",
     "eslint": "^9.39.2",
     "mocha": "^11.7.5",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.54.0"
   },
   "dependencies": {
+    "jsonc-parser": "^3.3.1",
     "minimatch": "^10.2.2"
   }
 }

@@ -86,18 +86,18 @@ export function checkBoundaries(
                 rule.message ||
                 `Module "${sourceModule}" is not allowed to import from "${targetModule}" (contained to "${expectedImporter}")`;
 
-                          violations.push(
-                            createViolation(
-                              filePath,
-                              importStmt,
-                              ruleName,
-                              message,
-                              ruleSeverity,
-                              sourceModule,
-                              targetModule
-                            )
-                          );
-              
+              violations.push(
+                createViolation(
+                  filePath,
+                  importStmt,
+                  ruleName,
+                  message,
+                  ruleSeverity,
+                  sourceModule,
+                  targetModule
+                )
+              );
+
             }
           }
         } else {
@@ -137,18 +137,18 @@ export function checkBoundaries(
                 rule.message ||
                 `Import must match scoped pattern "${specificPattern}"`;
 
-                          violations.push(
-                            createViolation(
-                              filePath,
-                              importStmt,
-                              ruleName,
-                              message,
-                              ruleSeverity,
-                              sourceModule,
-                              targetModule
-                            )
-                          );
-              
+              violations.push(
+                createViolation(
+                  filePath,
+                  importStmt,
+                  ruleName,
+                  message,
+                  ruleSeverity,
+                  sourceModule,
+                  targetModule
+                )
+              );
+
             }
           } else {
             // allow: false — deny imports matching the specific interpolated pattern
@@ -239,7 +239,7 @@ export function getModuleDependencies(
   knownFiles: Set<string>,
   root: string,
   aliases: Record<string, string> = {}
-): { sourceModule: string; targetModules: Set<string> } | undefined {
+): { sourceModule: string; targetModules: Set<string>; } | undefined {
   const { modules } = config;
   const sourceModule = matchFileToModule(filePath, modules, root);
   if (!sourceModule) {
@@ -251,7 +251,9 @@ export function getModuleDependencies(
 
   for (const importStmt of imports) {
     const resolvedPath = resolveImport(importStmt.specifier, filePath, knownFiles, root, aliases);
-    if (!resolvedPath) continue;
+    if (!resolvedPath) {
+      continue;
+    }
 
     const targetModule = matchFileToModule(resolvedPath, modules, root);
     if (targetModule && targetModule !== sourceModule) {
@@ -281,8 +283,11 @@ function matchesModuleOrPath(
     if (minimatch(relativePath, pattern)) {
       return true;
     }
-    // Try with **/ prefix and /** suffix to handle missing root dirs and filenames
-    if (minimatch(relativePath, `**/${pattern}/**`)) {
+    // Match against relative path with flexibility for root dirs and subfolders
+    if (
+      minimatch(relativePath, `**/${pattern}`) ||
+      minimatch(relativePath, `**/${pattern}/**`)
+    ) {
       return true;
     }
   }
@@ -456,7 +461,9 @@ function replaceVariables(
   let result = pattern;
   for (const v of variables) {
     const replacement = typeof values === "string" ? values : values[v];
-    result = result.replace(v, replacement);
+    // Use global replace to handle multiple occurrences of the same variable
+    const escapedV = v.replace(/\$/g, "\\$");
+    result = result.replace(new RegExp(escapedV, "g"), replacement);
   }
   return result;
 }

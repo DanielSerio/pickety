@@ -1,7 +1,6 @@
 .vscode/**
 .vscode-test/**
 .claude/**
-docs/**
 src/**
 .gitignore
 .yarnrc
@@ -22,3 +21,4 @@ out/types.js
 **/*.map
 **/*.ts
 **/.vscode-test.*
+picket-boundaries.mermaid

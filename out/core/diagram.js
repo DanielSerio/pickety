@@ -65,6 +65,13 @@ function generateMermaidDiagram(config, root) {
     else {
         outputPath = path.join(root, defaultFilename);
     }
+    // Prevent path traversal: output must stay inside the workspace root
+    const normalizedRoot = path.resolve(root) + path.sep;
+    const normalizedOutput = path.resolve(outputPath);
+    if (!normalizedOutput.startsWith(normalizedRoot)) {
+        console.error(`Pickety: Diagram output path "${option}" escapes the workspace root. Ignoring.`);
+        return undefined;
+    }
     const mermaidContent = buildMermaidContent(config);
     try {
         const dir = path.dirname(outputPath);
@@ -78,6 +85,17 @@ function generateMermaidDiagram(config, root) {
         console.error(`Pickety: Failed to write Mermaid diagram to ${outputPath}`, err);
         return undefined;
     }
+}
+// Escapes a string for safe use inside Mermaid quoted labels.
+// Strips characters that could break out of label syntax.
+function escapeMermaid(value) {
+    return value
+        .replace(/"/g, "#quot;")
+        .replace(/\[/g, "#lsqb;")
+        .replace(/\]/g, "#rsqb;")
+        .replace(/\|/g, "#vert;")
+        .replace(/</g, "#lt;")
+        .replace(/>/g, "#gt;");
 }
 function buildMermaidContent(config) {
     const lines = ["graph LR"];
@@ -94,24 +112,26 @@ function buildMermaidContent(config) {
     rules.forEach((rule, index) => {
         const allow = rule.allow ?? false;
         const severity = rule.severity ?? globalSeverity;
-        const ruleName = rule.name ?? `rule[${index}]`;
+        const ruleName = escapeMermaid(rule.name ?? `rule[${index}]`);
         const action = allow ? "ALLOW" : "DENY";
         lines.push("");
         lines.push(`  subgraph rule_${index} ["${action}: ${ruleName} (${severity})"]`);
         const fromId = `r${index}_from`;
         const toId = `r${index}_to`;
         // Stadium shape for interpolation patterns, rectangle for plain modules
+        const safeImporter = escapeMermaid(rule.importer);
+        const safeImports = escapeMermaid(rule.imports);
         const fromShape = rule.importer.includes("$")
-            ? `(["${rule.importer}"])`
-            : `["${rule.importer}"]`;
+            ? `(["${safeImporter}"])`
+            : `["${safeImporter}"]`;
         const toShape = rule.imports.includes("$")
-            ? `(["${rule.imports}"])`
-            : `["${rule.imports}"]`;
+            ? `(["${safeImports}"])`
+            : `["${safeImports}"]`;
         lines.push(`    ${fromId}${fromShape}`);
         lines.push(`    ${toId}${toShape}`);
         // Dashed arrow for deny, solid for allow. Label with custom message if present.
         const arrow = allow ? "-->" : "-.->";
-        const label = rule.message ? ` |"${rule.message}"|` : "";
+        const label = rule.message ? ` |"${escapeMermaid(rule.message)}"|` : "";
         lines.push(`    ${fromId} ${arrow}${label} ${toId}`);
         lines.push("  end");
     });

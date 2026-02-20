@@ -79,8 +79,8 @@ suite("generateMermaidDiagram", () => {
         assert.ok(content.includes('r0_from["features"]'));
         assert.ok(content.includes('r0_to["utils"]'));
         assert.ok(content.includes("r0_from -->"));
-        // Rule 1: deny rule without name (falls back to index)
-        assert.ok(content.includes('subgraph rule_1 ["DENY: rule[1] (error)"]'));
+        // Rule 1: deny rule without name (falls back to index, brackets escaped)
+        assert.ok(content.includes('subgraph rule_1 ["DENY: rule#lsqb;1#rsqb; (error)"]'));
         assert.ok(content.includes('r1_from["utils"]'));
         assert.ok(content.includes('r1_to["features"]'));
         assert.ok(content.includes("r1_from -.->"));
@@ -168,6 +168,38 @@ suite("generateMermaidDiagram", () => {
         const config = { ...baseConfig, "boundary-diagrams": false };
         const outputPath = (0, diagram_1.generateMermaidDiagram)(config, tmpDir);
         assert.strictEqual(outputPath, undefined);
+    });
+    test("blocks path traversal outside workspace root", () => {
+        const config = { ...baseConfig, "boundary-diagrams": "../../etc/evil.mermaid" };
+        const outputPath = (0, diagram_1.generateMermaidDiagram)(config, tmpDir);
+        assert.strictEqual(outputPath, undefined);
+    });
+    test("escapes Mermaid-sensitive characters in rule names and messages", () => {
+        const config = {
+            ...baseConfig,
+            "boundary-diagrams": true,
+            rules: {
+                "module-boundaries": {
+                    severity: "error",
+                    rules: [
+                        {
+                            importer: "features",
+                            imports: "utils",
+                            name: 'evil"] ; click x callback ; subgraph x ["',
+                            message: 'inject |"break"| here',
+                        },
+                    ],
+                },
+            },
+        };
+        const outputPath = (0, diagram_1.generateMermaidDiagram)(config, tmpDir);
+        const content = fs.readFileSync(outputPath, "utf-8");
+        // Quotes, brackets, and pipes should be escaped so they can't break out of labels
+        assert.ok(content.includes("#quot;"));
+        assert.ok(content.includes("#rsqb;"));
+        assert.ok(content.includes("#vert;"));
+        // The raw injection sequence "] should NOT appear unescaped
+        assert.ok(!content.includes('"] ;'));
     });
 });
 //# sourceMappingURL=diagram.test.js.map

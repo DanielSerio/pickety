@@ -37,6 +37,7 @@ exports.loadConfig = loadConfig;
 exports.loadTsConfigAliases = loadTsConfigAliases;
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
+const jsonc = __importStar(require("jsonc-parser"));
 const CONFIG_FILENAME = "pickety.json";
 /**
  * Loads and validates pickety.json from the given workspace root.
@@ -266,9 +267,8 @@ function loadTsConfigAliases(workspaceRoot) {
     }
     try {
         const raw = fs.readFileSync(tsConfigPath, "utf-8");
-        // Strip comments manually since JSON.parse doesn't support them
-        const clean = raw.replace(/\/\/.*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
-        const parsed = JSON.parse(clean);
+        // Use jsonc-parser to handle comments and trailing commas correctly
+        const parsed = jsonc.parse(raw);
         const compilerOptions = parsed.compilerOptions;
         if (!compilerOptions) {
             return aliases;

@@ -205,47 +205,103 @@ function findVariables(pattern: string): string[] {
   return matches || [];
 }
 
-// Converts a glob pattern with $variables to a regex, matches it against a file path,
-// and returns the captured variable values. Returns undefined if no match.
+// Matches a glob pattern with $variables against a file path using segment-based
+// matching. Avoids regex with multiple .* quantifiers to prevent ReDoS.
+// Returns captured variable values, or undefined if no match.
 function captureVariablesFromPath(
   pattern: string,
   relativePath: string,
   variables: string[]
 ): Record<string, string> | undefined {
-  let regexStr = pattern;
-  const varOrder: string[] = [];
+  // Split pattern and path into segments for iterative matching
+  const patternSegments = pattern.split("/");
+  const pathSegments = relativePath.split("/");
 
-  // Replace $variables with unique placeholders before escaping
-  for (const v of variables) {
-    regexStr = regexStr.replace(v, `__VAR_${varOrder.length}__`);
-    varOrder.push(v);
+  // Try matching at every possible starting offset in the path
+  // (pattern "routes/$name" should match "src/routes/auth/index.ts")
+  const minStart = 0;
+  const maxStart = pathSegments.length - patternSegments.length;
+
+  for (let start = minStart; start <= maxStart; start++) {
+    const captured = tryMatchSegments(patternSegments, pathSegments, start, variables);
+    if (captured) {
+      return captured;
+    }
   }
 
-  // Escape regex special chars (preserve * for glob conversion)
-  regexStr = regexStr.replace(/[.+?^{}()|[\]\\]/g, "\\$&");
+  return undefined;
+}
 
-  // Convert glob patterns to regex (** before *)
-  regexStr = regexStr.replace(/\*\*/g, ".*");
-  regexStr = regexStr.replace(/\*/g, "[^/]*");
-
-  // Replace placeholders with capture groups
-  for (let i = 0; i < varOrder.length; i++) {
-    regexStr = regexStr.replace(`__VAR_${i}__`, "([^/]+)");
-  }
-
-  // Allow optional prefix (e.g., src/) and optional trailing path segments
-  // so "routes/$name" matches "src/routes/auth/index.ts"
-  const regex = new RegExp(`(?:^|.+/)${regexStr}(?:/.*)?$`);
-  const match = relativePath.match(regex);
-
-  if (!match) {
-    return undefined;
-  }
-
+// Attempts to match pattern segments against path segments starting at a given offset.
+// Returns captured variables on success, undefined on failure.
+function tryMatchSegments(
+  patternSegments: string[],
+  pathSegments: string[],
+  startOffset: number,
+  variables: string[]
+): Record<string, string> | undefined {
   const result: Record<string, string> = {};
-  for (let i = 0; i < varOrder.length; i++) {
-    result[varOrder[i]] = match[i + 1];
+  let pathIdx = startOffset;
+
+  for (let i = 0; i < patternSegments.length; i++) {
+    const seg = patternSegments[i];
+
+    if (seg === "**") {
+      // ** matches zero or more segments. Try each possible endpoint.
+      const remaining = patternSegments.slice(i + 1);
+      if (remaining.length === 0) {
+        // ** at end matches everything remaining
+        return result;
+      }
+      // Try matching the rest of the pattern at every remaining position
+      for (let skip = pathIdx; skip <= pathSegments.length - remaining.length; skip++) {
+        const subResult = tryMatchSegments(remaining, pathSegments, skip, variables);
+        if (subResult) {
+          return { ...result, ...subResult };
+        }
+      }
+      return undefined;
+    }
+
+    if (pathIdx >= pathSegments.length) {
+      return undefined;
+    }
+
+    // Build a regex for this single segment (no .* — only [^/]+ and [^/]*)
+    let segRegex = seg;
+    const varOrder: string[] = [];
+
+    // Replace $variables with placeholders
+    for (const v of variables) {
+      if (segRegex.includes(v)) {
+        segRegex = segRegex.replace(v, `__VAR_${varOrder.length}__`);
+        varOrder.push(v);
+      }
+    }
+
+    // Escape regex special chars, preserving * for glob conversion
+    segRegex = segRegex.replace(/[.+?^{}()|[\]\\]/g, "\\$&");
+    // Single * matches any non-slash characters within one segment
+    segRegex = segRegex.replace(/\*/g, "[^/]*");
+
+    // Replace placeholders with capture groups
+    for (let j = 0; j < varOrder.length; j++) {
+      segRegex = segRegex.replace(`__VAR_${j}__`, "([^/]+)");
+    }
+
+    const match = pathSegments[pathIdx].match(new RegExp(`^${segRegex}$`));
+    if (!match) {
+      return undefined;
+    }
+
+    // Collect captured variables from this segment
+    for (let j = 0; j < varOrder.length; j++) {
+      result[varOrder[j]] = match[j + 1];
+    }
+
+    pathIdx++;
   }
+
   return result;
 }
 

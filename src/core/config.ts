@@ -1,5 +1,6 @@
 import * as path from "path";
 import * as fs from "fs";
+import * as jsonc from "jsonc-parser";
 import type {
   PicketyConfig,
   ConfigResult,
@@ -251,9 +252,8 @@ export function loadTsConfigAliases(
 
   try {
     const raw = fs.readFileSync(tsConfigPath, "utf-8");
-    // Strip comments manually since JSON.parse doesn't support them
-    const clean = raw.replace(/\/\/.*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
-    const parsed = JSON.parse(clean);
+    // Use jsonc-parser to handle comments and trailing commas correctly
+    const parsed = jsonc.parse(raw);
 
     const compilerOptions = parsed.compilerOptions;
     if (!compilerOptions) {

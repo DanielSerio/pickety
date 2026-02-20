@@ -173,9 +173,15 @@ function validateConfig(parsed) {
                         });
                         return;
                     }
-                    if (typeof rule.importer !== "string") {
+                    if (typeof rule.importer !== "string" && typeof rule.containedTo !== "string") {
                         errors.push({
-                            message: `Rule #${index}: "importer" is required and must be a string`,
+                            message: `Rule #${index}: "importer" or "containedTo" is required`,
+                            path: rulePath,
+                        });
+                    }
+                    if (rule.importer !== undefined && typeof rule.importer !== "string") {
+                        errors.push({
+                            message: `Rule #${index}: "importer" must be a string`,
                             path: `${rulePath}.importer`,
                         });
                     }
@@ -189,6 +195,18 @@ function validateConfig(parsed) {
                         errors.push({
                             message: `Rule #${index}: "allow" must be a boolean`,
                             path: `${rulePath}.allow`,
+                        });
+                    }
+                    if (rule.only !== undefined && typeof rule.only !== "boolean") {
+                        errors.push({
+                            message: `Rule #${index}: "only" must be a boolean`,
+                            path: `${rulePath}.only`,
+                        });
+                    }
+                    if (rule.containedTo !== undefined && typeof rule.containedTo !== "string") {
+                        errors.push({
+                            message: `Rule #${index}: "containedTo" must be a string`,
+                            path: `${rulePath}.containedTo`,
                         });
                     }
                     if (rule.message !== undefined && typeof rule.message !== "string") {
@@ -208,6 +226,14 @@ function validateConfig(parsed) {
                             message: `Rule #${index}: "name" must be a string`,
                             path: `${rulePath}.name`,
                         });
+                    }
+                    if (rule.maxViolations !== undefined) {
+                        if (typeof rule.maxViolations !== "number" || !Number.isInteger(rule.maxViolations) || rule.maxViolations < 0) {
+                            errors.push({
+                                message: `Rule #${index}: "maxViolations" must be a non-negative integer`,
+                                path: `${rulePath}.maxViolations`,
+                            });
+                        }
                     }
                 });
             }

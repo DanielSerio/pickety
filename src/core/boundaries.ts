@@ -1,7 +1,7 @@
 import * as path from "path";
 import { minimatch } from "minimatch";
 import { extractImports, resolveImport, matchFileToModule } from "./imports";
-import type { PicketyConfig, Violation } from "../types";
+import type { PicketyConfig, Violation, Severity } from "../types";
 import {
   normalizePath,
   matchesPattern,
@@ -58,96 +58,147 @@ export function checkBoundaries(
     // Check each boundary rule for a match
     rules.forEach((rule, index) => {
       const { allow, severity: ruleSeverity, name: ruleName } = resolveRuleDefaults(rule, index, severity);
-      const variables = findVariables(rule.importer);
+      const effectiveImporter = rule.containedTo || rule.importer || "*";
+      const isOnly = rule.only || !!rule.containedTo;
+      const variables = findVariables(isOnly ? rule.imports : effectiveImporter);
 
       if (variables.length > 0) {
-        // Interpolation rule: capture variables from source file path
-        const captured = captureVariablesFromPath(
-          rule.importer,
-          sourceRelativePath,
-          variables
-        );
-        if (!captured) {
-          return; // importer pattern doesn't match this file
-        }
-
-        if (allow) {
-          // allow: true — enforce that imports matching the general pattern
-          // also match the specific interpolated pattern
-          const generalPattern = replaceVariables(rule.imports, variables, "*");
-          const specificPattern = replaceVariables(
+        if (isOnly) {
+          // ONLY rule with interpolation: capture variables from target path
+          const captured = captureVariablesFromPath(
             rule.imports,
-            variables,
-            captured
-          );
-
-          const matchesGeneral = matchesTarget(
-            targetModule,
             targetRelativePath,
-            generalPattern
+            variables
           );
-          const matchesSpecific = matchesTarget(
-            targetModule,
-            targetRelativePath,
-            specificPattern
-          );
-
-          if (matchesGeneral && !matchesSpecific) {
-            const message =
-              rule.message ||
-              `Import must match scoped pattern "${specificPattern}"`;
-
-            violations.push(
-              createViolation(
-                filePath,
-                importStmt,
-                ruleName,
-                rule.message || `Import must match scoped pattern "${specificPattern}"`,
-                ruleSeverity
-              )
+          if (captured) {
+            const expectedImporter = replaceVariables(
+              effectiveImporter,
+              variables,
+              captured
             );
+            const sourceMatches = matchesModuleOrPath(
+              sourceModule,
+              sourceRelativePath,
+              expectedImporter
+            );
+            if (!sourceMatches) {
+              const message =
+                rule.message ||
+                `Module "${sourceModule}" is not allowed to import from "${targetModule}" (contained to "${expectedImporter}")`;
+
+              violations.push(
+                createViolation(
+                  filePath,
+                  importStmt,
+                  ruleName,
+                  message,
+                  ruleSeverity
+                )
+              );
+            }
           }
         } else {
-          // allow: false — deny imports matching the specific interpolated pattern
-          const specificPattern = replaceVariables(
-            rule.imports,
-            variables,
-            captured
+          // Normal interpolation rule: capture variables from source file path
+          const captured = captureVariablesFromPath(
+            effectiveImporter,
+            sourceRelativePath,
+            variables
           );
+          if (!captured) {
+            return; // importer pattern doesn't match this file
+          }
 
-          const toMatches = matchesTarget(
-            targetModule,
-            targetRelativePath,
-            specificPattern
-          );
-
-          if (toMatches) {
-            const message =
-              rule.message ||
-              `Module "${sourceModule}" cannot import from "${targetModule}"`;
-
-            violations.push(
-              createViolation(
-                filePath,
-                importStmt,
-                ruleName,
-                rule.message || `Module "${sourceModule}" cannot import from "${targetModule}"`,
-                ruleSeverity
-              )
+          if (allow) {
+            // allow: true — enforce that imports matching the general pattern
+            // also match the specific interpolated pattern
+            const generalPattern = replaceVariables(rule.imports, variables, "*");
+            const specificPattern = replaceVariables(
+              rule.imports,
+              variables,
+              captured
             );
+
+            const matchesGeneral = matchesModuleOrPath(
+              targetModule,
+              targetRelativePath,
+              generalPattern
+            );
+            const matchesSpecific = matchesModuleOrPath(
+              targetModule,
+              targetRelativePath,
+              specificPattern
+            );
+
+            if (matchesGeneral && !matchesSpecific) {
+              const message =
+                rule.message ||
+                `Import must match scoped pattern "${specificPattern}"`;
+
+              violations.push(
+                createViolation(
+                  filePath,
+                  importStmt,
+                  ruleName,
+                  message,
+                  ruleSeverity
+                )
+              );
+            }
+          } else {
+            // allow: false — deny imports matching the specific interpolated pattern
+            const specificPattern = replaceVariables(
+              rule.imports,
+              variables,
+              captured
+            );
+
+            const toMatches = matchesModuleOrPath(
+              targetModule,
+              targetRelativePath,
+              specificPattern
+            );
+
+            if (toMatches) {
+              const message =
+                rule.message ||
+                `Module "${sourceModule}" cannot import from "${targetModule}"`;
+
+              violations.push(
+                createViolation(
+                  filePath,
+                  importStmt,
+                  ruleName,
+                  message,
+                  ruleSeverity
+                )
+              );
+            }
           }
         }
       } else {
         // Regular rule: no interpolation variables
-        const fromMatches = matchesPattern(sourceModule, rule.importer);
+        const fromMatches = matchesModuleOrPath(sourceModule, sourceRelativePath, effectiveImporter);
+        const toMatches = matchesModuleOrPath(targetModule, targetRelativePath, rule.imports);
 
-        const toMatches = matchesTarget(
-          targetModule,
-          targetRelativePath,
-          rule.imports
-        );
+        if (isOnly) {
+          if (toMatches && !fromMatches) {
+            const message =
+              rule.message ||
+              (rule.containedTo
+                ? `Import is restricted: "${targetModule}" is contained to "${effectiveImporter}"`
+                : `Module "${targetModule}" can only be imported by "${effectiveImporter}"`);
 
-        if (fromMatches && toMatches && !allow) {
+            violations.push(
+              createViolation(
+                filePath,
+                importStmt,
+                ruleName,
+                message,
+                ruleSeverity
+              )
+            );
+          }
+        } else if (fromMatches && toMatches && !allow) {
           const message =
             rule.message ||
             `Module "${sourceModule}" cannot import from "${targetModule}"`;
@@ -157,7 +208,7 @@ export function checkBoundaries(
               filePath,
               importStmt,
               ruleName,
-              rule.message || `Module "${sourceModule}" cannot import from "${targetModule}"`,
+              message,
               ruleSeverity
             )
           );
@@ -170,27 +221,27 @@ export function checkBoundaries(
   return violations;
 }
 
-// Matches a rule's `imports` pattern against the target.
+// Matches a rule pattern against a module name or relative path.
 // If the pattern is a simple name (no `/`), matches against the module name.
-// If the pattern contains `/`, also matches against the resolved file's relative path.
-function matchesTarget(
-  targetModule: string,
-  targetRelativePath: string,
+// If the pattern contains `/`, also matches against the file's relative path.
+function matchesModuleOrPath(
+  moduleName: string,
+  relativePath: string,
   pattern: string
 ): boolean {
   // Always try module name match
-  if (matchesPattern(targetModule, pattern)) {
+  if (matchesPattern(moduleName, pattern)) {
     return true;
   }
 
   // If pattern contains `/`, it's a file path glob — match against relative path
   if (pattern.includes("/")) {
     // Try exact match against relative path
-    if (minimatch(targetRelativePath, pattern)) {
+    if (minimatch(relativePath, pattern)) {
       return true;
     }
     // Try with **/ prefix and /** suffix to handle missing root dirs and filenames
-    if (minimatch(targetRelativePath, `**/${pattern}/**`)) {
+    if (minimatch(relativePath, `**/${pattern}/**`)) {
       return true;
     }
   }
@@ -302,6 +353,55 @@ function tryMatchSegments(
   }
 
   return result;
+}
+
+// Applies maxViolations thresholds across all collected violations.
+// Groups violations by rule name, then:
+// - If a rule has maxViolations set and the count is within the threshold, downgrade to "warn"
+// - If the count exceeds the threshold, escalate all violations for that rule to "error"
+export function applyMaxViolations(
+  violations: Violation[],
+  config: PicketyConfig
+): Violation[] {
+  const rules = config.rules["module-boundaries"].rules;
+
+  // Build a lookup: ruleName -> maxViolations (only for rules that set it)
+  const thresholds = new Map<string, number>();
+  rules.forEach((rule, index) => {
+    if (rule.maxViolations !== undefined) {
+      const name = rule.name ?? `rule[${index}]`;
+      thresholds.set(name, rule.maxViolations);
+    }
+  });
+
+  if (thresholds.size === 0) {
+    return violations;
+  }
+
+  // Count violations per rule
+  const counts = new Map<string, number>();
+  for (const v of violations) {
+    if (v.ruleName && thresholds.has(v.ruleName)) {
+      counts.set(v.ruleName, (counts.get(v.ruleName) ?? 0) + 1);
+    }
+  }
+
+  // Adjust severity based on threshold
+  return violations.map((v) => {
+    if (!v.ruleName || !thresholds.has(v.ruleName)) {
+      return v;
+    }
+
+    const count = counts.get(v.ruleName) ?? 0;
+    const threshold = thresholds.get(v.ruleName)!;
+    const newSeverity: Severity = count <= threshold ? "warn" : "error";
+
+    if (newSeverity === v.severity) {
+      return v;
+    }
+
+    return { ...v, severity: newSeverity };
+  });
 }
 
 // Replaces $variables in a pattern with concrete values.

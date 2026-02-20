@@ -113,15 +113,22 @@ function buildMermaidContent(config) {
     rules.forEach((rule, index) => {
         const { allow, severity, name } = (0, utils_1.resolveRuleDefaults)(rule, index, globalSeverity);
         const ruleName = escapeMermaid(name);
-        const action = allow ? "ALLOW" : "DENY";
+        let action = allow ? "ALLOW" : "DENY";
+        if (rule.containedTo) {
+            action = "CONTAINED TO";
+        }
+        else if (rule.only) {
+            action = "ONLY";
+        }
         lines.push("");
         lines.push(`  subgraph rule_${index} ["${action}: ${ruleName} (${severity})"]`);
         const fromId = `r${index}_from`;
         const toId = `r${index}_to`;
+        const effectiveImporter = rule.containedTo || rule.importer || "*";
         // Stadium shape for interpolation patterns, rectangle for plain modules
-        const safeImporter = escapeMermaid(rule.importer);
+        const safeImporter = escapeMermaid(effectiveImporter);
         const safeImports = escapeMermaid(rule.imports);
-        const fromShape = rule.importer.includes("$")
+        const fromShape = effectiveImporter.includes("$")
             ? `(["${safeImporter}"])`
             : `["${safeImporter}"]`;
         const toShape = rule.imports.includes("$")
@@ -129,8 +136,10 @@ function buildMermaidContent(config) {
             : `["${safeImports}"]`;
         lines.push(`    ${fromId}${fromShape}`);
         lines.push(`    ${toId}${toShape}`);
+        // Only/ContainedTo rules are essentially restricted 'allows'
+        const isAllowStyle = allow || !!rule.containedTo || rule.only;
         // Dashed arrow for deny, solid for allow. Label with custom message if present.
-        const arrow = allow ? "-->" : "-.->";
+        const arrow = isAllowStyle ? "-->" : "-.->";
         const label = rule.message ? ` |"${escapeMermaid(rule.message)}"|` : "";
         lines.push(`    ${fromId} ${arrow}${label} ${toId}`);
         lines.push("  end");
@@ -138,8 +147,8 @@ function buildMermaidContent(config) {
     // Color-code edges: green for allow, red dashed for deny
     lines.push("");
     rules.forEach((rule, index) => {
-        const allow = rule.allow ?? false;
-        if (allow) {
+        const isAllowStyle = (rule.allow ?? false) || !!rule.containedTo || rule.only;
+        if (isAllowStyle) {
             lines.push(`  linkStyle ${index} stroke:#22c55e,stroke-width:2px`);
         }
         else {

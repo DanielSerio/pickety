@@ -36,7 +36,6 @@
               "items": {
                 "type": "object",
                 "required": [
-                  "importer",
                   "imports"
                 ],
                 "properties": {
@@ -55,6 +54,16 @@
                     "description": "Permit or deny the import. Defaults to false (deny).",
                     "default": false
                   },
+                  "only": {
+                    "type": "boolean",
+                    "description": "If true, the 'imports' target can ONLY be imported by the specified 'importer'. Everyone else is forbidden.",
+                    "default": false
+                  },
+                  "containedTo": {
+                    "type": "string",
+                    "description": "Restrict the 'imports' target to be contained within this importer pattern. Shortcut for 'only: true'.",
+                    "markdownDescription": "Restrict the 'imports' target to be contained within this importer pattern. Shortcut for 'only: true'.\n\nExample:\n```json\n{ \"imports\": \"**/internal/*\", \"containedTo\": \"src/features/$name/**/*\" }\n```"
+                  },
                   "message": {
                     "type": "string",
                     "description": "Custom error message shown in the editor."
@@ -70,6 +79,12 @@
                   "name": {
                     "type": "string",
                     "description": "Unique identifier for the rule. Used in diagnostics and 'Go to Rule' navigation."
+                  },
+                  "maxViolations": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Debt threshold: if total violations for this rule are at or below this number, they are downgraded to warnings. Exceeding the threshold escalates all violations to errors.",
+                    "markdownDescription": "Debt threshold for gradual adoption.\n\n- Violations **at or below** this count → downgraded to `warn`\n- Violations **exceeding** this count → escalated to `error`\n\nSet this to your current violation count and ratchet it down over time."
                   }
                 }
               }

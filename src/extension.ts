@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { loadConfig, loadTsConfigAliases } from "./core/config";
-import { checkBoundaries } from "./core/boundaries";
+import { checkBoundaries, applyMaxViolations } from "./core/boundaries";
 import { generateMermaidDiagram } from "./core/diagram";
 import { normalizePath, SOURCE_GLOB, CONFIG_FILENAME } from "./core/utils";
 import { PicketyStatusBar } from "./statusBar";
@@ -69,26 +69,27 @@ export function activate(context: vscode.ExtensionContext) {
     );
   };
 
-  // Analyze a single document and update its diagnostics
-  const analyzeDocument = (document: vscode.TextDocument) => {
-    if (!state || !state.config) {
-      return;
-    }
-    if (!isSourceFile(document)) {
-      return;
+  // Checks a single document for violations (without applying maxViolations)
+  const checkDocument = (document: vscode.TextDocument) => {
+    if (!state || !state.config || !isSourceFile(document)) {
+      return [];
     }
 
-    const filePath = document.uri.fsPath;
-    const content = document.getText();
-
-    const violations = checkBoundaries(
-      filePath,
-      content,
+    return checkBoundaries(
+      document.uri.fsPath,
+      document.getText(),
       state.config,
       state.knownFiles,
       state.workspaceRoot,
       state.aliases
     );
+  };
+
+  // Converts violations to VS Code diagnostics and sets them on the document
+  const setDiagnostics = (uri: vscode.Uri, violations: import("./types").Violation[]) => {
+    if (!state) {
+      return;
+    }
 
     const diagnostics = violations.map((v) => {
       const range = new vscode.Range(v.line, v.character, v.line, v.character + v.length);
@@ -105,18 +106,59 @@ export function activate(context: vscode.ExtensionContext) {
       return diagnostic;
     });
 
-    state.diagnosticCollection.set(document.uri, diagnostics);
-    state.statusBar.update(state.config, state.diagnosticCollection);
+    state.diagnosticCollection.set(uri, diagnostics);
   };
 
-  const analyzeOpenEditors = () => {
-    if (!state) {
+  // Returns true if any rule uses maxViolations
+  const hasMaxViolationsRules = () => {
+    return state?.config?.rules["module-boundaries"].rules.some((r) => r.maxViolations !== undefined) ?? false;
+  };
+
+  // Analyze a single document. If maxViolations rules exist, re-analyzes all open editors
+  // to get accurate cross-file counts.
+  const analyzeDocument = (document: vscode.TextDocument) => {
+    if (!state || !state.config || !isSourceFile(document)) {
       return;
     }
 
-    for (const document of vscode.workspace.textDocuments) {
-      analyzeDocument(document);
+    if (hasMaxViolationsRules()) {
+      // maxViolations requires cross-file counts, so re-analyze everything
+      analyzeOpenEditors();
+      return;
     }
+
+    const violations = checkDocument(document);
+    setDiagnostics(document.uri, violations);
+    state.statusBar.update(state.config, state.diagnosticCollection);
+  };
+
+  // Analyze all open editors, applying maxViolations thresholds across all files
+  const analyzeOpenEditors = () => {
+    if (!state || !state.config) {
+      return;
+    }
+
+    // Collect violations from all open source documents
+    const allEntries: { uri: vscode.Uri; violations: import("./types").Violation[] }[] = [];
+    for (const document of vscode.workspace.textDocuments) {
+      if (isSourceFile(document)) {
+        allEntries.push({ uri: document.uri, violations: checkDocument(document) });
+      }
+    }
+
+    // Apply maxViolations thresholds across all violations
+    const allViolations = allEntries.flatMap((e) => e.violations);
+    const adjusted = applyMaxViolations(allViolations, state.config);
+
+    // Distribute adjusted violations back to their respective documents
+    let offset = 0;
+    for (const entry of allEntries) {
+      const count = entry.violations.length;
+      setDiagnostics(entry.uri, adjusted.slice(offset, offset + count));
+      offset += count;
+    }
+
+    state.statusBar.update(state.config, state.diagnosticCollection);
   };
 
   const handleConfigResult = (result: ConfigResult) => {

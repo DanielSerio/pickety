@@ -14,12 +14,15 @@ export type ConfigResult =
 
 // A single boundary rule: defines whether an import between two modules is allowed
 export interface BoundaryRule {
-  importer: string; // source module name or glob pattern
+  importer?: string; // source module name or glob pattern
   imports: string; // target module name or glob pattern
   allow?: boolean; // defaults to false (deny)
+  only?: boolean; // if true, the 'imports' can ONLY be imported by 'importer'
+  containedTo?: string; // shortcut for 'only: true' with this importer pattern
   message?: string; // custom error message
   severity?: Severity; // optional per-rule severity override
   name?: string; // optional rule name for identification
+  maxViolations?: number; // threshold: violations at or below this count are downgraded to warnings
 }
 
 // Configuration loaded from pickety.json

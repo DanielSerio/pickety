@@ -3,7 +3,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { loadConfig, loadTsConfigAliases } from "./core/config";
-import { checkBoundaries } from "./core/boundaries";
+import { checkBoundaries, applyMaxViolations } from "./core/boundaries";
 import { SOURCE_EXTENSIONS, normalizePath } from "./core/utils";
 import type { Violation } from "./types";
 
@@ -116,23 +116,25 @@ function main() {
     allViolations.push(...violations);
   }
 
+  // Apply maxViolations thresholds (downgrade/escalate severity)
+  const finalViolations = applyMaxViolations(allViolations, config);
+
   // Print results
-  if (allViolations.length === 0) {
+  if (finalViolations.length === 0) {
     console.log("No boundary violations found.");
     process.exit(0);
   }
 
-  for (const v of allViolations) {
+  for (const v of finalViolations) {
     console.log(formatViolation(v, root));
   }
 
-  const errorCount = allViolations.filter((v) => v.severity === "error").length;
-  const warnCount = allViolations.filter((v) => v.severity === "warn").length;
+  const errorCount = finalViolations.filter((v) => v.severity === "error").length;
+  const warnCount = finalViolations.filter((v) => v.severity === "warn").length;
 
   console.log("");
-  console.log(`Found ${allViolations.length} violation(s): ${errorCount} error(s), ${warnCount} warning(s)`);
+  console.log(`Found ${finalViolations.length} violation(s): ${errorCount} error(s), ${warnCount} warning(s)`);
 
-  // Exit with error code if any errors (not just warnings)
   process.exit(errorCount > 0 ? 1 : 0);
 }
 

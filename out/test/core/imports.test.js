@@ -142,40 +142,40 @@ const s = "import { also } from './also-fake'";`;
     });
 });
 suite("resolveImport", () => {
-    // Use forward slashes for all paths (matching how knownFiles are stored)
-    const root = "C:/project";
-    const fromFile = "C:/project/src/features/auth/service.ts";
+    // Use lowercase drive letter to match normalizePath output on Windows
+    const root = "c:/project";
+    const fromFile = "c:/project/src/features/auth/service.ts";
     const knownFiles = new Set([
-        "C:/project/src/features/auth/service.ts",
-        "C:/project/src/features/auth/utils.ts",
-        "C:/project/src/features/billing/api.ts",
-        "C:/project/src/components/Button.tsx",
-        "C:/project/src/components/index.ts",
-        "C:/project/src/utils/helpers.ts",
+        "c:/project/src/features/auth/service.ts",
+        "c:/project/src/features/auth/utils.ts",
+        "c:/project/src/features/billing/api.ts",
+        "c:/project/src/components/Button.tsx",
+        "c:/project/src/components/index.ts",
+        "c:/project/src/utils/helpers.ts",
     ]);
     // --- Relative imports ---
     test("resolves a relative sibling import", () => {
         const result = (0, imports_1.resolveImport)("./utils", fromFile, knownFiles, root);
-        assert.strictEqual(result, "C:/project/src/features/auth/utils.ts");
+        assert.strictEqual(result, "c:/project/src/features/auth/utils.ts");
     });
     test("resolves a relative import going up directories", () => {
         const result = (0, imports_1.resolveImport)("../billing/api", fromFile, knownFiles, root);
-        assert.strictEqual(result, "C:/project/src/features/billing/api.ts");
+        assert.strictEqual(result, "c:/project/src/features/billing/api.ts");
     });
     test("resolves a relative import to an index file", () => {
         const result = (0, imports_1.resolveImport)("../../components", fromFile, knownFiles, root);
-        assert.strictEqual(result, "C:/project/src/components/index.ts");
+        assert.strictEqual(result, "c:/project/src/components/index.ts");
     });
     // --- Alias resolution ---
     test("resolves a wildcard alias", () => {
         const aliases = { "@/*": "src/*" };
         const result = (0, imports_1.resolveImport)("@/utils/helpers", fromFile, knownFiles, root, aliases);
-        assert.strictEqual(result, "C:/project/src/utils/helpers.ts");
+        assert.strictEqual(result, "c:/project/src/utils/helpers.ts");
     });
     test("resolves an exact alias", () => {
         const aliases = { "@components": "src/components" };
         const result = (0, imports_1.resolveImport)("@components", fromFile, knownFiles, root, aliases);
-        assert.strictEqual(result, "C:/project/src/components/index.ts");
+        assert.strictEqual(result, "c:/project/src/components/index.ts");
     });
     // --- Edge cases ---
     test("returns undefined for external packages", () => {
@@ -197,11 +197,11 @@ suite("resolveImport", () => {
     });
     test("handles empty aliases gracefully", () => {
         const result = (0, imports_1.resolveImport)("./utils", fromFile, knownFiles, root, {});
-        assert.strictEqual(result, "C:/project/src/features/auth/utils.ts");
+        assert.strictEqual(result, "c:/project/src/features/auth/utils.ts");
     });
 });
 suite("matchFileToModule", () => {
-    const root = "C:/project";
+    const root = "c:/project";
     const modules = {
         features: "src/features/*",
         components: "src/components/**/*",
@@ -209,11 +209,11 @@ suite("matchFileToModule", () => {
     };
     // --- Happy path ---
     test("matches a file to a module with /* expansion", () => {
-        const result = (0, imports_1.matchFileToModule)("C:/project/src/features/auth/service.ts", modules, root);
+        const result = (0, imports_1.matchFileToModule)("c:/project/src/features/auth/service.ts", modules, root);
         assert.strictEqual(result, "features");
     });
     test("matches a deeply nested file to a module with /**/*", () => {
-        const result = (0, imports_1.matchFileToModule)("C:/project/src/components/ui/buttons/Primary.tsx", modules, root);
+        const result = (0, imports_1.matchFileToModule)("c:/project/src/components/ui/buttons/Primary.tsx", modules, root);
         assert.strictEqual(result, "components");
     });
     test("matches first module when file could match multiple", () => {
@@ -223,12 +223,12 @@ suite("matchFileToModule", () => {
             features: "src/features/*",
             all: "src/**/*",
         };
-        const result = (0, imports_1.matchFileToModule)("C:/project/src/features/auth/service.ts", overlapping, root);
+        const result = (0, imports_1.matchFileToModule)("c:/project/src/features/auth/service.ts", overlapping, root);
         assert.strictEqual(result, "features");
     });
     // --- Edge cases ---
     test("returns undefined for a file not in any module", () => {
-        const result = (0, imports_1.matchFileToModule)("C:/project/src/config/database.ts", modules, root);
+        const result = (0, imports_1.matchFileToModule)("c:/project/src/config/database.ts", modules, root);
         assert.strictEqual(result, undefined);
     });
     test("returns undefined for a file outside the project root", () => {
@@ -236,12 +236,12 @@ suite("matchFileToModule", () => {
         assert.strictEqual(result, undefined);
     });
     test("returns undefined with empty modules object", () => {
-        const result = (0, imports_1.matchFileToModule)("C:/project/src/features/auth/service.ts", {}, root);
+        const result = (0, imports_1.matchFileToModule)("c:/project/src/features/auth/service.ts", {}, root);
         assert.strictEqual(result, undefined);
     });
     test("handles pattern without expansion (exact glob)", () => {
         const exactModules = { lib: "src/lib/*.ts" };
-        const result = (0, imports_1.matchFileToModule)("C:/project/src/lib/math.ts", exactModules, root);
+        const result = (0, imports_1.matchFileToModule)("c:/project/src/lib/math.ts", exactModules, root);
         assert.strictEqual(result, "lib");
     });
 });

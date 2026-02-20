@@ -35,14 +35,17 @@ AI coding agents are fast but don't know your architecture. Pickety keeps them o
 - **Real-time enforcement** -- violations appear as you type, not just on save
 - **Glob patterns** -- flexible module definitions using [minimatch](https://github.com/isaacs/minimatch) syntax
 - **Interpolation variables** -- enforce scoped relationships like "route X can only import from feature X"
+- **Strict enforcement** -- use `only` and `containedTo` to restrict modules to specific consumers
 - **Per-rule severity** -- mark some boundaries as hard errors and others as soft warnings
+- **Debt tracking** -- set a `maxViolations` threshold per rule to adopt boundaries gradually in legacy codebases
 - **Named rules** -- identify exactly which rule triggered a violation
 - **tsconfig.json alias support** -- automatically resolves `@/*` and other path aliases
 - **Boundary diagrams** -- auto-generate Mermaid diagrams of your architecture
 - **Quick fixes** -- jump directly to the rule in `pickety.json` from any violation
 - **Status bar** -- always know whether Pickety is active and how many violations exist
+- **CLI** -- `pickety check` for CI/CD pipelines, matching IDE behavior exactly
 - **JSON Schema** -- autocomplete and inline validation for `pickety.json`
-- **Zero config beyond `pickety.json`** -- no build plugins, no CLI, no dependencies to manage
+- **Zero config beyond `pickety.json`** -- no build plugins, no dependencies to manage
 
 ---
 
@@ -102,14 +105,16 @@ Map logical module names to file glob patterns. Each file belongs to the **first
 
 Each rule defines an import boundary between modules.
 
-| Field      | Type      | Required | Description                                                |
-| ---------- | --------- | -------- | ---------------------------------------------------------- |
-| `importer` | `string`  | Yes      | Source module name or glob pattern                          |
-| `imports`  | `string`  | Yes      | Target module name, glob, or file path pattern              |
-| `allow`    | `boolean` | No       | `true` = permit, `false` = forbid. Default: `false`        |
-| `message`  | `string`  | No       | Custom diagnostic message shown in the editor              |
-| `severity` | `string`  | No       | `"error"` or `"warn"`. Overrides the global severity       |
-| `name`     | `string`  | No       | Rule identifier. Shown in diagnostics and quick fix labels |
+| Field         | Type      | Required | Description                                                 |
+| ------------- | --------- | -------- | ----------------------------------------------------------- |
+| `imports`     | `string`  | Yes      | Target module name, glob, or file path pattern               |
+| `importer`    | `string`  | Conditional| Source module name or glob pattern. Required unless using `containedTo`. |
+| `allow`       | `boolean` | No       | `true` = permit, `false` = forbid. Default: `false`         |
+| `only`        | `boolean` | No       | `true` = the `imports` target can ONLY be used by this `importer`. |
+| `containedTo` | `string`  | No       | Shortcut for `only: true`. Restricts `imports` to this path pattern. |
+| `message`     | `string`  | No       | Custom diagnostic message shown in the editor               |
+| `severity`    | `string`  | No       | `"error"` or `"warn"`. Overrides the global severity        |
+| `name`        | `string`  | No       | Rule identifier. Shown in diagnostics and quick fix labels  |
 
 ### Glob Patterns
 
@@ -123,6 +128,35 @@ When `imports` contains a `/`, it matches against the resolved file's relative p
 
 ```json
 { "importer": "routes", "imports": "features/**/components", "message": "Routes cannot import feature components" }
+```
+
+### Strict Enforcement (`only` & `containedTo`)
+
+Standard rules are "blacklist" style: they forbid specific connections. `only` and `containedTo` are "whitelist" style: they forbid **everyone else** from importing a target.
+
+#### `only`
+
+Use `only` to ensure a module is only consumed by a specific layer:
+
+```json
+{
+  "importer": "services",
+  "imports": "repositories",
+  "only": true,
+  "message": "Repositories can only be used by the Service layer"
+}
+```
+
+#### `containedTo`
+
+Use `containedTo` for "private" file patterns that should never leak outside their owner. It is a shortcut for `only: true` where the `importer` is the allowed scope.
+
+```json
+{
+  "imports": "src/features/$name/internal/*",
+  "containedTo": "src/features/$name/**/*",
+  "message": "Internal files cannot be imported outside their feature"
+}
 ```
 
 ### Interpolation Variables
@@ -216,6 +250,12 @@ A complete configuration enforcing feature isolation, dependency direction, util
           "allow": true,
           "name": "scoped-routing",
           "message": "Routes must use pages from their matching feature"
+        },
+        {
+          "imports": "src/features/$name/internal/*",
+          "containedTo": "src/features/$name/**/*",
+          "name": "internal-isolation",
+          "message": "Internal feature logic cannot leak outside its feature"
         }
       ]
     }

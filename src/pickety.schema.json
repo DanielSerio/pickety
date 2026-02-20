@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Pickety Configuration",
+  "type": "object",
+  "properties": {
+    "modules": {
+      "type": "object",
+      "description": "Definition of modules and their file glob patterns.",
+      "additionalProperties": {
+        "type": "string",
+        "description": "Glob pattern for the module files (e.g., 'src/features/*')."
+      }
+    },
+    "rules": {
+      "type": "object",
+      "properties": {
+        "module-boundaries": {
+          "type": "object",
+          "properties": {
+            "severity": {
+              "type": "string",
+              "enum": [
+                "error",
+                "warn"
+              ],
+              "default": "error"
+            },
+            "rules": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "importer",
+                  "imports"
+                ],
+                "properties": {
+                  "importer": {
+                    "type": "string",
+                    "description": "Name of the importing module or a glob pattern."
+                  },
+                  "imports": {
+                    "type": "string",
+                    "description": "Name of the imported module or a glob pattern (supports $variables)."
+                  },
+                  "allow": {
+                    "type": "boolean",
+                    "description": "Whether the import is allowed. Defaults to false (deny).",
+                    "default": false
+                  },
+                  "message": {
+                    "type": "string",
+                    "description": "Custom error message when the rule is violated."
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "error",
+                      "warn"
+                    ],
+                    "description": "Override global severity for this rule."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Optional name for identification / documentation."
+                  }
+                }
+              }
+            }
+          },
+          "required": [
+            "rules"
+          ]
+        }
+      },
+      "required": [
+        "module-boundaries"
+      ]
+    }
+  },
+  "required": [
+    "modules",
+    "rules"
+  ]
+}

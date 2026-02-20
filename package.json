@@ -1,0 +1,57 @@
+{
+  "name": "pickety",
+  "displayName": "pickety",
+  "description": "a high-performance architectural enforcement engine for TypeScript projects",
+  "author": {
+    "name": "Dan Serio"
+  },
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.107.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "workspaceContains:pickety.json"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "pickety.refresh",
+        "title": "Pickety: Refresh Configuration",
+        "category": "Pickety"
+      }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": "pickety.json",
+        "url": "./src/pickety.schema.json"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test",
+    "test:core": "npm run compile && mocha --ui tdd out/test/core/**/*.test.js"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.107.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.39.2",
+    "mocha": "^11.7.5",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.54.0"
+  },
+  "dependencies": {
+    "minimatch": "^10.2.2"
+  }
+}

@@ -55,6 +55,13 @@ export interface Violation {
   message: string;
   severity: Severity;
   ruleName?: string; // the name or index of the rule that was violated
+  sourceModule?: string;
+  targetModule?: string;
 }
+
+export type PicketyMetadata = {
+  sourceModule?: string;
+  targetModule?: string;
+};
 
 

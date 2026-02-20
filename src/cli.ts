@@ -3,8 +3,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import { loadConfig, loadTsConfigAliases } from "./core/config";
-import { checkBoundaries, applyMaxViolations } from "./core/boundaries";
-import { SOURCE_EXTENSIONS, normalizePath } from "./core/utils";
+import { checkBoundaries, applyMaxViolations, getModuleDependencies } from "./core/boundaries";
+import { SOURCE_EXTENSIONS, normalizePath, findCycles } from "./core/utils";
 import type { Violation } from "./types";
 
 /**
@@ -119,8 +119,24 @@ function main() {
   // Apply maxViolations thresholds (downgrade/escalate severity)
   const finalViolations = applyMaxViolations(allViolations, config);
 
+  // Build module graph for circular dependency detection
+  const graph = new Map<string, Set<string>>();
+  for (const filePath of knownFiles) {
+    const content = fs.readFileSync(filePath, "utf-8");
+    const deps = getModuleDependencies(filePath, content, config, knownFiles, root, aliases);
+    if (deps) {
+      if (!graph.has(deps.sourceModule)) graph.set(deps.sourceModule, new Set());
+      const sourceSet = graph.get(deps.sourceModule)!;
+      for (const target of deps.targetModules) {
+        sourceSet.add(target);
+      }
+    }
+  }
+
+  const cycles = findCycles(graph);
+
   // Print results
-  if (finalViolations.length === 0) {
+  if (finalViolations.length === 0 && cycles.length === 0) {
     console.log("No boundary violations found.");
     process.exit(0);
   }
@@ -129,7 +145,11 @@ function main() {
     console.log(formatViolation(v, root));
   }
 
-  const errorCount = finalViolations.filter((v) => v.severity === "error").length;
+  for (const cycle of cycles) {
+    console.log(`error: Circular dependency detected: ${cycle.join(" -> ")}`);
+  }
+
+  const errorCount = finalViolations.filter((v) => v.severity === "error").length + cycles.length;
   const warnCount = finalViolations.filter((v) => v.severity === "warn").length;
 
   console.log("");

@@ -86,15 +86,18 @@ export function checkBoundaries(
                 rule.message ||
                 `Module "${sourceModule}" is not allowed to import from "${targetModule}" (contained to "${expectedImporter}")`;
 
-              violations.push(
-                createViolation(
-                  filePath,
-                  importStmt,
-                  ruleName,
-                  message,
-                  ruleSeverity
-                )
-              );
+                          violations.push(
+                            createViolation(
+                              filePath,
+                              importStmt,
+                              ruleName,
+                              message,
+                              ruleSeverity,
+                              sourceModule,
+                              targetModule
+                            )
+                          );
+              
             }
           }
         } else {
@@ -134,15 +137,18 @@ export function checkBoundaries(
                 rule.message ||
                 `Import must match scoped pattern "${specificPattern}"`;
 
-              violations.push(
-                createViolation(
-                  filePath,
-                  importStmt,
-                  ruleName,
-                  message,
-                  ruleSeverity
-                )
-              );
+                          violations.push(
+                            createViolation(
+                              filePath,
+                              importStmt,
+                              ruleName,
+                              message,
+                              ruleSeverity,
+                              sourceModule,
+                              targetModule
+                            )
+                          );
+              
             }
           } else {
             // allow: false — deny imports matching the specific interpolated pattern
@@ -194,7 +200,9 @@ export function checkBoundaries(
                 importStmt,
                 ruleName,
                 message,
-                ruleSeverity
+                ruleSeverity,
+                sourceModule,
+                targetModule
               )
             );
           }
@@ -209,7 +217,9 @@ export function checkBoundaries(
               importStmt,
               ruleName,
               message,
-              ruleSeverity
+              ruleSeverity,
+              sourceModule,
+              targetModule
             )
           );
         }
@@ -219,6 +229,37 @@ export function checkBoundaries(
   }
 
   return violations;
+}
+
+// Analyzes a file and returns a set of module names it depends on.
+export function getModuleDependencies(
+  filePath: string,
+  content: string,
+  config: PicketyConfig,
+  knownFiles: Set<string>,
+  root: string,
+  aliases: Record<string, string> = {}
+): { sourceModule: string; targetModules: Set<string> } | undefined {
+  const { modules } = config;
+  const sourceModule = matchFileToModule(filePath, modules, root);
+  if (!sourceModule) {
+    return undefined;
+  }
+
+  const targetModules = new Set<string>();
+  const imports = extractImports(content);
+
+  for (const importStmt of imports) {
+    const resolvedPath = resolveImport(importStmt.specifier, filePath, knownFiles, root, aliases);
+    if (!resolvedPath) continue;
+
+    const targetModule = matchFileToModule(resolvedPath, modules, root);
+    if (targetModule && targetModule !== sourceModule) {
+      targetModules.add(targetModule);
+    }
+  }
+
+  return { sourceModule, targetModules };
 }
 
 // Matches a rule pattern against a module name or relative path.

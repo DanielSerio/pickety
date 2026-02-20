@@ -61,7 +61,7 @@ function loadConfig(workspaceRoot) {
         catch (e) {
             return {
                 ok: false,
-                errors: [{ message: `pickety.json is not valid JSONC: ${e.message}` }],
+                errors: [{ message: `pickety.json is not valid JSONC: ${e instanceof Error ? e.message : String(e)}` }],
             };
         }
         return validateConfig(parsed);
@@ -69,7 +69,7 @@ function loadConfig(workspaceRoot) {
     catch (e) {
         return {
             ok: false,
-            errors: [{ message: `Failed to read pickety.json: ${e.message}` }],
+            errors: [{ message: `Failed to read pickety.json: ${e instanceof Error ? e.message : String(e)}` }],
         };
     }
 }

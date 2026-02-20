@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.checkBoundaries = checkBoundaries;
+exports.getModuleDependencies = getModuleDependencies;
 exports.applyMaxViolations = applyMaxViolations;
 const path = __importStar(require("path"));
 const minimatch_1 = require("minimatch");
@@ -82,7 +83,7 @@ function checkBoundaries(filePath, content, config, knownFiles, root, aliases = 
                         if (!sourceMatches) {
                             const message = rule.message ||
                                 `Module "${sourceModule}" is not allowed to import from "${targetModule}" (contained to "${expectedImporter}")`;
-                            violations.push((0, utils_1.createViolation)(filePath, importStmt, ruleName, message, ruleSeverity));
+                            violations.push((0, utils_1.createViolation)(filePath, importStmt, ruleName, message, ruleSeverity, sourceModule, targetModule));
                         }
                     }
                 }
@@ -102,7 +103,7 @@ function checkBoundaries(filePath, content, config, knownFiles, root, aliases = 
                         if (matchesGeneral && !matchesSpecific) {
                             const message = rule.message ||
                                 `Import must match scoped pattern "${specificPattern}"`;
-                            violations.push((0, utils_1.createViolation)(filePath, importStmt, ruleName, message, ruleSeverity));
+                            violations.push((0, utils_1.createViolation)(filePath, importStmt, ruleName, message, ruleSeverity, sourceModule, targetModule));
                         }
                     }
                     else {
@@ -127,18 +128,38 @@ function checkBoundaries(filePath, content, config, knownFiles, root, aliases = 
                             (rule.containedTo
                                 ? `Import is restricted: "${targetModule}" is contained to "${effectiveImporter}"`
                                 : `Module "${targetModule}" can only be imported by "${effectiveImporter}"`);
-                        violations.push((0, utils_1.createViolation)(filePath, importStmt, ruleName, message, ruleSeverity));
+                        violations.push((0, utils_1.createViolation)(filePath, importStmt, ruleName, message, ruleSeverity, sourceModule, targetModule));
                     }
                 }
                 else if (fromMatches && toMatches && !allow) {
                     const message = rule.message ||
                         `Module "${sourceModule}" cannot import from "${targetModule}"`;
-                    violations.push((0, utils_1.createViolation)(filePath, importStmt, ruleName, message, ruleSeverity));
+                    violations.push((0, utils_1.createViolation)(filePath, importStmt, ruleName, message, ruleSeverity, sourceModule, targetModule));
                 }
             }
         });
     }
     return violations;
+}
+// Analyzes a file and returns a set of module names it depends on.
+function getModuleDependencies(filePath, content, config, knownFiles, root, aliases = {}) {
+    const { modules } = config;
+    const sourceModule = (0, imports_1.matchFileToModule)(filePath, modules, root);
+    if (!sourceModule) {
+        return undefined;
+    }
+    const targetModules = new Set();
+    const imports = (0, imports_1.extractImports)(content);
+    for (const importStmt of imports) {
+        const resolvedPath = (0, imports_1.resolveImport)(importStmt.specifier, filePath, knownFiles, root, aliases);
+        if (!resolvedPath)
+            continue;
+        const targetModule = (0, imports_1.matchFileToModule)(resolvedPath, modules, root);
+        if (targetModule && targetModule !== sourceModule) {
+            targetModules.add(targetModule);
+        }
+    }
+    return { sourceModule, targetModules };
 }
 // Matches a rule pattern against a module name or relative path.
 // If the pattern is a simple name (no `/`), matches against the module name.

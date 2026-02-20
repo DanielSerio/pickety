@@ -131,15 +131,33 @@ function main() {
     }
     // Apply maxViolations thresholds (downgrade/escalate severity)
     const finalViolations = (0, boundaries_1.applyMaxViolations)(allViolations, config);
+    // Build module graph for circular dependency detection
+    const graph = new Map();
+    for (const filePath of knownFiles) {
+        const content = fs.readFileSync(filePath, "utf-8");
+        const deps = (0, boundaries_1.getModuleDependencies)(filePath, content, config, knownFiles, root, aliases);
+        if (deps) {
+            if (!graph.has(deps.sourceModule))
+                graph.set(deps.sourceModule, new Set());
+            const sourceSet = graph.get(deps.sourceModule);
+            for (const target of deps.targetModules) {
+                sourceSet.add(target);
+            }
+        }
+    }
+    const cycles = (0, utils_1.findCycles)(graph);
     // Print results
-    if (finalViolations.length === 0) {
+    if (finalViolations.length === 0 && cycles.length === 0) {
         console.log("No boundary violations found.");
         process.exit(0);
     }
     for (const v of finalViolations) {
         console.log(formatViolation(v, root));
     }
-    const errorCount = finalViolations.filter((v) => v.severity === "error").length;
+    for (const cycle of cycles) {
+        console.log(`error: Circular dependency detected: ${cycle.join(" -> ")}`);
+    }
+    const errorCount = finalViolations.filter((v) => v.severity === "error").length + cycles.length;
     const warnCount = finalViolations.filter((v) => v.severity === "warn").length;
     console.log("");
     console.log(`Found ${finalViolations.length} violation(s): ${errorCount} error(s), ${warnCount} warning(s)`);

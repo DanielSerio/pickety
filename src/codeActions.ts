@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import type { PicketyMetadata } from "./types";
 
 export class PicketyCodeActionProvider implements vscode.CodeActionProvider {
   constructor(private workspaceRoot: string) { }
@@ -29,6 +30,21 @@ export class PicketyCodeActionProvider implements vscode.CodeActionProvider {
         };
 
         actions.push(action);
+
+        // Add "Allow this import" action if we have module metadata
+        const metadata = (diagnostic as vscode.Diagnostic & { _picketyMetadata?: PicketyMetadata; })['_picketyMetadata'];
+        if (metadata && metadata.sourceModule && metadata.targetModule) {
+          const allowAction = new vscode.CodeAction(
+            `Allow imports from '${metadata.targetModule}' in '${metadata.sourceModule}'`,
+            vscode.CodeActionKind.QuickFix
+          );
+          allowAction.command = {
+            command: "pickety.allowImport",
+            title: "Allow Import",
+            arguments: [this.workspaceRoot, metadata.sourceModule, metadata.targetModule],
+          };
+          actions.push(allowAction);
+        }
       }
     }
 

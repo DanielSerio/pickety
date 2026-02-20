@@ -30,17 +30,17 @@ export function loadConfig(workspaceRoot: string): ConfigResult {
     try {
       // Use jsonc-parser to support comments and trailing commas in pickety.json
       parsed = jsonc.parse(raw);
-    } catch (e: any) {
+    } catch (e: unknown) {
       return {
         ok: false,
-        errors: [{ message: `pickety.json is not valid JSONC: ${e.message}` }],
+        errors: [{ message: `pickety.json is not valid JSONC: ${e instanceof Error ? e.message : String(e)}` }],
       };
     }
     return validateConfig(parsed);
-  } catch (e: any) {
+  } catch (e: unknown) {
     return {
       ok: false,
-      errors: [{ message: `Failed to read pickety.json: ${e.message}` }],
+      errors: [{ message: `Failed to read pickety.json: ${e instanceof Error ? e.message : String(e)}` }],
     };
   }
 }

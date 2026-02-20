@@ -48,7 +48,9 @@ export function createViolation(
   importStmt: ImportStatement,
   ruleName: string,
   message: string,
-  severity: Severity
+  severity: Severity,
+  sourceModule?: string,
+  targetModule?: string
 ): Violation {
   return {
     file: filePath,
@@ -58,5 +60,50 @@ export function createViolation(
     message: `[${ruleName}] ${message} (importing "${importStmt.specifier}")`,
     severity,
     ruleName,
+    sourceModule,
+    targetModule,
   };
+}
+
+/**
+ * Finds all cycles in a directed graph using DFS.
+ * Returns an array of cycles, where each cycle is an array of node names.
+ */
+export function findCycles(graph: Map<string, Set<string>>): string[][] {
+  const cycles: string[][] = [];
+  const visited = new Set<string>();
+  const recStack = new Set<string>();
+  const path: string[] = [];
+
+  function drive(node: string) {
+    visited.add(node);
+    recStack.add(node);
+    path.push(node);
+
+    const neighbors = graph.get(node);
+    if (neighbors) {
+      for (const neighbor of neighbors) {
+        if (!visited.has(neighbor)) {
+          drive(neighbor);
+        } else if (recStack.has(neighbor)) {
+          // Cycle detected!
+          const cycleStart = path.indexOf(neighbor);
+          if (cycleStart !== -1) {
+            cycles.push([...path.slice(cycleStart), neighbor]);
+          }
+        }
+      }
+    }
+
+    recStack.delete(node);
+    path.pop();
+  }
+
+  for (const node of graph.keys()) {
+    if (!visited.has(node)) {
+      drive(node);
+    }
+  }
+
+  return cycles;
 }

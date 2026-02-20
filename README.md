@@ -7,12 +7,6 @@
 **Architectural guardrails for TypeScript projects.**
 
 <p align="left">
-  <a href="https://marketplace.visualstudio.com/items?itemName=DanSerio.pickety">
-    <img src="https://img.shields.io/visual-studio-marketplace/v/DanSerio.pickety?style=for-the-badge&logo=visual-studio-code" alt="Visual Studio Marketplace Version">
-  </a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=DanSerio.pickety">
-    <img src="https://img.shields.io/visual-studio-marketplace/i/DanSerio.pickety?style=for-the-badge" alt="Visual Studio Marketplace Installs">
-  </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/github/license/DanielSerio/pickety?style=for-the-badge" alt="License">
   </a>

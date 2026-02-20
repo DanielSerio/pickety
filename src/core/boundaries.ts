@@ -2,6 +2,12 @@ import * as path from "path";
 import { minimatch } from "minimatch";
 import { extractImports, resolveImport, matchFileToModule } from "./imports";
 import type { PicketyConfig, Violation } from "../types";
+import {
+  normalizePath,
+  matchesPattern,
+  resolveRuleDefaults,
+  createViolation
+} from "./utils";
 
 // Checks a single file for import boundary violations.
 // Returns a list of violations with position info for diagnostics.
@@ -23,7 +29,7 @@ export function checkBoundaries(
     return [];
   }
 
-  const sourceRelativePath = path.relative(root, filePath).replace(/\\/g, "/");
+  const sourceRelativePath = normalizePath(path.relative(root, filePath));
 
   // Extract all imports from the file content
   const imports = extractImports(content);
@@ -48,15 +54,10 @@ export function checkBoundaries(
     }
 
     // Get the target file's relative path for glob matching
-    const targetRelativePath = path
-      .relative(root, resolvedPath)
-      .replace(/\\/g, "/");
-
+    const targetRelativePath = normalizePath(path.relative(root, resolvedPath));
     // Check each boundary rule for a match
     rules.forEach((rule, index) => {
-      const allow = rule.allow ?? false;
-      const ruleSeverity = rule.severity ?? severity;
-      const ruleName = rule.name ?? `rule[${index}]`;
+      const { allow, severity: ruleSeverity, name: ruleName } = resolveRuleDefaults(rule, index, severity);
       const variables = findVariables(rule.importer);
 
       if (variables.length > 0) {
@@ -96,15 +97,15 @@ export function checkBoundaries(
               rule.message ||
               `Import must match scoped pattern "${specificPattern}"`;
 
-            violations.push({
-              file: filePath,
-              line: importStmt.line,
-              character: importStmt.character,
-              length: importStmt.length,
-              message: `[${ruleName}] ${message} (importing "${importStmt.specifier}")`,
-              severity: ruleSeverity,
-              ruleName,
-            });
+            violations.push(
+              createViolation(
+                filePath,
+                importStmt,
+                ruleName,
+                rule.message || `Import must match scoped pattern "${specificPattern}"`,
+                ruleSeverity
+              )
+            );
           }
         } else {
           // allow: false — deny imports matching the specific interpolated pattern
@@ -125,22 +126,20 @@ export function checkBoundaries(
               rule.message ||
               `Module "${sourceModule}" cannot import from "${targetModule}"`;
 
-            violations.push({
-              file: filePath,
-              line: importStmt.line,
-              character: importStmt.character,
-              length: importStmt.length,
-              message: `[${ruleName}] ${message} (importing "${importStmt.specifier}")`,
-              severity: ruleSeverity,
-              ruleName,
-            });
+            violations.push(
+              createViolation(
+                filePath,
+                importStmt,
+                ruleName,
+                rule.message || `Module "${sourceModule}" cannot import from "${targetModule}"`,
+                ruleSeverity
+              )
+            );
           }
         }
       } else {
         // Regular rule: no interpolation variables
-        const fromMatches =
-          minimatch(sourceModule, rule.importer) ||
-          sourceModule === rule.importer;
+        const fromMatches = matchesPattern(sourceModule, rule.importer);
 
         const toMatches = matchesTarget(
           targetModule,
@@ -153,15 +152,15 @@ export function checkBoundaries(
             rule.message ||
             `Module "${sourceModule}" cannot import from "${targetModule}"`;
 
-          violations.push({
-            file: filePath,
-            line: importStmt.line,
-            character: importStmt.character,
-            length: importStmt.length,
-            message: `[${ruleName}] ${message} (importing "${importStmt.specifier}")`,
-            severity: ruleSeverity,
-            ruleName,
-          });
+          violations.push(
+            createViolation(
+              filePath,
+              importStmt,
+              ruleName,
+              rule.message || `Module "${sourceModule}" cannot import from "${targetModule}"`,
+              ruleSeverity
+            )
+          );
         }
       }
     });
@@ -180,7 +179,7 @@ function matchesTarget(
   pattern: string
 ): boolean {
   // Always try module name match
-  if (minimatch(targetModule, pattern) || targetModule === pattern) {
+  if (matchesPattern(targetModule, pattern)) {
     return true;
   }
 

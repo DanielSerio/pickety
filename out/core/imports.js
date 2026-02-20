@@ -38,8 +38,9 @@ exports.resolveImport = resolveImport;
 exports.matchFileToModule = matchFileToModule;
 const path = __importStar(require("path"));
 const minimatch_1 = require("minimatch");
+const utils_1 = require("./utils");
 // Extensions to try when resolving imports without explicit extensions
-const RESOLVE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"];
+const RESOLVE_EXTENSIONS = utils_1.SOURCE_EXTENSIONS.map((ext) => `.${ext}`);
 // Index filenames to try when resolving directory imports
 const INDEX_FILES = RESOLVE_EXTENSIONS.map((ext) => `index${ext}`);
 // Regex patterns for extracting import/export statements.
@@ -125,7 +126,7 @@ function resolveImport(specifier, fromFile, knownFiles, root, aliases = {}) {
 // Tries to resolve an absolute path to a known file by checking:
 // exact match, then with extensions, then as directory with index file.
 function resolveFile(absolutePath, knownFiles) {
-    const normalized = absolutePath.replace(/\\/g, "/");
+    const normalized = (0, utils_1.normalizePath)(absolutePath);
     // Exact match
     if (knownFiles.has(normalized)) {
         return normalized;
@@ -149,7 +150,7 @@ function resolveFile(absolutePath, knownFiles) {
 // Matches a file to a named module from the config.
 // Returns the module name, or undefined if the file doesn't belong to any module.
 function matchFileToModule(filePath, modules, root) {
-    const relativePath = path.relative(root, filePath).replace(/\\/g, "/");
+    const relativePath = (0, utils_1.normalizePath)(path.relative(root, filePath));
     for (const [name, pattern] of Object.entries(modules)) {
         // Expand trailing /* to /**/* for deep matching (same as code-scanner)
         const expandedPattern = pattern.endsWith("/*")

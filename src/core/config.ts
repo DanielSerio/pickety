@@ -5,10 +5,10 @@ import type {
   PicketyConfig,
   ConfigResult,
   ConfigError,
+  BoundaryRule,
   Severity,
 } from "../types";
-
-const CONFIG_FILENAME = "pickety.json";
+import { CONFIG_FILENAME, normalizePath } from "./utils";
 
 /**
  * Loads and validates pickety.json from the given workspace root.
@@ -28,11 +28,12 @@ export function loadConfig(workspaceRoot: string): ConfigResult {
     const raw = fs.readFileSync(configPath, "utf-8");
     let parsed: unknown;
     try {
-      parsed = JSON.parse(raw);
+      // Use jsonc-parser to support comments and trailing commas in pickety.json
+      parsed = jsonc.parse(raw);
     } catch (e: any) {
       return {
         ok: false,
-        errors: [{ message: `pickety.json is not valid JSON: ${e.message}` }],
+        errors: [{ message: `pickety.json is not valid JSONC: ${e.message}` }],
       };
     }
     return validateConfig(parsed);
@@ -208,7 +209,7 @@ function validateConfig(parsed: unknown): ConfigResult {
             rules: {
               "module-boundaries": {
                 severity,
-                rules: bObj.rules as any[],
+                rules: bObj.rules as BoundaryRule[],
               },
             },
             "boundary-diagrams": boundaryDiagrams,
@@ -268,7 +269,7 @@ export function loadTsConfigAliases(
         if (Array.isArray(values) && values.length > 0) {
           // Take the first path and join with baseUrl
           let target = values[0] as string;
-          const replacement = path.join(baseUrl, target).replace(/\\/g, "/");
+          const replacement = normalizePath(path.join(baseUrl, target));
           aliases[key] = replacement;
         }
       }

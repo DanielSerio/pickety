@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateMermaidDiagram = generateMermaidDiagram;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
+const utils_1 = require("./utils");
 /**
  * Generates a Mermaid diagram from the Pickety configuration.
  * Writes the output to the specified path in pickety.json or a default location.
@@ -66,9 +67,9 @@ function generateMermaidDiagram(config, root) {
         outputPath = path.join(root, defaultFilename);
     }
     // Prevent path traversal: output must stay inside the workspace root
-    const normalizedRoot = path.resolve(root) + path.sep;
-    const normalizedOutput = path.resolve(outputPath);
-    if (!normalizedOutput.startsWith(normalizedRoot)) {
+    const nRoot = (0, utils_1.normalizePath)(path.resolve(root));
+    const nOutput = (0, utils_1.normalizePath)(path.resolve(outputPath));
+    if (!nOutput.startsWith(nRoot + "/")) {
         console.error(`Pickety: Diagram output path "${option}" escapes the workspace root. Ignoring.`);
         return undefined;
     }
@@ -110,9 +111,8 @@ function buildMermaidContent(config) {
     }
     // Each rule gets its own subgraph so the diagram reads rule-by-rule
     rules.forEach((rule, index) => {
-        const allow = rule.allow ?? false;
-        const severity = rule.severity ?? globalSeverity;
-        const ruleName = escapeMermaid(rule.name ?? `rule[${index}]`);
+        const { allow, severity, name } = (0, utils_1.resolveRuleDefaults)(rule, index, globalSeverity);
+        const ruleName = escapeMermaid(name);
         const action = allow ? "ALLOW" : "DENY";
         lines.push("");
         lines.push(`  subgraph rule_${index} ["${action}: ${ruleName} (${severity})"]`);

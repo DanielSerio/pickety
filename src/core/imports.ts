@@ -1,9 +1,10 @@
 import * as path from "path";
 import { minimatch } from "minimatch";
 import type { ImportStatement } from "../types";
+import { SOURCE_EXTENSIONS, normalizePath } from "./utils";
 
 // Extensions to try when resolving imports without explicit extensions
-const RESOLVE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"];
+const RESOLVE_EXTENSIONS = SOURCE_EXTENSIONS.map((ext) => `.${ext}`);
 
 // Index filenames to try when resolving directory imports
 const INDEX_FILES = RESOLVE_EXTENSIONS.map((ext) => `index${ext}`);
@@ -114,7 +115,7 @@ function resolveFile(
   absolutePath: string,
   knownFiles: Set<string>
 ): string | undefined {
-  const normalized = absolutePath.replace(/\\/g, "/");
+  const normalized = normalizePath(absolutePath);
 
   // Exact match
   if (knownFiles.has(normalized)) {
@@ -148,7 +149,7 @@ export function matchFileToModule(
   modules: Record<string, string>,
   root: string
 ): string | undefined {
-  const relativePath = path.relative(root, filePath).replace(/\\/g, "/");
+  const relativePath = normalizePath(path.relative(root, filePath));
 
   for (const [name, pattern] of Object.entries(modules)) {
     // Expand trailing /* to /**/* for deep matching (same as code-scanner)

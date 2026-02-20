@@ -37,6 +37,7 @@ exports.checkBoundaries = checkBoundaries;
 const path = __importStar(require("path"));
 const minimatch_1 = require("minimatch");
 const imports_1 = require("./imports");
+const utils_1 = require("./utils");
 // Checks a single file for import boundary violations.
 // Returns a list of violations with position info for diagnostics.
 function checkBoundaries(filePath, content, config, knownFiles, root, aliases = {}) {
@@ -48,7 +49,7 @@ function checkBoundaries(filePath, content, config, knownFiles, root, aliases = 
     if (!sourceModule) {
         return [];
     }
-    const sourceRelativePath = path.relative(root, filePath).replace(/\\/g, "/");
+    const sourceRelativePath = (0, utils_1.normalizePath)(path.relative(root, filePath));
     // Extract all imports from the file content
     const imports = (0, imports_1.extractImports)(content);
     for (const importStmt of imports) {
@@ -63,14 +64,10 @@ function checkBoundaries(filePath, content, config, knownFiles, root, aliases = 
             continue;
         }
         // Get the target file's relative path for glob matching
-        const targetRelativePath = path
-            .relative(root, resolvedPath)
-            .replace(/\\/g, "/");
+        const targetRelativePath = (0, utils_1.normalizePath)(path.relative(root, resolvedPath));
         // Check each boundary rule for a match
         rules.forEach((rule, index) => {
-            const allow = rule.allow ?? false;
-            const ruleSeverity = rule.severity ?? severity;
-            const ruleName = rule.name ?? `rule[${index}]`;
+            const { allow, severity: ruleSeverity, name: ruleName } = (0, utils_1.resolveRuleDefaults)(rule, index, severity);
             const variables = findVariables(rule.importer);
             if (variables.length > 0) {
                 // Interpolation rule: capture variables from source file path
@@ -88,15 +85,7 @@ function checkBoundaries(filePath, content, config, knownFiles, root, aliases = 
                     if (matchesGeneral && !matchesSpecific) {
                         const message = rule.message ||
                             `Import must match scoped pattern "${specificPattern}"`;
-                        violations.push({
-                            file: filePath,
-                            line: importStmt.line,
-                            character: importStmt.character,
-                            length: importStmt.length,
-                            message: `[${ruleName}] ${message} (importing "${importStmt.specifier}")`,
-                            severity: ruleSeverity,
-                            ruleName,
-                        });
+                        violations.push((0, utils_1.createViolation)(filePath, importStmt, ruleName, rule.message || `Import must match scoped pattern "${specificPattern}"`, ruleSeverity));
                     }
                 }
                 else {
@@ -106,35 +95,18 @@ function checkBoundaries(filePath, content, config, knownFiles, root, aliases = 
                     if (toMatches) {
                         const message = rule.message ||
                             `Module "${sourceModule}" cannot import from "${targetModule}"`;
-                        violations.push({
-                            file: filePath,
-                            line: importStmt.line,
-                            character: importStmt.character,
-                            length: importStmt.length,
-                            message: `[${ruleName}] ${message} (importing "${importStmt.specifier}")`,
-                            severity: ruleSeverity,
-                            ruleName,
-                        });
+                        violations.push((0, utils_1.createViolation)(filePath, importStmt, ruleName, rule.message || `Module "${sourceModule}" cannot import from "${targetModule}"`, ruleSeverity));
                     }
                 }
             }
             else {
                 // Regular rule: no interpolation variables
-                const fromMatches = (0, minimatch_1.minimatch)(sourceModule, rule.importer) ||
-                    sourceModule === rule.importer;
+                const fromMatches = (0, utils_1.matchesPattern)(sourceModule, rule.importer);
                 const toMatches = matchesTarget(targetModule, targetRelativePath, rule.imports);
                 if (fromMatches && toMatches && !allow) {
                     const message = rule.message ||
                         `Module "${sourceModule}" cannot import from "${targetModule}"`;
-                    violations.push({
-                        file: filePath,
-                        line: importStmt.line,
-                        character: importStmt.character,
-                        length: importStmt.length,
-                        message: `[${ruleName}] ${message} (importing "${importStmt.specifier}")`,
-                        severity: ruleSeverity,
-                        ruleName,
-                    });
+                    violations.push((0, utils_1.createViolation)(filePath, importStmt, ruleName, rule.message || `Module "${sourceModule}" cannot import from "${targetModule}"`, ruleSeverity));
                 }
             }
         });
@@ -146,7 +118,7 @@ function checkBoundaries(filePath, content, config, knownFiles, root, aliases = 
 // If the pattern contains `/`, also matches against the resolved file's relative path.
 function matchesTarget(targetModule, targetRelativePath, pattern) {
     // Always try module name match
-    if ((0, minimatch_1.minimatch)(targetModule, pattern) || targetModule === pattern) {
+    if ((0, utils_1.matchesPattern)(targetModule, pattern)) {
         return true;
     }
     // If pattern contains `/`, it's a file path glob — match against relative path

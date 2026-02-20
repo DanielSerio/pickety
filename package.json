@@ -32,6 +32,9 @@
     "workspaceContains:pickety.json"
   ],
   "main": "./out/extension.js",
+  "bin": {
+    "pickety": "./out/cli.js"
+  },
   "contributes": {
     "commands": [
       {
@@ -56,6 +59,7 @@
     "vscode:prepublish": "npm run build",
     "compile": "npm run build",
     "build": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --minify",
+    "build:cli": "esbuild ./src/cli.ts --bundle --outfile=out/cli.js --format=cjs --platform=node --main-fields=module,main --minify",
     "watch": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --watch",
     "type-check": "tsc -p ./ --noEmit",
     "pretest": "npm run compile && npm run lint",

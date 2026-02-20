@@ -38,29 +38,30 @@ exports.loadTsConfigAliases = loadTsConfigAliases;
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 const jsonc = __importStar(require("jsonc-parser"));
-const CONFIG_FILENAME = "pickety.json";
+const utils_1 = require("./utils");
 /**
  * Loads and validates pickety.json from the given workspace root.
  * Returns a Result type indicating success or a list of validation errors.
  */
 function loadConfig(workspaceRoot) {
-    const configPath = path.join(workspaceRoot, CONFIG_FILENAME);
+    const configPath = path.join(workspaceRoot, utils_1.CONFIG_FILENAME);
     if (!fs.existsSync(configPath)) {
         return {
             ok: false,
-            errors: [{ message: `File not found: ${CONFIG_FILENAME}` }],
+            errors: [{ message: `File not found: ${utils_1.CONFIG_FILENAME}` }],
         };
     }
     try {
         const raw = fs.readFileSync(configPath, "utf-8");
         let parsed;
         try {
-            parsed = JSON.parse(raw);
+            // Use jsonc-parser to support comments and trailing commas in pickety.json
+            parsed = jsonc.parse(raw);
         }
         catch (e) {
             return {
                 ok: false,
-                errors: [{ message: `pickety.json is not valid JSON: ${e.message}` }],
+                errors: [{ message: `pickety.json is not valid JSONC: ${e.message}` }],
             };
         }
         return validateConfig(parsed);
@@ -280,7 +281,7 @@ function loadTsConfigAliases(workspaceRoot) {
                 if (Array.isArray(values) && values.length > 0) {
                     // Take the first path and join with baseUrl
                     let target = values[0];
-                    const replacement = path.join(baseUrl, target).replace(/\\/g, "/");
+                    const replacement = (0, utils_1.normalizePath)(path.join(baseUrl, target));
                     aliases[key] = replacement;
                 }
             }

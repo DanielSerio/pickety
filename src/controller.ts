@@ -163,7 +163,7 @@ export class PicketyController {
       if (v.ruleName) {
         diagnostic.code = {
           value: v.ruleName,
-          target: vscode.Uri.parse(`https://github.com/pickety/pickety/blob/main/docs/rules.md#${v.ruleName}`),
+          target: vscode.Uri.parse(`https://github.com/DanielSerio/pickety/blob/main/docs/rules.md#${v.ruleName}`),
         };
       }
       (diagnostic as vscode.Diagnostic & { _picketyMetadata: PicketyMetadata; })._picketyMetadata = {
@@ -341,7 +341,7 @@ export class PicketyController {
         }
 
         const defaultConfig = {
-          $schema: "https://raw.githubusercontent.com/danserio/pickety/main/src/pickety.schema.json",
+          $schema: "https://raw.githubusercontent.com/DanielSerio/pickety/main/src/pickety.schema.json",
           modules: {
             features: "src/features/*",
             components: "src/components/**/*",

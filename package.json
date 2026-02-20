@@ -6,12 +6,12 @@
     "name": "Dan Serio"
   },
   "version": "0.1.0",
-  "publisher": "danserio",
+  "publisher": "DanielSerio",
   "icon": "resources/icon.png",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/danserio/pickety.git"
+    "url": "https://github.com/DanielSerio/pickety.git"
   },
   "keywords": [
     "architecture",

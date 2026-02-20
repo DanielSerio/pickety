@@ -1,17 +1,56 @@
 # Pickety
 
-Architectural enforcement for TypeScript projects. Pickety is a VS Code extension that catches illegal imports in real time — red and yellow squiggles appear the moment a boundary is crossed.
+**Architectural guardrails for TypeScript projects.**
 
-## Why
+Pickety is a VS Code extension that enforces import boundaries in real time. Define your module structure once, and every illegal import lights up instantly -- in your editor, as you type.
 
-Large TypeScript codebases develop implicit rules: features shouldn't import other features, utilities shouldn't reach into the app layer, routes should only use their own feature's pages. These rules live in developers' heads and break silently. Pickety makes them explicit and enforced.
+No CI pipeline. No build step. No review cycle. Just immediate, visual enforcement.
 
-This is especially useful when working with AI coding agents. Agents are fast but don't know your architecture. Pickety keeps them on rails by flagging boundary violations as they write code, not after a review cycle.
+<!--
+![Pickety in action](resources/demo.gif)
+TODO: Add animated GIF showing a violation appearing as the user types an import
+-->
 
-## Getting Started
+---
 
-1. Install the extension in VS Code.
-2. Create a `pickety.json` in your workspace root:
+## Why Pickety?
+
+Every growing TypeScript codebase develops architectural rules:
+
+- Features shouldn't import other features
+- Shared components can't reach into the app layer
+- Utilities must remain dependency-free
+- Routes should only access their own feature's pages
+
+These rules live in developers' heads and break silently. Pickety makes them **explicit, enforceable, and visible**.
+
+### Built for the AI era
+
+AI coding agents are fast but don't know your architecture. Pickety keeps them on rails -- violations appear the instant an agent writes a bad import, not after a review cycle. Works with Claude Code, GitHub Copilot, Cursor, and any tool that edits files in VS Code.
+
+---
+
+## Features
+
+- **Real-time enforcement** -- violations appear as you type, not just on save
+- **Glob patterns** -- flexible module definitions using [minimatch](https://github.com/isaacs/minimatch) syntax
+- **Interpolation variables** -- enforce scoped relationships like "route X can only import from feature X"
+- **Per-rule severity** -- mark some boundaries as hard errors and others as soft warnings
+- **Named rules** -- identify exactly which rule triggered a violation
+- **tsconfig.json alias support** -- automatically resolves `@/*` and other path aliases
+- **Boundary diagrams** -- auto-generate Mermaid diagrams of your architecture
+- **Quick fixes** -- jump directly to the rule in `pickety.json` from any violation
+- **Status bar** -- always know whether Pickety is active and how many violations exist
+- **JSON Schema** -- autocomplete and inline validation for `pickety.json`
+- **Zero config beyond `pickety.json`** -- no build plugins, no CLI, no dependencies to manage
+
+---
+
+## Quick Start
+
+**1. Install** the Pickety extension from the VS Code Marketplace.
+
+**2. Create `pickety.json`** in your workspace root:
 
 ```json
 {
@@ -27,6 +66,7 @@ This is especially useful when working with AI coding agents. Agents are fast bu
         {
           "importer": "features",
           "imports": "features",
+          "name": "no-cross-feature",
           "message": "Features should not import other features directly"
         }
       ]
@@ -35,13 +75,15 @@ This is especially useful when working with AI coding agents. Agents are fast bu
 }
 ```
 
-3. Pickety activates automatically when `pickety.json` is present. Violations appear as diagnostics in the editor and Problems panel.
+**3. Done.** Pickety activates automatically. Violations appear as red/yellow squiggles in the editor, in the Problems panel, and in the status bar.
+
+---
 
 ## Configuration
 
 ### Modules
 
-Map names to file glob patterns. Each file belongs to the first module whose pattern matches.
+Map logical module names to file glob patterns. Each file belongs to the **first** module whose pattern matches.
 
 ```json
 {
@@ -54,28 +96,30 @@ Map names to file glob patterns. Each file belongs to the first module whose pat
 }
 ```
 
-Patterns ending with `/*` are automatically expanded to `/**/*` for deep matching.
+> Patterns ending with `/*` are automatically expanded to `/**/*` for deep matching.
 
 ### Rules
 
-Each rule defines an import restriction between modules.
+Each rule defines an import boundary between modules.
 
-| Field      | Type      | Required | Description                                    |
-| ---------- | --------- | -------- | ---------------------------------------------- |
-| `importer` | `string`  | Yes      | Source module name or glob pattern              |
-| `imports`  | `string`  | Yes      | Target module name, glob, or file path pattern  |
-| `allow`    | `boolean` | No       | `true` = permit, `false` = forbid (default)     |
-| `message`  | `string`  | No       | Custom diagnostic message                      |
+| Field      | Type      | Required | Description                                                |
+| ---------- | --------- | -------- | ---------------------------------------------------------- |
+| `importer` | `string`  | Yes      | Source module name or glob pattern                          |
+| `imports`  | `string`  | Yes      | Target module name, glob, or file path pattern              |
+| `allow`    | `boolean` | No       | `true` = permit, `false` = forbid. Default: `false`        |
+| `message`  | `string`  | No       | Custom diagnostic message shown in the editor              |
+| `severity` | `string`  | No       | `"error"` or `"warn"`. Overrides the global severity       |
+| `name`     | `string`  | No       | Rule identifier. Shown in diagnostics and quick fix labels |
 
 ### Glob Patterns
 
-Both `importer` and `imports` support glob patterns via [minimatch](https://github.com/isaacs/minimatch):
+Both `importer` and `imports` support glob syntax. Use `*` to match all modules:
 
 ```json
-{ "importer": "*", "imports": "utils", "message": "Nothing should import utils (it's internal)" }
+{ "importer": "utils", "imports": "*", "message": "Utils must remain dependency-free" }
 ```
 
-When `imports` contains a `/`, it matches against the resolved file's relative path, letting you target subdirectories within a module:
+When `imports` contains a `/`, it matches against the resolved file's relative path, letting you target subdirectories:
 
 ```json
 { "importer": "routes", "imports": "features/**/components", "message": "Routes cannot import feature components" }
@@ -83,7 +127,7 @@ When `imports` contains a `/`, it matches against the resolved file's relative p
 
 ### Interpolation Variables
 
-Use `$variable` placeholders to enforce that path segments match between importer and target:
+Use `$variable` placeholders to enforce that path segments match between the importer and the target:
 
 ```json
 {
@@ -94,20 +138,46 @@ Use `$variable` placeholders to enforce that path segments match between importe
 }
 ```
 
-With this rule, `routes/auth/index.ts` can import from `features/auth/pages/` but not from `features/billing/pages/`.
+With this rule, `routes/auth/index.ts` can import from `features/auth/pages/` but **not** from `features/billing/pages/`.
 
-With `allow: false` (default), the interpolated pattern is denied instead:
+---
+
+## Boundary Diagrams
+
+Pickety can auto-generate a [Mermaid](https://mermaid.js.org/) diagram of your module boundaries. Each rule appears as its own section with clear ALLOW/DENY labeling.
+
+Add this to your `pickety.json`:
 
 ```json
 {
-  "importer": "routes/$name/*",
-  "imports": "features/$name/hooks/*"
+  "boundary-diagrams": true
 }
 ```
 
-This prevents `routes/auth/index.ts` from importing `features/auth/hooks/` internals.
+Or specify a custom output path:
 
-## Full Example
+```json
+{
+  "boundary-diagrams": "docs/architecture.mermaid"
+}
+```
+
+You can also generate diagrams on demand via the command palette: **Pickety: Generate Boundary Diagram**.
+
+---
+
+## Commands
+
+| Command                                | Description                                   |
+| -------------------------------------- | --------------------------------------------- |
+| `Pickety: Refresh Configuration`       | Reload `pickety.json`, aliases, and file index |
+| `Pickety: Generate Boundary Diagram`   | Generate a Mermaid diagram of your boundaries  |
+
+---
+
+## Example
+
+A complete configuration enforcing feature isolation, dependency direction, utility purity, and scoped routing:
 
 ```json
 {
@@ -125,36 +195,50 @@ This prevents `routes/auth/index.ts` from importing `features/auth/hooks/` inter
         {
           "importer": "features",
           "imports": "features",
+          "name": "no-cross-feature",
           "message": "Features should not import other features directly"
         },
         {
           "importer": "components",
           "imports": "features",
+          "name": "no-component-to-feature",
           "message": "Shared components should not depend on features"
         },
         {
           "importer": "utils",
           "imports": "*",
+          "name": "utility-purity",
           "message": "Utils must remain dependency-free"
         },
         {
           "importer": "routes/$name/*",
           "imports": "features/$name/pages/*",
           "allow": true,
+          "name": "scoped-routing",
           "message": "Routes must use pages from their matching feature"
         }
       ]
     }
-  }
+  },
+  "boundary-diagrams": true
 }
 ```
 
-This enforces:
-- **Feature isolation** -- features cannot import from each other
-- **Dependency direction** -- shared components can't reach into features
-- **Utility purity** -- utils have no application-layer dependencies
-- **Scoped routing** -- each route only accesses its own feature's pages
+For more patterns -- Feature-Sliced Design, Onion Architecture, scoped utilities -- see the [Rule Recipes](docs/recipes.md).
 
-## Detailed Configuration Reference
+---
 
-See [pickety.json documentation](docs/pickety-json.md) for the full configuration reference.
+## Documentation
+
+| Resource | Description |
+| -------- | ----------- |
+| [Setup Guide](docs/setup.md) | Get running in under 3 minutes |
+| [Configuration Reference](docs/pickety-json.md) | Full `pickety.json` specification |
+| [Rule Recipes](docs/recipes.md) | Common architectural patterns (FSD, Onion, etc.) |
+| [Roadmap](docs/ROADMAP.md) | What's been built and what's planned |
+
+---
+
+## License
+
+[MIT](LICENSE)

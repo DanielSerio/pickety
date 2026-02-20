@@ -110,27 +110,52 @@ suite("extractImports", () => {
     assert.strictEqual(imports.length, 0);
   });
 
-  test("ignores bare imports (import './side-effect')", () => {
-    // Our regex requires something between import and from,
-    // so side-effect-only imports without 'from' are skipped.
-    // This is expected behavior — side-effect imports have no target to check.
-    const imports = extractImports(`import './side-effect';`);
-    // The regex may or may not match this — document actual behavior
-    // Side-effect imports aren't relevant for boundary checking
+  test("extracts an import with backticks", () => {
+    const imports = extractImports("import foo from `./foo`;");
+    assert.strictEqual(imports.length, 1);
+    assert.strictEqual(imports[0].specifier, "./foo");
   });
 
-  test("does not extract imports from string literals or comments", () => {
-    const content = `// import { fake } from './fake';
-const s = "import { also } from './also-fake'";`;
+  test("extracts a side-effect import", () => {
+    const imports = extractImports("import './side-effect';");
+    assert.strictEqual(imports.length, 1);
+    assert.strictEqual(imports[0].specifier, "./side-effect");
+  });
+
+  test("does not extract imports from string literals", () => {
+    const content = 'const s = "import { also } from \'./also-fake\'";';
     const imports = extractImports(content);
-    // The comment line might match since we use regex, not AST.
-    // This is a known limitation of regex-based extraction.
+    assert.strictEqual(imports.length, 0);
+  });
+
+  test("does not extract imports from single-line comments", () => {
+    const content = "// import { fake } from './fake';";
+    const imports = extractImports(content);
+    assert.strictEqual(imports.length, 0);
+  });
+
+  test("does not extract imports from multi-line comments", () => {
+    const content = "/*\n import { fake } from './fake'; \n*/";
+    const imports = extractImports(content);
+    assert.strictEqual(imports.length, 0);
+  });
+
+  test("handles escaped quotes in strings correctly", () => {
+    const content = 'const s = "a string with \\" quotes and import { x } from \'y\'";';
+    const imports = extractImports(content);
+    assert.strictEqual(imports.length, 0);
   });
 
   test("handles import with type keyword", () => {
     const imports = extractImports(`import type { Foo } from './types';`);
     assert.strictEqual(imports.length, 1);
     assert.strictEqual(imports[0].specifier, "./types");
+  });
+
+  test("extracts dynamic import with backticks", () => {
+    const imports = extractImports("const mod = import(`./lazy`);");
+    assert.strictEqual(imports.length, 1);
+    assert.strictEqual(imports[0].specifier, "./lazy");
   });
 });
 

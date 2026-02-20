@@ -1,0 +1,44 @@
+{
+  "$schema": "./src/pickety.schema.json",
+  "modules": {
+    "core": "src/core/*",
+    "extension": "src/extension.ts",
+    "controller": "src/controller.ts",
+    "cli": "src/cli.ts",
+    "vscode-impl": "src/(statusBar|diagnostics|navigation|codeActions).ts"
+  },
+  "rules": {
+    "module-boundaries": {
+      "severity": "error",
+      "rules": [
+        {
+          "importer": "core",
+          "imports": "core",
+          "allow": true
+        },
+        {
+          "importer": "core",
+          "imports": "vscode-impl",
+          "allow": false,
+          "message": "Core logic must remain platform-agnostic. No VS Code dependencies in src/core."
+        },
+        {
+          "importer": "extension",
+          "imports": "controller",
+          "allow": true
+        },
+        {
+          "importer": "controller",
+          "imports": "core",
+          "allow": true
+        },
+        {
+          "importer": "cli",
+          "imports": "core",
+          "allow": true
+        }
+      ]
+    }
+  },
+  "boundary-diagrams": true
+}

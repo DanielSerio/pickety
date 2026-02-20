@@ -55,6 +55,7 @@ class PicketyController {
     outputChannel;
     statusBar;
     analysisTimeout;
+    dependencyGraph = new Map();
     constructor(context, workspaceRoot) {
         this.context = context;
         this.workspaceRoot = workspaceRoot;
@@ -127,6 +128,23 @@ class PicketyController {
         this.statusBar.update(this.config, this.diagnosticCollection);
         this.checkCircularDependencies();
     }
+    updateDependencyCache(document) {
+        if (!this.config) {
+            return;
+        }
+        try {
+            const deps = (0, boundaries_1.getModuleDependencies)(document.uri.fsPath, document.getText(), this.config, this.knownFiles, this.workspaceRoot, this.aliases);
+            if (deps) {
+                this.dependencyGraph.set((0, utils_1.normalizePath)(document.uri.fsPath), deps);
+            }
+            else {
+                this.dependencyGraph.delete((0, utils_1.normalizePath)(document.uri.fsPath));
+            }
+        }
+        catch {
+            // Ignore
+        }
+    }
     checkDocument(document) {
         if (!this.config || !this.isSourceFile(document)) {
             return [];
@@ -162,22 +180,29 @@ class PicketyController {
         }
         const graph = new Map();
         const configUri = vscode.Uri.file(path.join(this.workspaceRoot, utils_1.CONFIG_FILENAME));
+        // Use cached dependency graph where possible
         for (const filePath of this.knownFiles) {
-            try {
-                const content = fs.readFileSync(filePath, "utf-8");
-                const deps = (0, boundaries_1.getModuleDependencies)(filePath, content, this.config, this.knownFiles, this.workspaceRoot, this.aliases);
-                if (deps) {
-                    if (!graph.has(deps.sourceModule)) {
-                        graph.set(deps.sourceModule, new Set());
-                    }
-                    const sourceSet = graph.get(deps.sourceModule);
-                    for (const target of deps.targetModules) {
-                        sourceSet.add(target);
+            let deps = this.dependencyGraph.get(filePath);
+            if (!deps) {
+                try {
+                    const content = fs.readFileSync(filePath, "utf-8");
+                    deps = (0, boundaries_1.getModuleDependencies)(filePath, content, this.config, this.knownFiles, this.workspaceRoot, this.aliases);
+                    if (deps) {
+                        this.dependencyGraph.set(filePath, deps);
                     }
                 }
+                catch {
+                    continue;
+                }
             }
-            catch {
-                // Skip files that can't be read
+            if (deps) {
+                if (!graph.has(deps.sourceModule)) {
+                    graph.set(deps.sourceModule, new Set());
+                }
+                const sourceSet = graph.get(deps.sourceModule);
+                for (const target of deps.targetModules) {
+                    sourceSet.add(target);
+                }
             }
         }
         const cycles = (0, utils_1.findCycles)(graph);
@@ -198,6 +223,7 @@ class PicketyController {
         if (result.ok) {
             this.config = result.config;
             this.outputChannel.appendLine("Pickety: Import boundaries active");
+            this.dependencyGraph.clear(); // Clear cache when config changes
             const diagramPath = (0, diagram_1.generateMermaidDiagram)(result.config, this.workspaceRoot);
             if (diagramPath) {
                 this.outputChannel.appendLine(`Pickety: Generated boundary diagram at ${diagramPath}`);
@@ -214,6 +240,7 @@ class PicketyController {
     reloadAliases() {
         this.aliases = (0, config_1.loadTsConfigAliases)(this.workspaceRoot);
         this.outputChannel.appendLine(`Pickety: Loaded ${Object.keys(this.aliases).length} path aliases`);
+        this.dependencyGraph.clear(); // Clear cache when aliases change
         this.analyzeOpenEditors();
     }
     reload() {
@@ -267,6 +294,52 @@ class PicketyController {
         }));
         this.context.subscriptions.push(vscode.commands.registerCommand("pickety.goToRule", (root, rule) => (0, navigation_1.goToRule)(root, rule)));
         this.context.subscriptions.push(vscode.commands.registerCommand("pickety.allowImport", (root, importer, target) => (0, navigation_1.allowImport)(root, importer, target)));
+        this.context.subscriptions.push(vscode.commands.registerCommand("pickety.init", async () => {
+            const configPath = path.join(this.workspaceRoot, utils_1.CONFIG_FILENAME);
+            if (fs.existsSync(configPath)) {
+                const choice = await vscode.window.showWarningMessage("pickety.json already exists. Overwrite?", "Yes", "No");
+                if (choice !== "Yes") {
+                    return;
+                }
+            }
+            const defaultConfig = {
+                $schema: "https://raw.githubusercontent.com/danserio/pickety/main/src/pickety.schema.json",
+                modules: {
+                    features: "src/features/*",
+                    components: "src/components/**/*",
+                    utils: "src/utils/**/*",
+                },
+                rules: {
+                    "module-boundaries": {
+                        severity: "error",
+                        rules: [
+                            {
+                                importer: "features",
+                                imports: "features",
+                                allow: true,
+                                message: "Features can import from their own module.",
+                            },
+                            {
+                                importer: "features",
+                                imports: "components",
+                                allow: true,
+                            },
+                            {
+                                importer: "features",
+                                imports: "utils",
+                                allow: true,
+                            },
+                        ],
+                    },
+                },
+                "boundary-diagrams": true,
+            };
+            fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
+            vscode.window.showInformationMessage("Pickety: pickety.json created.");
+            const doc = await vscode.workspace.openTextDocument(configPath);
+            await vscode.window.showTextDocument(doc);
+            this.reload();
+        }));
     }
     registerProviders() {
         this.context.subscriptions.push(vscode.languages.registerCodeActionsProvider({ scheme: "file", language: "*" }, new codeActions_1.PicketyCodeActionProvider(this.workspaceRoot), {
@@ -282,7 +355,10 @@ class PicketyController {
             if (this.analysisTimeout) {
                 clearTimeout(this.analysisTimeout);
             }
-            this.analysisTimeout = setTimeout(() => this.analyzeDocument(event.document), 300);
+            this.analysisTimeout = setTimeout(() => {
+                this.updateDependencyCache(event.document);
+                this.analyzeDocument(event.document);
+            }, 300);
         }));
         this.context.subscriptions.push(vscode.workspace.onDidOpenTextDocument((document) => this.analyzeDocument(document)));
     }

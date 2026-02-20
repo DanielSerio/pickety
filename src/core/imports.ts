@@ -12,13 +12,16 @@ const INDEX_FILES = RESOLVE_EXTENSIONS.map((ext) => `index${ext}`);
 // Regex patterns for extracting import/export statements.
 // Captures: the full match (for position/length) and the specifier string.
 
-// Matches: import ... from 'specifier' and export ... from 'specifier'
-// Uses [\s\S]*? to handle multi-line imports
-const STATIC_IMPORT_REGEX =
-  /(?:import|export)\s[\s\S]*?from\s*['"]([^'"]+)['"]/gm;
-
-// Matches: import('specifier') — dynamic imports
-const DYNAMIC_IMPORT_REGEX = /import\s*\(\s*['"]([^'"]+)['"]\s*\)/gm;
+// Combined regex to match comments, strings, AND imports.
+// This allows us to skip imports found inside comments or strings.
+// Group 1: Comments (/* ... */ or // ...)
+// Group 2: Strings ("..." or '...' or `...`)
+// Group 3: Static imports/exports
+// Group 4: Specifier for static
+// Group 5: Dynamic imports
+// Group 6: Specifier for dynamic
+const COMBINED_REGEX =
+  /(\/\*[\s\S]*?\*\/|\/\/.*)|(['"`](?:\\.|[^'"`])*['"`])|((?:import|export)\s+(?:[\s\S]*?from\s+)?['"`]([^'"`]+)['"`])|(import\s*\(\s*['"`]([^'"`]+)['"`]\s*\))/gm;
 
 // Extracts all import/export specifiers from file content with position info.
 export function extractImports(content: string): ImportStatement[] {
@@ -45,31 +48,42 @@ export function extractImports(content: string): ImportStatement[] {
     return { line, character: charOffset - lineOffsets[line] };
   };
 
-
-  // Extract static imports/exports: import/export ... from '...'
   let match: RegExpExecArray | null;
+  COMBINED_REGEX.lastIndex = 0;
 
-  STATIC_IMPORT_REGEX.lastIndex = 0;
-  while ((match = STATIC_IMPORT_REGEX.exec(content)) !== null) {
-    const pos = offsetToPosition(match.index);
-    imports.push({
-      specifier: match[1],
-      line: pos.line,
-      character: pos.character,
-      length: match[0].length,
-    });
-  }
+  while ((match = COMBINED_REGEX.exec(content)) !== null) {
+    const [
+      fullMatch,
+      comment,
+      stringLiteral,
+      staticImport,
+      staticSpecifier,
+      dynamicImport,
+      dynamicSpecifier,
+    ] = match;
 
-  // Extract dynamic imports: import('...')
-  DYNAMIC_IMPORT_REGEX.lastIndex = 0;
-  while ((match = DYNAMIC_IMPORT_REGEX.exec(content)) !== null) {
-    const pos = offsetToPosition(match.index);
-    imports.push({
-      specifier: match[1],
-      line: pos.line,
-      character: pos.character,
-      length: match[0].length,
-    });
+    if (comment || stringLiteral) {
+      // Ignore matches inside comments or strings
+      continue;
+    }
+
+    if (staticImport && staticSpecifier) {
+      const pos = offsetToPosition(match.index);
+      imports.push({
+        specifier: staticSpecifier,
+        line: pos.line,
+        character: pos.character,
+        length: staticImport.length,
+      });
+    } else if (dynamicImport && dynamicSpecifier) {
+      const pos = offsetToPosition(match.index);
+      imports.push({
+        specifier: dynamicSpecifier,
+        line: pos.line,
+        character: pos.character,
+        length: dynamicImport.length,
+      });
+    }
   }
 
   return imports;

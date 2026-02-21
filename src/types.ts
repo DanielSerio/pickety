@@ -35,6 +35,7 @@ export interface PicketyConfig {
     };
   };
   "boundary-diagrams"?: boolean | string;
+  health?: HealthConfig;
 }
 
 
@@ -64,4 +65,28 @@ export type PicketyMetadata = {
   targetModule?: string;
 };
 
+// Health thresholds configuration in pickety.json
+export interface HealthConfig {
+  maxAfferentCoupling?: number;
+  maxEfferentCoupling?: number;
+  maxInstability?: number;
+  maxDepth?: number;
+}
 
+// Computed health metrics for a single module
+export interface ModuleHealth {
+  moduleName: string;
+  fileCount: number;
+  afferentCoupling: number;  // Ca: count of modules that depend on this one
+  efferentCoupling: number;  // Ce: count of modules this one depends on
+  instability: number;       // Ce / (Ca + Ce), range 0–1
+  dependencyDepth: number;   // longest chain from this module to a leaf
+}
+
+// A single threshold violation found during health checks
+export interface HealthViolation {
+  moduleName: string;
+  metric: string;
+  value: number;
+  threshold: number;
+}

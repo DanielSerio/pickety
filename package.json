@@ -60,6 +60,11 @@
         "command": "pickety.showImpact",
         "title": "Pickety: Show Impact",
         "category": "Pickety"
+      },
+      {
+        "command": "pickety.showHealth",
+        "title": "Pickety: Show Module Health",
+        "category": "Pickety"
       }
     ],
     "jsonValidation": [

@@ -110,6 +110,39 @@
       ],
       "description": "Generate a Mermaid diagram on save.",
       "markdownDescription": "Automatically generate a Mermaid diagram of module boundaries on every save.\n\n- `true`: Writes to `picket-boundaries.mermaid` in workspace root.\n- `\"path/to/file.mermaid\"`: Writes to a custom path."
+    },
+    "health": {
+      "type": "object",
+      "description": "Module health thresholds. Violations appear as diagnostics on pickety.json.",
+      "markdownDescription": "Set thresholds for module health metrics. When a module exceeds a threshold, a diagnostic warning or error is reported on `pickety.json`.\n\nAll fields are optional — only configured thresholds are enforced.",
+      "properties": {
+        "maxAfferentCoupling": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of modules that may depend on any single module (Ca).",
+          "markdownDescription": "Maximum **afferent coupling (Ca)** — the number of other modules that depend on a given module.\n\nHigh Ca means the module is heavily depended upon; changing it is risky."
+        },
+        "maxEfferentCoupling": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of modules any single module may depend on (Ce).",
+          "markdownDescription": "Maximum **efferent coupling (Ce)** — the number of other modules a given module depends on.\n\nHigh Ce means the module is fragile and sensitive to external changes."
+        },
+        "maxInstability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Maximum instability ratio Ce/(Ca+Ce) for any module, between 0 and 1.",
+          "markdownDescription": "Maximum **instability (I)** — `Ce / (Ca + Ce)`.\n\n- `0` = maximally stable (everyone depends on it, it depends on nothing)\n- `1` = maximally unstable (it depends on others, nothing depends on it)"
+        },
+        "maxDepth": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum dependency chain depth for any module.",
+          "markdownDescription": "Maximum **dependency depth** — the longest chain from a module to a leaf in the dependency graph.\n\nDeep chains mean changes cascade further through the architecture."
+        }
+      },
+      "additionalProperties": false
     }
   },
   "required": [

@@ -7,6 +7,7 @@ import { checkBoundaries, applyMaxViolations, getModuleDependencies } from "./co
 import { ImportGraph, getFileDependencies } from "./core/graph";
 import { matchFileToModule } from "./core/imports";
 import { SOURCE_EXTENSIONS, normalizePath, findCycles } from "./core/utils";
+import { computeModuleHealth, checkHealthThresholds } from "./core/health";
 import type { PicketyConfig, Violation } from "./types";
 
 /**
@@ -83,6 +84,7 @@ function printUsage() {
   console.log("Commands:");
   console.log("  check              Check all files for boundary violations");
   console.log("  impact <file>      Show which files and modules depend on a file");
+  console.log("  health             Show module health metrics and check thresholds");
   console.log("");
   console.log("Options:");
   console.log("  --root <path>      Workspace root (defaults to current directory)");
@@ -252,6 +254,73 @@ function runImpact(root: string, target: string | undefined) {
   printImpactReport(target, graph, config, root);
 }
 
+function runHealth(root: string) {
+  const { config, aliases, knownFiles } = loadWorkspace(root);
+  const graph = buildImportGraph(knownFiles, root, aliases);
+  const health = computeModuleHealth(graph, config.modules, root, knownFiles);
+
+  // Print table header
+  console.log("Module Health Report:\n");
+  const header = ["Module", "Files", "Ca", "Ce", "Instability", "Depth"];
+  const colWidths = [
+    Math.max(header[0].length, ...health.map((m) => m.moduleName.length)),
+    Math.max(header[1].length, ...health.map((m) => String(m.fileCount).length)),
+    Math.max(header[2].length, ...health.map((m) => String(m.afferentCoupling).length)),
+    Math.max(header[3].length, ...health.map((m) => String(m.efferentCoupling).length)),
+    Math.max(header[4].length, 4), // instability is "0.XX"
+    Math.max(header[5].length, ...health.map((m) => String(m.dependencyDepth).length)),
+  ];
+
+  const pad = (s: string, w: number) => s.padEnd(w);
+  const padNum = (s: string, w: number) => s.padStart(w);
+
+  console.log(
+    "  " + header.map((h, i) => pad(h, colWidths[i])).join("   ")
+  );
+  console.log(
+    "  " + colWidths.map((w) => "\u2500".repeat(w)).join("   ")
+  );
+
+  // Check thresholds for annotations
+  const violations = config.health
+    ? checkHealthThresholds(health, config.health)
+    : [];
+  const violationSet = new Set(violations.map((v) => `${v.moduleName}:${v.metric}`));
+
+  for (const mod of health) {
+    const cols = [
+      pad(mod.moduleName, colWidths[0]),
+      padNum(String(mod.fileCount), colWidths[1]),
+      padNum(String(mod.afferentCoupling), colWidths[2]),
+      padNum(String(mod.efferentCoupling), colWidths[3]),
+      padNum(mod.instability.toFixed(2), colWidths[4]),
+      padNum(String(mod.dependencyDepth), colWidths[5]),
+    ];
+
+    let line = "  " + cols.join("   ");
+
+    // Annotate with threshold violations
+    const modViolations = violations.filter((v) => v.moduleName === mod.moduleName);
+    if (modViolations.length > 0) {
+      const notes = modViolations.map((v) => {
+        const thresholdStr = v.metric === "instability" ? v.threshold.toFixed(2) : String(v.threshold);
+        return `exceeds max${v.metric.split(" ").map((w) => w[0].toUpperCase() + w.slice(1)).join("")} (${thresholdStr})`;
+      });
+      line += "      \u2190 " + notes.join(", ");
+    }
+
+    console.log(line);
+  }
+
+  if (violations.length > 0) {
+    console.log(`\n  ${violations.length} threshold violation(s) found.`);
+    process.exit(1);
+  } else {
+    console.log("\n  All modules within configured thresholds.");
+    process.exit(0);
+  }
+}
+
 function main() {
   const { command, root, target } = parseArgs(process.argv);
 
@@ -266,6 +335,9 @@ function main() {
       break;
     case "impact":
       runImpact(root, target);
+      break;
+    case "health":
+      runHealth(root);
       break;
     default:
       console.error(`Unknown command: "${command}"`);

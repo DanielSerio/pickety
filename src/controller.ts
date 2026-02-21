@@ -13,6 +13,8 @@ import { reportConfigErrors } from "./diagnostics";
 import type { PicketyConfig, ConfigResult, Violation, PicketyMetadata } from "./types";
 import { goToRule, allowImport } from "./navigation";
 import { PicketyCodeActionProvider } from "./codeActions";
+import { computeModuleHealth, checkHealthThresholds } from "./core/health";
+import { showHealthPanel } from "./healthPanel";
 
 export class PicketyController {
   private config: PicketyConfig | undefined;
@@ -119,6 +121,7 @@ export class PicketyController {
 
     this.statusBar.update(this.config, this.diagnosticCollection);
     this.checkCircularDependencies();
+    this.checkHealthThresholds();
   }
 
   private updateDependencyCache(document: vscode.TextDocument) {
@@ -258,6 +261,42 @@ export class PicketyController {
     this.diagnosticCollection.set(configUri, diagnostics);
   }
 
+  private checkHealthThresholds() {
+    if (!this.config?.health) {
+      return;
+    }
+
+    const health = computeModuleHealth(
+      this.importGraph,
+      this.config.modules,
+      this.workspaceRoot,
+      this.knownFiles
+    );
+
+    const violations = checkHealthThresholds(health, this.config.health);
+    if (violations.length === 0) {
+      return;
+    }
+
+    const configUri = vscode.Uri.file(path.join(this.workspaceRoot, CONFIG_FILENAME));
+    const existing = (this.diagnosticCollection.get(configUri) || [])
+      .filter(d => !d.message.includes("has") || !d.message.includes("(max:"));
+
+    for (const v of violations) {
+      const valueStr = v.metric === "instability" ? v.value.toFixed(2) : String(v.value);
+      const thresholdStr = v.metric === "instability" ? v.threshold.toFixed(2) : String(v.threshold);
+      const diagnostic = new vscode.Diagnostic(
+        new vscode.Range(0, 0, 0, 100),
+        `Module "${v.moduleName}" has ${v.metric} of ${valueStr} (max: ${thresholdStr})`,
+        vscode.DiagnosticSeverity.Warning
+      );
+      diagnostic.source = "pickety";
+      existing.push(diagnostic);
+    }
+
+    this.diagnosticCollection.set(configUri, existing);
+  }
+
   private handleConfigResult(result: ConfigResult) {
     this.diagnosticCollection.clear();
     if (result.ok) {
@@ -349,7 +388,14 @@ export class PicketyController {
           vscode.window.showErrorMessage("Pickety: No active configuration. Check pickety.json for errors.");
           return;
         }
-        const diagramPath = generateMermaidDiagram(this.config, this.workspaceRoot);
+        // Compute health metrics for diagram annotations (on-demand only)
+        const health = computeModuleHealth(
+          this.importGraph,
+          this.config.modules,
+          this.workspaceRoot,
+          this.knownFiles
+        );
+        const diagramPath = generateMermaidDiagram(this.config, this.workspaceRoot, health);
         if (diagramPath) {
           vscode.window.showInformationMessage(`Pickety: Generated boundary diagram at ${diagramPath}`);
         } else {
@@ -406,6 +452,24 @@ export class PicketyController {
             });
           }
         });
+      })
+    );
+
+    this.context.subscriptions.push(
+      vscode.commands.registerCommand("pickety.showHealth", () => {
+        if (!this.config) {
+          vscode.window.showErrorMessage("Pickety: No active configuration. Check pickety.json for errors.");
+          return;
+        }
+
+        const health = computeModuleHealth(
+          this.importGraph,
+          this.config.modules,
+          this.workspaceRoot,
+          this.knownFiles
+        );
+
+        showHealthPanel(health, this.config.health);
       })
     );
 

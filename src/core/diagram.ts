@@ -1,13 +1,17 @@
 import * as fs from "fs";
 import * as path from "path";
-import type { PicketyConfig } from "../types";
+import type { PicketyConfig, ModuleHealth } from "../types";
 import { resolveRuleDefaults, normalizePath } from "./utils";
 
 /**
  * Generates a Mermaid diagram from the Pickety configuration.
  * Writes the output to the specified path in pickety.json or a default location.
  */
-export function generateMermaidDiagram(config: PicketyConfig, root: string): string | undefined {
+export function generateMermaidDiagram(
+  config: PicketyConfig,
+  root: string,
+  health?: ModuleHealth[]
+): string | undefined {
   const option = config["boundary-diagrams"];
   if (!option) {
     return undefined;
@@ -41,7 +45,7 @@ export function generateMermaidDiagram(config: PicketyConfig, root: string): str
     return undefined;
   }
 
-  const mermaidContent = buildMermaidContent(config);
+  const mermaidContent = buildMermaidContent(config, health);
 
   try {
     const dir = path.dirname(outputPath);
@@ -68,17 +72,30 @@ function escapeMermaid(value: string): string {
     .replace(/>/g, "#gt;");
 }
 
-function buildMermaidContent(config: PicketyConfig): string {
+function buildMermaidContent(config: PicketyConfig, health?: ModuleHealth[]): string {
   const lines: string[] = ["graph LR"];
   const modules = config.modules;
   const rules = config.rules["module-boundaries"].rules;
   const globalSeverity = config.rules["module-boundaries"].severity;
 
-  // Module reference: list all modules and their patterns as comments
+  // Build a lookup for health metrics by module name
+  const healthByModule = new Map<string, ModuleHealth>();
+  if (health) {
+    for (const mod of health) {
+      healthByModule.set(mod.moduleName, mod);
+    }
+  }
+
+  // Module reference: list all modules and their patterns (with health metrics if available)
   lines.push("");
   lines.push("  %% Module definitions");
   for (const [name, pattern] of Object.entries(modules)) {
-    lines.push(`  %% ${name}: ${pattern}`);
+    const h = healthByModule.get(name);
+    if (h) {
+      lines.push(`  %% ${name}: ${pattern} (Ca=${h.afferentCoupling} Ce=${h.efferentCoupling} I=${h.instability.toFixed(2)} depth=${h.dependencyDepth})`);
+    } else {
+      lines.push(`  %% ${name}: ${pattern}`);
+    }
   }
 
   // Each rule gets its own subgraph so the diagram reads rule-by-rule
@@ -133,6 +150,21 @@ function buildMermaidContent(config: PicketyConfig): string {
       lines.push(`  linkStyle ${index} stroke:#ef4444,stroke-width:2px,stroke-dasharray:5`);
     }
   });
+
+  // Health metrics summary section (when health data is available)
+  if (healthByModule.size > 0) {
+    lines.push("");
+    lines.push(`  subgraph health_summary ["Module Health"]`);
+    for (const [name] of Object.entries(modules)) {
+      const h = healthByModule.get(name);
+      if (h) {
+        const id = `health_${escapeMermaid(name)}`;
+        const label = `${escapeMermaid(name)}\\nCa=${h.afferentCoupling} Ce=${h.efferentCoupling} I=${h.instability.toFixed(2)} depth=${h.dependencyDepth}`;
+        lines.push(`    ${id}["${label}"]`);
+      }
+    }
+    lines.push("  end");
+  }
 
   return lines.join("\n");
 }

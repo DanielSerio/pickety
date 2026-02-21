@@ -6,6 +6,7 @@ import type {
   ConfigResult,
   ConfigError,
   BoundaryRule,
+  HealthConfig,
   Severity,
 } from "../types";
 import { CONFIG_FILENAME, normalizePath } from "./utils";
@@ -229,6 +230,69 @@ function validateConfig(parsed: unknown): ConfigResult {
         }
       }
 
+      // health validation
+      let health: HealthConfig | undefined = undefined;
+      if (obj.health !== undefined) {
+        if (typeof obj.health !== "object" || obj.health === null) {
+          errors.push({
+            message: '"health" must be an object',
+            path: "health",
+          });
+        } else {
+          const hObj = obj.health as Record<string, unknown>;
+          health = {};
+
+          if (hObj.maxAfferentCoupling !== undefined) {
+            if (typeof hObj.maxAfferentCoupling !== "number" || !Number.isInteger(hObj.maxAfferentCoupling) || hObj.maxAfferentCoupling < 1) {
+              errors.push({
+                message: '"health.maxAfferentCoupling" must be a positive integer',
+                path: "health.maxAfferentCoupling",
+              });
+            } else {
+              health.maxAfferentCoupling = hObj.maxAfferentCoupling;
+            }
+          }
+
+          if (hObj.maxEfferentCoupling !== undefined) {
+            if (typeof hObj.maxEfferentCoupling !== "number" || !Number.isInteger(hObj.maxEfferentCoupling) || hObj.maxEfferentCoupling < 1) {
+              errors.push({
+                message: '"health.maxEfferentCoupling" must be a positive integer',
+                path: "health.maxEfferentCoupling",
+              });
+            } else {
+              health.maxEfferentCoupling = hObj.maxEfferentCoupling;
+            }
+          }
+
+          if (hObj.maxInstability !== undefined) {
+            if (typeof hObj.maxInstability !== "number" || hObj.maxInstability < 0 || hObj.maxInstability > 1) {
+              errors.push({
+                message: '"health.maxInstability" must be a number between 0 and 1',
+                path: "health.maxInstability",
+              });
+            } else {
+              health.maxInstability = hObj.maxInstability;
+            }
+          }
+
+          if (hObj.maxDepth !== undefined) {
+            if (typeof hObj.maxDepth !== "number" || !Number.isInteger(hObj.maxDepth) || hObj.maxDepth < 1) {
+              errors.push({
+                message: '"health.maxDepth" must be a positive integer',
+                path: "health.maxDepth",
+              });
+            } else {
+              health.maxDepth = hObj.maxDepth;
+            }
+          }
+
+          // If no valid fields were set, treat as undefined
+          if (Object.keys(health).length === 0) {
+            health = undefined;
+          }
+        }
+      }
+
       if (errors.length === 0) {
         return {
           ok: true,
@@ -241,6 +305,7 @@ function validateConfig(parsed: unknown): ConfigResult {
               },
             },
             "boundary-diagrams": boundaryDiagrams,
+            health,
           },
         };
       }

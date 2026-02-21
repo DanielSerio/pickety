@@ -71,6 +71,7 @@ ESLint's `no-restricted-imports` can block a handful of hard-coded paths. But th
 - **Boundary diagrams** -- auto-generate Mermaid diagrams of your architecture
 - **Impact Analysis** -- see exactly who depends on a file (transitively) before refactoring
 - **Module Health** -- track coupling, instability, and dependency depth across your project
+- **Circular dependencies** -- auto-detect feedback loops between your modules
 - **Quick fixes** -- jump directly to the rule in `pickety.json` from any violation
 - **Status bar** -- always know whether Pickety is active and how many violations exist
 - **CLI** -- `pickety check` for CI/CD pipelines, matching IDE behavior exactly
@@ -381,9 +382,12 @@ In a synthetic project with 500 files and 10 modules, a full project analysis (`
 | [Setup Guide](docs/setup.md)                    | Get running in under 3 minutes                   |
 | [Configuration Reference](docs/pickety-json.md) | Full `pickety.json` specification                |
 | [Rule Recipes](docs/recipes.md)                 | Common architectural patterns (FSD, Onion, etc.) |
+| [Wishlist](docs/WISHLIST.md)                    | Proposed features and future roadmap             |
 
 ---
 
 ## License
 
 [MIT](LICENSE)
+
+This project bundles and distributes code from open-source projects. See [ThirdPartyNotices.txt](ThirdPartyNotices.txt) for a complete list of licenses and attributions.

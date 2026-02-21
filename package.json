@@ -55,6 +55,11 @@
         "command": "pickety.generateDiagram",
         "title": "Pickety: Generate Boundary Diagram",
         "category": "Pickety"
+      },
+      {
+        "command": "pickety.showImpact",
+        "title": "Pickety: Show Impact",
+        "category": "Pickety"
       }
     ],
     "jsonValidation": [

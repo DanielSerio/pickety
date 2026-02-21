@@ -4,8 +4,11 @@ import * as fs from "fs";
 import { loadConfig, loadTsConfigAliases } from "./core/config";
 import { checkBoundaries, applyMaxViolations, getModuleDependencies } from "./core/boundaries";
 import { generateMermaidDiagram } from "./core/diagram";
+import { ImportGraph, getFileDependencies } from "./core/graph";
+import { matchFileToModule } from "./core/imports";
 import { normalizePath, SOURCE_GLOB, CONFIG_FILENAME, findCycles } from "./core/utils";
 import { PicketyStatusBar } from "./statusBar";
+import { ImpactCodeLensProvider } from "./impactCodeLens";
 import { reportConfigErrors } from "./diagnostics";
 import type { PicketyConfig, ConfigResult, Violation, PicketyMetadata } from "./types";
 import { goToRule, allowImport } from "./navigation";
@@ -20,6 +23,9 @@ export class PicketyController {
   private statusBar: PicketyStatusBar;
   private analysisTimeout: NodeJS.Timeout | undefined;
   private dependencyGraph = new Map<string, { sourceModule: string; targetModules: Set<string>; }>();
+  private importGraph = new ImportGraph();
+  private codeLensProvider: ImpactCodeLensProvider | undefined;
+  private configRef: { config: PicketyConfig | undefined } = { config: undefined };
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -119,20 +125,33 @@ export class PicketyController {
     if (!this.config) {
       return;
     }
+    const filePath = normalizePath(document.uri.fsPath);
+    const content = document.getText();
     try {
       const deps = getModuleDependencies(
         document.uri.fsPath,
-        document.getText(),
+        content,
         this.config,
         this.knownFiles,
         this.workspaceRoot,
         this.aliases
       );
       if (deps) {
-        this.dependencyGraph.set(normalizePath(document.uri.fsPath), deps);
+        this.dependencyGraph.set(filePath, deps);
       } else {
-        this.dependencyGraph.delete(normalizePath(document.uri.fsPath));
+        this.dependencyGraph.delete(filePath);
       }
+
+      // Update file-level import graph (incremental — only this file's edges)
+      const fileDeps = getFileDependencies(
+        document.uri.fsPath,
+        content,
+        this.knownFiles,
+        this.workspaceRoot,
+        this.aliases
+      );
+      this.importGraph.updateFile(filePath, fileDeps);
+      this.codeLensProvider?.refresh();
     } catch {
       // Ignore
     }
@@ -199,6 +218,10 @@ export class PicketyController {
           if (deps) {
             this.dependencyGraph.set(filePath, deps);
           }
+
+          // Build file-level edges during the same scan — no extra I/O
+          const fileDeps = getFileDependencies(filePath, content, this.knownFiles, this.workspaceRoot, this.aliases);
+          this.importGraph.updateFile(filePath, fileDeps);
         } catch {
           continue;
         }
@@ -239,8 +262,10 @@ export class PicketyController {
     this.diagnosticCollection.clear();
     if (result.ok) {
       this.config = result.config;
+      this.updateConfigRef();
       this.outputChannel.appendLine("Pickety: Import boundaries active");
-      this.dependencyGraph.clear(); // Clear cache when config changes
+      this.dependencyGraph.clear();
+      this.importGraph.clear();
       try {
         const diagramPath = generateMermaidDiagram(result.config, this.workspaceRoot);
         if (diagramPath) {
@@ -253,15 +278,22 @@ export class PicketyController {
       this.statusBar.update(this.config, this.diagnosticCollection);
     } else {
       this.config = undefined;
+      this.updateConfigRef();
       reportConfigErrors(result.errors, this.workspaceRoot, this.outputChannel, this.diagnosticCollection);
       this.statusBar.update(this.config, this.diagnosticCollection);
     }
   }
 
+  // Keep the shared config reference in sync so CodeLens sees the latest config
+  private updateConfigRef() {
+    this.configRef.config = this.config;
+  }
+
   private reloadAliases() {
     this.aliases = loadTsConfigAliases(this.workspaceRoot);
     this.outputChannel.appendLine(`Pickety: Loaded ${Object.keys(this.aliases).length} path aliases`);
-    this.dependencyGraph.clear(); // Clear cache when aliases change
+    this.dependencyGraph.clear();
+    this.importGraph.clear();
     this.analyzeOpenEditors();
   }
 
@@ -294,7 +326,10 @@ export class PicketyController {
       this.knownFiles.add(normalizePath(uri.fsPath));
     });
     fileWatcher.onDidDelete((uri) => {
-      this.knownFiles.delete(normalizePath(uri.fsPath));
+      const deleted = normalizePath(uri.fsPath);
+      this.knownFiles.delete(deleted);
+      this.importGraph.removeFile(deleted);
+      this.codeLensProvider?.refresh();
     });
   }
 
@@ -320,6 +355,57 @@ export class PicketyController {
         } else {
           vscode.window.showErrorMessage("Pickety: Failed to generate diagram. Is 'boundary-diagrams' enabled in pickety.json?");
         }
+      })
+    );
+
+    this.context.subscriptions.push(
+      vscode.commands.registerCommand("pickety.showImpact", () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor || !this.config) {
+          vscode.window.showErrorMessage("Pickety: No active file or configuration.");
+          return;
+        }
+
+        const filePath = normalizePath(editor.document.uri.fsPath);
+        const transitive = this.importGraph.getTransitiveDependents(filePath);
+
+        if (transitive.size === 0) {
+          vscode.window.showInformationMessage("Pickety: No dependents found for this file.");
+          return;
+        }
+
+        // Group dependents by module
+        const byModule = new Map<string, string[]>();
+        for (const dep of transitive) {
+          const mod = matchFileToModule(dep, this.config.modules, this.workspaceRoot) ?? "(unmatched)";
+          if (!byModule.has(mod)) {
+            byModule.set(mod, []);
+          }
+          byModule.get(mod)!.push(path.relative(this.workspaceRoot, dep).replace(/\\/g, "/"));
+        }
+
+        // Build QuickPick items grouped by module
+        const items: vscode.QuickPickItem[] = [];
+        for (const [mod, files] of byModule) {
+          items.push({ label: mod, kind: vscode.QuickPickItemKind.Separator });
+          for (const file of files) {
+            items.push({ label: file, description: mod });
+          }
+        }
+
+        const relativePath = path.relative(this.workspaceRoot, filePath).replace(/\\/g, "/");
+        const moduleCount = byModule.size;
+        vscode.window.showQuickPick(items, {
+          title: `Impact: ${relativePath} (${transitive.size} files across ${moduleCount} modules)`,
+          placeHolder: "Select a file to open",
+        }).then((selected) => {
+          if (selected && selected.kind !== vscode.QuickPickItemKind.Separator) {
+            const absPath = path.join(this.workspaceRoot, selected.label);
+            vscode.workspace.openTextDocument(absPath).then((doc) => {
+              vscode.window.showTextDocument(doc);
+            });
+          }
+        });
       })
     );
 
@@ -387,6 +473,16 @@ export class PicketyController {
       vscode.languages.registerCodeActionsProvider({ scheme: "file", language: "*" }, new PicketyCodeActionProvider(this.workspaceRoot), {
         providedCodeActionKinds: [vscode.CodeActionKind.QuickFix],
       })
+    );
+
+    // Impact analysis CodeLens — reads from cached import graph, never triggers recomputation
+    this.codeLensProvider = new ImpactCodeLensProvider(this.importGraph, this.workspaceRoot, this.configRef);
+    this.context.subscriptions.push(this.codeLensProvider);
+    this.context.subscriptions.push(
+      vscode.languages.registerCodeLensProvider(
+        { scheme: "file", pattern: SOURCE_GLOB },
+        this.codeLensProvider
+      )
     );
   }
 

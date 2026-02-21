@@ -4,12 +4,15 @@ import * as fs from "fs";
 import * as path from "path";
 import { loadConfig, loadTsConfigAliases } from "./core/config";
 import { checkBoundaries, applyMaxViolations, getModuleDependencies } from "./core/boundaries";
+import { ImportGraph, getFileDependencies } from "./core/graph";
+import { matchFileToModule } from "./core/imports";
 import { SOURCE_EXTENSIONS, normalizePath, findCycles } from "./core/utils";
-import type { Violation } from "./types";
+import type { PicketyConfig, Violation } from "./types";
 
 /**
  * Parses CLI arguments into a structured options object.
  * Supports: pickety check [--root <path>]
+ *           pickety impact <file> [--root <path>]
  */
 function parseArgs(argv: string[]) {
   const args = argv.slice(2);
@@ -21,7 +24,12 @@ function parseArgs(argv: string[]) {
     root = path.resolve(args[rootFlagIndex + 1]);
   }
 
-  return { command, root };
+  // For `impact`, the second positional arg is the target file
+  const target = command === "impact" && args[1] && !args[1].startsWith("--")
+    ? path.resolve(root, args[1])
+    : undefined;
+
+  return { command, root, target };
 }
 
 // Set of valid source file extensions for filtering
@@ -70,30 +78,18 @@ function formatViolation(v: Violation, root: string): string {
 }
 
 function printUsage() {
-  console.log("Usage: pickety check [--root <path>]");
+  console.log("Usage: pickety <command> [options]");
   console.log("");
   console.log("Commands:");
-  console.log("  check    Check all files for boundary violations");
+  console.log("  check              Check all files for boundary violations");
+  console.log("  impact <file>      Show which files and modules depend on a file");
   console.log("");
   console.log("Options:");
-  console.log("  --root   Workspace root (defaults to current directory)");
+  console.log("  --root <path>      Workspace root (defaults to current directory)");
 }
 
-function main() {
-  const { command, root } = parseArgs(process.argv);
-
-  if (!command || command === "--help" || command === "-h") {
-    printUsage();
-    process.exit(0);
-  }
-
-  if (command !== "check") {
-    console.error(`Unknown command: "${command}"`);
-    printUsage();
-    process.exit(1);
-  }
-
-  // Load configuration
+// Loads config, aliases, and files — shared setup for all commands
+function loadWorkspace(root: string) {
   const result = loadConfig(root);
   if (!result.ok) {
     console.error("Configuration errors:");
@@ -103,13 +99,37 @@ function main() {
     process.exit(1);
   }
 
-  const config = result.config;
-  const aliases = loadTsConfigAliases(root);
-  const knownFiles = discoverFiles(root);
+  return {
+    config: result.config,
+    aliases: loadTsConfigAliases(root),
+    knownFiles: discoverFiles(root),
+  };
+}
+
+// Builds the file-level import graph for the entire workspace
+function buildImportGraph(
+  knownFiles: Set<string>,
+  root: string,
+  aliases: Record<string, string>
+): ImportGraph {
+  const graph = new ImportGraph();
+  for (const filePath of knownFiles) {
+    try {
+      const content = fs.readFileSync(filePath, "utf-8");
+      const deps = getFileDependencies(filePath, content, knownFiles, root, aliases);
+      graph.updateFile(filePath, deps);
+    } catch {
+      continue;
+    }
+  }
+  return graph;
+}
+
+function runCheck(root: string) {
+  const { config, aliases, knownFiles } = loadWorkspace(root);
 
   // Check each file for violations
   const allViolations: Violation[] = [];
-
   for (const filePath of knownFiles) {
     const content = fs.readFileSync(filePath, "utf-8");
     const violations = checkBoundaries(filePath, content, config, knownFiles, root, aliases);
@@ -120,20 +140,22 @@ function main() {
   const finalViolations = applyMaxViolations(allViolations, config);
 
   // Build module graph for circular dependency detection
-  const graph = new Map<string, Set<string>>();
+  const moduleGraph = new Map<string, Set<string>>();
   for (const filePath of knownFiles) {
     const content = fs.readFileSync(filePath, "utf-8");
     const deps = getModuleDependencies(filePath, content, config, knownFiles, root, aliases);
     if (deps) {
-      if (!graph.has(deps.sourceModule)) graph.set(deps.sourceModule, new Set());
-      const sourceSet = graph.get(deps.sourceModule)!;
+      if (!moduleGraph.has(deps.sourceModule)) {
+        moduleGraph.set(deps.sourceModule, new Set());
+      }
+      const sourceSet = moduleGraph.get(deps.sourceModule)!;
       for (const target of deps.targetModules) {
         sourceSet.add(target);
       }
     }
   }
 
-  const cycles = findCycles(graph);
+  const cycles = findCycles(moduleGraph);
 
   // Print results
   if (finalViolations.length === 0 && cycles.length === 0) {
@@ -156,6 +178,100 @@ function main() {
   console.log(`Found ${finalViolations.length} violation(s): ${errorCount} error(s), ${warnCount} warning(s)`);
 
   process.exit(errorCount > 0 ? 1 : 0);
+}
+
+// Formats a grouped impact report for a single file
+function printImpactReport(
+  filePath: string,
+  graph: ImportGraph,
+  config: PicketyConfig,
+  root: string
+) {
+  const normalized = normalizePath(filePath);
+  const relativePath = path.relative(root, normalized).replace(/\\/g, "/");
+  const directDependents = graph.getDependents(normalized);
+  const transitiveDependents = graph.getTransitiveDependents(normalized);
+
+  console.log(`Impact analysis for ${relativePath}:\n`);
+
+  if (directDependents.size === 0) {
+    console.log("  No dependents found.\n");
+    return;
+  }
+
+  // Direct dependents grouped by module
+  console.log(`  Direct dependents (${directDependents.size} file${directDependents.size === 1 ? "" : "s"}):`);
+  for (const dep of directDependents) {
+    const mod = matchFileToModule(dep, config.modules, root) ?? "(unmatched)";
+    const rel = path.relative(root, dep).replace(/\\/g, "/");
+    console.log(`    ${rel} (${mod})`);
+  }
+
+  // Transitive summary
+  if (transitiveDependents.size > directDependents.size) {
+    const transitiveModules = new Set<string>();
+    for (const dep of transitiveDependents) {
+      const mod = matchFileToModule(dep, config.modules, root);
+      if (mod) {
+        transitiveModules.add(mod);
+      }
+    }
+
+    console.log(
+      `\n  Transitive dependents (${transitiveDependents.size} file${transitiveDependents.size === 1 ? "" : "s"} across ${transitiveModules.size} module${transitiveModules.size === 1 ? "" : "s"}):`
+    );
+    console.log(`    ${[...transitiveModules].join(", ")}`);
+  }
+
+  // Affected modules
+  const allModules = new Set<string>();
+  for (const dep of transitiveDependents) {
+    const mod = matchFileToModule(dep, config.modules, root);
+    if (mod) {
+      allModules.add(mod);
+    }
+  }
+  console.log(`\n  Affected modules: ${[...allModules].join(", ") || "none"}`);
+  console.log("");
+}
+
+function runImpact(root: string, target: string | undefined) {
+  if (!target) {
+    console.error("Usage: pickety impact <file> [--root <path>]");
+    process.exit(1);
+  }
+
+  if (!fs.existsSync(target)) {
+    console.error(`File not found: ${target}`);
+    process.exit(1);
+  }
+
+  const { config, aliases, knownFiles } = loadWorkspace(root);
+  const graph = buildImportGraph(knownFiles, root, aliases);
+
+  printImpactReport(target, graph, config, root);
+}
+
+function main() {
+  const { command, root, target } = parseArgs(process.argv);
+
+  if (!command || command === "--help" || command === "-h") {
+    printUsage();
+    process.exit(0);
+  }
+
+  switch (command) {
+    case "check":
+      runCheck(root);
+      break;
+    case "impact":
+      runImpact(root, target);
+      break;
+    default:
+      console.error(`Unknown command: "${command}"`);
+      printUsage();
+      process.exit(1);
+  }
 }
 
 main();

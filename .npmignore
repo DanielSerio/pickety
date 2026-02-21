@@ -21,3 +21,8 @@ fix-paths.js
 **/.vscode-test.*
 picket-boundaries.mermaid
 *.vsix
+docs/**
+resources/*.gif
+resources/*.png
+CONTRIBUTING.md
+CHANGELOG.md

@@ -393,6 +393,12 @@ In a synthetic project with 500 files and 10 modules, a full project analysis (`
 
 ---
 
+## Contributing
+
+We welcome contributions! See [CONTRIBUTING.md](https://github.com/DanielSerio/pickety/blob/main/CONTRIBUTING.md) for development setup, workflow, and guidelines.
+
+---
+
 ## License
 
 [MIT](https://github.com/DanielSerio/pickety/blob/main/LICENSE)

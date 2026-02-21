@@ -1,7 +1,7 @@
 {
   "name": "pickety",
   "displayName": "Pickety",
-  "description": "a high-performance architectural enforcement engine for TypeScript projects",
+  "description": "A high-performance architectural enforcement engine for TypeScript projects",
   "author": {
     "name": "Dan Serio"
   },
@@ -9,6 +9,9 @@
   "publisher": "DanSerio",
   "icon": "resources/icon.png",
   "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/DanielSerio/pickety/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/DanielSerio/pickety.git"
@@ -18,7 +21,17 @@
     "typescript",
     "SOLID",
     "boundaries",
-    "mermaid"
+    "mermaid",
+    "linter",
+    "imports",
+    "dependencies",
+    "circular-dependencies",
+    "coupling",
+    "static-analysis",
+    "clean-architecture",
+    "module-health",
+    "vscode",
+    "cli"
   ],
   "badges": [
     {
@@ -100,7 +113,7 @@
     "compile": "npm run build",
     "compile-tests": "tsc -p ./",
     "build": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --main-fields=module,main --minify",
-    "build:cli": "esbuild ./src/cli.ts --bundle --outfile=out/cli.js --format=cjs --platform=node --main-fields=module,main --minify",
+    "build:cli": "esbuild ./src/cli.ts --bundle --outfile=out/cli.js --format=cjs --platform=node --main-fields=module,main --minify --banner:js=\"#!/usr/bin/env node\"",
     "watch": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --main-fields=module,main --watch",
     "type-check": "tsc -p ./ --noEmit",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",

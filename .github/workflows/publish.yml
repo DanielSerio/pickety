@@ -49,6 +49,8 @@ jobs:
   publish-npm:
     needs: check
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Required for npm trusted publishing (OIDC)
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -66,6 +68,8 @@ jobs:
       - name: Build
         run: npm run build && npm run build:cli
 
+      # TODO: Switch to trusted publishing after first publish.
+      # Remove NODE_AUTH_TOKEN and use `npm publish --provenance` instead.
       - name: Publish to npm
         run: npm publish
         env:

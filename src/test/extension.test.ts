@@ -131,4 +131,120 @@ suite('Extension Integration Test Suite', () => {
       await vscode.workspace.fs.writeFile(configUri, originalConfig);
     }
   }).timeout(20000);
+
+  test('Diagnostics should be cleared when violation is fixed', async () => {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      assert.fail('No workspace folder open');
+    }
+
+    const rootPath = workspaceFolders[0].uri.fsPath;
+    const testFilePath = path.join(rootPath, 'src', 'core', 'clear_violation_test.ts');
+    const testFileUri = vscode.Uri.file(testFilePath);
+
+    const violationContent = 'import { PicketyStatusBar } from "../statusBar";\n';
+    const validContent = 'const validVal = 42;\n';
+
+    try {
+      await vscode.workspace.fs.writeFile(testFileUri, Buffer.from(violationContent));
+      const doc = await vscode.workspace.openTextDocument(testFileUri);
+      await vscode.window.showTextDocument(doc);
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      let diagnostics = vscode.languages.getDiagnostics(testFileUri);
+      let picketyDiag = diagnostics.find(d => d.source === 'pickety');
+      assert.ok(picketyDiag, 'Diagnostic should be present initially');
+
+      const editor = vscode.window.activeTextEditor;
+      if (editor) {
+        await editor.edit(editBuilder => {
+          const fullRange = new vscode.Range(
+            doc.positionAt(0),
+            doc.positionAt(doc.getText().length)
+          );
+          editBuilder.replace(fullRange, validContent);
+        });
+        await doc.save();
+      } else {
+        await vscode.workspace.fs.writeFile(testFileUri, Buffer.from(validContent));
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      diagnostics = vscode.languages.getDiagnostics(testFileUri);
+      picketyDiag = diagnostics.find(d => d.source === 'pickety');
+      assert.ok(!picketyDiag, 'Diagnostic should be cleared after fixing the code');
+
+    } finally {
+      try {
+        await vscode.workspace.fs.delete(testFileUri);
+      } catch (_e) { }
+    }
+  }).timeout(15000);
+
+  test('Extension handles missing config without crashing', async () => {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      assert.fail('No workspace folder open');
+    }
+
+    const rootPath = workspaceFolders[0].uri.fsPath;
+    const configPath = path.join(rootPath, 'pickety.json');
+    const configUri = vscode.Uri.file(configPath);
+    const testPath = path.join(rootPath, 'src', 'core', 'missing_config_test.ts');
+    const testUri = vscode.Uri.file(testPath);
+
+    const originalConfig = await vscode.workspace.fs.readFile(configUri);
+
+    try {
+      await vscode.workspace.fs.delete(configUri);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      await vscode.workspace.fs.writeFile(testUri, Buffer.from('import { PicketyStatusBar } from "../statusBar";\n'));
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      const diagnostics = vscode.languages.getDiagnostics(testUri);
+      const picketyDiag = diagnostics.find(d => d.source === 'pickety');
+      assert.ok(!picketyDiag, 'Should not generate diagnostics when config is missing');
+
+    } finally {
+      await vscode.workspace.fs.writeFile(configUri, originalConfig);
+      try {
+        await vscode.workspace.fs.delete(testUri);
+      } catch (_e) { }
+    }
+  }).timeout(15000);
+
+  test('Extension handles malformed config gracefully', async () => {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      assert.fail('No workspace folder open');
+    }
+
+    const rootPath = workspaceFolders[0].uri.fsPath;
+    const configPath = path.join(rootPath, 'pickety.json');
+    const configUri = vscode.Uri.file(configPath);
+    const testPath = path.join(rootPath, 'src', 'core', 'malformed_config_test.ts');
+    const testUri = vscode.Uri.file(testPath);
+
+    const originalConfig = await vscode.workspace.fs.readFile(configUri);
+
+    try {
+      await vscode.workspace.fs.writeFile(configUri, Buffer.from('{ invalid syntax ]'));
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      await vscode.workspace.fs.writeFile(testUri, Buffer.from('import { PicketyStatusBar } from "../statusBar";\n'));
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      const testDiagnostics = vscode.languages.getDiagnostics(testUri);
+      const picketyTestDiag = testDiagnostics.find(d => d.source === 'pickety');
+      assert.ok(!picketyTestDiag, 'Should not enforce boundary rules when config is malformed');
+
+    } finally {
+      await vscode.workspace.fs.writeFile(configUri, originalConfig);
+      try {
+        await vscode.workspace.fs.delete(testUri);
+      } catch (_e) { }
+    }
+  }).timeout(15000);
 });

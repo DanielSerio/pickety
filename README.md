@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="resources/icon.png" width="128" height="128" alt="Pickety Logo">
-</p>
-
 # Pickety
 
 **Architectural guardrails for TypeScript projects.**

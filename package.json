@@ -105,7 +105,10 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
-    "test:core": "npm run compile && mocha --ui tdd out/test/core/**/*.test.js"
+    "test:core": "npm run compile && mocha --ui tdd out/test/core/**/*.test.js",
+    "release:patch": "npm version patch && git push --follow-tags",
+    "release:minor": "npm version minor && git push --follow-tags",
+    "release:major": "npm version major && git push --follow-tags"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
@@ -113,6 +116,7 @@
     "@types/vscode": "^1.107.0",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.7.1",
     "esbuild": "^0.27.3",
     "eslint": "^9.39.2",
     "mocha": "^11.7.5",

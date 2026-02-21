@@ -27,6 +27,7 @@ export interface BoundaryRule {
 
 // Configuration loaded from pickety.json
 export interface PicketyConfig {
+  version?: string;
   modules: Record<string, string>; // module name -> glob pattern
   rules: {
     "module-boundaries": {

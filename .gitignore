@@ -7,3 +7,5 @@ out
 *.log
 .DS_Store
 picket-boundaries.mermaid
+benchmark-project/
+scripts/gen.js

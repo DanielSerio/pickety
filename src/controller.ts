@@ -28,6 +28,7 @@ import { showHealthCommand } from "./commands/showHealth";
 import { showImpactCommand } from "./commands/showImpact";
 
 import { DiagnosticManager } from "./diagnosticManager";
+import { TelemetryProvider } from "./telemetry";
 
 export class PicketyController {
   private config: PicketyConfig | undefined;
@@ -39,6 +40,9 @@ export class PicketyController {
   private dependencyGraph = new Map<string, { sourceModule: string; targetModules: Set<string>; }>();
   private codeLensProvider: ImpactCodeLensProvider | undefined;
   private configRef: { config: PicketyConfig | undefined; } = { config: undefined };
+  private isLargeWorkspace = false;
+  private static readonly MAX_FILES_THRESHOLD = 5000;
+  private telemetry = TelemetryProvider.getInstance();
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -48,6 +52,7 @@ export class PicketyController {
   ) {
     this.outputChannel = vscode.window.createOutputChannel("Pickety");
     this.context.subscriptions.push(this.outputChannel);
+    this.telemetry.setOutputChannel(this.outputChannel);
 
     const collection = vscode.languages.createDiagnosticCollection("pickety");
     this.context.subscriptions.push(collection);
@@ -97,6 +102,13 @@ export class PicketyController {
       async () => {
         const files = await vscode.workspace.findFiles(SOURCE_GLOB, "**/node_modules/**");
         this.knownFiles = new Set(files.map((f) => normalizePath(f.fsPath)));
+
+        if (this.knownFiles.size > PicketyController.MAX_FILES_THRESHOLD) {
+          this.isLargeWorkspace = true;
+          this.outputChannel.appendLine(`Pickety: Warning: Large workspace detected (${this.knownFiles.size} files). Full workspace analysis (circular dependencies, health metrics) will be disabled for performance.`);
+        } else {
+          this.isLargeWorkspace = false;
+        }
       }
     );
   }
@@ -117,31 +129,35 @@ export class PicketyController {
   }
 
   private analyzeOpenEditors() {
-    if (!this.config) {
-      return;
-    }
-
-    const ctx = this.getWorkspaceContext();
-    const allEntries: { uri: vscode.Uri; violations: Violation[]; }[] = [];
-    for (const document of vscode.workspace.textDocuments) {
-      if (this.isSourceFile(document)) {
-        allEntries.push({ uri: document.uri, violations: this.checkDocument(document) });
+    try {
+      if (!this.config) {
+        return;
       }
+
+      const ctx = this.getWorkspaceContext();
+      const allEntries: { uri: vscode.Uri; violations: Violation[]; }[] = [];
+      for (const document of vscode.workspace.textDocuments) {
+        if (this.isSourceFile(document)) {
+          allEntries.push({ uri: document.uri, violations: this.checkDocument(document) });
+        }
+      }
+
+      const allViolations = allEntries.flatMap((e) => e.violations);
+      const adjusted = applyMaxViolations(allViolations, this.config);
+
+      let offset = 0;
+      for (const entry of allEntries) {
+        const count = entry.violations.length;
+        this.diagnosticManager.setViolations(entry.uri, adjusted.slice(offset, offset + count));
+        offset += count;
+      }
+
+      this.statusBar.update(this.config, this.diagnosticManager.getCollection());
+      this.checkCircularDependencies();
+      this.checkHealthThresholds();
+    } catch (e) {
+      this.telemetry.logError(e instanceof Error ? e : String(e), "analyzeOpenEditors");
     }
-
-    const allViolations = allEntries.flatMap((e) => e.violations);
-    const adjusted = applyMaxViolations(allViolations, this.config);
-
-    let offset = 0;
-    for (const entry of allEntries) {
-      const count = entry.violations.length;
-      this.diagnosticManager.setViolations(entry.uri, adjusted.slice(offset, offset + count));
-      offset += count;
-    }
-
-    this.statusBar.update(this.config, this.diagnosticManager.getCollection());
-    this.checkCircularDependencies();
-    this.checkHealthThresholds();
   }
 
   private updateDependencyCache(document: vscode.TextDocument) {
@@ -197,7 +213,7 @@ export class PicketyController {
   }
 
   private async checkCircularDependencies() {
-    if (!this.config) {
+    if (!this.config || this.isLargeWorkspace) {
       return;
     }
 
@@ -228,7 +244,7 @@ export class PicketyController {
   }
 
   private checkHealthThresholds() {
-    if (!this.config?.health) {
+    if (!this.config?.health || this.isLargeWorkspace) {
       return;
     }
 

@@ -4,6 +4,14 @@
   "description": "Configuration for Pickety, a high-performance architectural enforcement engine for TypeScript.",
   "type": "object",
   "properties": {
+    "version": {
+      "type": "string",
+      "description": "Configuration schema version. Currently 0.1.0.",
+      "enum": [
+        "0.1.0"
+      ],
+      "default": "0.1.0"
+    },
     "modules": {
       "type": "object",
       "description": "Map module names to file glob patterns. Files belong to the first module that matches.",

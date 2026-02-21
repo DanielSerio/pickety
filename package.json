@@ -20,6 +20,27 @@
     "boundaries",
     "mermaid"
   ],
+  "badges": [
+    {
+      "url": "https://github.com/DanielSerio/pickety/actions/workflows/ci.yml/badge.svg",
+      "href": "https://github.com/DanielSerio/pickety/actions/workflows/ci.yml",
+      "description": "CI Status"
+    },
+    {
+      "url": "https://img.shields.io/visual-studio-marketplace/v/DanSerio.pickety.svg",
+      "href": "https://marketplace.visualstudio.com/items?itemName=DanSerio.pickety",
+      "description": "Marketplace Version"
+    },
+    {
+      "url": "https://img.shields.io/github/license/DanielSerio/pickety.svg",
+      "href": "https://github.com/DanielSerio/pickety/blob/main/LICENSE",
+      "description": "License"
+    }
+  ],
+  "galleryBanner": {
+    "color": "#1e1e2e",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.107.0"
   },

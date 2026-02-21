@@ -1,6 +1,6 @@
 import * as assert from "assert";
 import { checkBoundaries, applyMaxViolations } from "../../core/boundaries";
-import type { PicketyConfig, Violation } from "../../types";
+import type { PicketyConfig, Violation, WorkspaceContext } from "../../types";
 
 // Helper to build a minimal config
 function makeConfig(
@@ -38,6 +38,14 @@ const knownFiles = new Set([
 
 const root = "c:/project";
 
+// Builds a WorkspaceContext from test fixtures
+function makeCtx(
+  files: Set<string> = knownFiles,
+  ctxAliases: Record<string, string> = {}
+): WorkspaceContext {
+  return { knownFiles: files, root, aliases: ctxAliases };
+}
+
 suite("boundaries — simple deny rules", () => {
   test("detects a violation when feature imports another feature", () => {
     const config = makeConfig([
@@ -48,8 +56,7 @@ suite("boundaries — simple deny rules", () => {
       "c:/project/src/features/auth/service.ts",
       `import { api } from '../billing/api';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 1);
@@ -65,8 +72,7 @@ suite("boundaries — simple deny rules", () => {
       "c:/project/src/features/auth/service.ts",
       `import { Button } from '../../components/Button';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 0);
@@ -81,8 +87,7 @@ suite("boundaries — simple deny rules", () => {
       "c:/project/src/features/auth/service.ts",
       `import { helpers } from '../../utils/helpers';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 1);
@@ -97,8 +102,7 @@ suite("boundaries — simple deny rules", () => {
       "c:/project/src/features/auth/service.ts",
       `import { Button } from '../../components/Button';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 0);
@@ -117,8 +121,7 @@ suite("boundaries — simple deny rules", () => {
       "c:/project/src/features/auth/service.ts",
       `import { api } from '../billing/api';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 1);
@@ -136,8 +139,7 @@ suite("boundaries — simple deny rules", () => {
       "c:/project/src/features/auth/service.ts",
       `import { api } from '../billing/api';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations[0].severity, "warn");
@@ -154,8 +156,7 @@ suite("boundaries — file path glob patterns", () => {
       "c:/project/src/routes/auth/index.ts",
       `import { LoginForm } from '../../features/auth/components/LoginForm';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 1);
@@ -170,8 +171,7 @@ suite("boundaries — file path glob patterns", () => {
       "c:/project/src/routes/auth/index.ts",
       `import { LoginPage } from '../../features/auth/pages/LoginPage';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 0);
@@ -192,8 +192,7 @@ suite("boundaries — file path glob patterns", () => {
       "c:/project/src/routes/auth/index.ts",
       content,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 2);
@@ -217,8 +216,7 @@ suite("boundaries — interpolation variables", () => {
       "c:/project/src/routes/auth/index.ts",
       `import { LoginPage } from '../../features/auth/pages/LoginPage';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 0);
@@ -238,8 +236,7 @@ suite("boundaries — interpolation variables", () => {
       "c:/project/src/routes/auth/index.ts",
       `import { BillingPage } from '../../features/billing/pages/BillingPage';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 1);
@@ -260,8 +257,7 @@ suite("boundaries — interpolation variables", () => {
       "c:/project/src/routes/auth/index.ts",
       `import { Button } from '../../components/Button';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 0);
@@ -282,8 +278,7 @@ suite("boundaries — interpolation variables", () => {
       "c:/project/src/routes/auth/index.ts",
       `import { useAuth } from '../../features/auth/hooks/useAuth';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 1);
@@ -305,8 +300,7 @@ suite("boundaries — interpolation variables", () => {
       "c:/project/src/routes/auth/index.ts",
       `import { LoginPage } from '../../features/auth/pages/LoginPage';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 0);
@@ -341,8 +335,7 @@ suite("boundaries — interpolation variables", () => {
       "c:/project/src/apps/web/routes/auth/index.ts",
       `import { LoginPage } from '../../pages/auth/LoginPage';`,
       config,
-      multiVarKnownFiles,
-      root
+      makeCtx(multiVarKnownFiles)
     );
 
     assert.strictEqual(violations.length, 0);
@@ -369,8 +362,7 @@ suite("boundaries — interpolation variables", () => {
       "c:/project/src/apps/web/routes/auth/index.ts",
       `import { BillingPage } from '../../pages/billing/BillingPage';`,
       config,
-      multiVarKnownFiles,
-      root
+      makeCtx(multiVarKnownFiles)
     );
 
     assert.strictEqual(violations.length, 1);
@@ -397,8 +389,7 @@ suite("boundaries — interpolation variables", () => {
       "c:/project/src/apps/web/routes/auth/index.ts",
       `import { LoginPage } from '../../../mobile/pages/auth/LoginPage';`,
       config,
-      multiVarKnownFiles,
-      root
+      makeCtx(multiVarKnownFiles)
     );
 
     assert.strictEqual(violations.length, 1);
@@ -424,8 +415,7 @@ suite("boundaries — interpolation variables", () => {
       "c:/project/src/apps/web/routes/auth/index.ts",
       `import { secrets } from '../../internal/auth/secrets';`,
       config,
-      multiVarKnownFiles,
-      root
+      makeCtx(multiVarKnownFiles)
     );
 
     assert.strictEqual(violations.length, 1);
@@ -447,8 +437,7 @@ suite("boundaries — interpolation variables", () => {
       "c:/project/src/features/auth/service.ts",
       `import { BillingPage } from '../billing/pages/BillingPage';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 0);
@@ -468,8 +457,7 @@ suite("boundaries — interpolation variables", () => {
       "c:/project/src/routes/auth/index.ts",
       `import { BillingPage } from '../../features/billing/pages/BillingPage';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 1);
@@ -499,8 +487,7 @@ suite("boundaries — interpolation variables", () => {
       "c:/project/src/routes/auth/index.ts",
       content,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 2);
@@ -517,8 +504,7 @@ suite("boundaries — edge cases", () => {
       "c:/project/src/config/database.ts",
       `import { api } from '../features/billing/api';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 0);
@@ -533,8 +519,7 @@ suite("boundaries — edge cases", () => {
       "c:/project/src/features/auth/service.ts",
       `import { missing } from '../billing/nonexistent';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 0);
@@ -549,8 +534,7 @@ suite("boundaries — edge cases", () => {
       "c:/project/src/features/auth/service.ts",
       `import React from 'react';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 0);
@@ -565,8 +549,7 @@ suite("boundaries — edge cases", () => {
       "c:/project/src/features/auth/service.ts",
       "",
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 0);
@@ -586,8 +569,7 @@ suite("boundaries — edge cases", () => {
       "c:/project/src/features/auth/service.ts",
       content,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations.length, 1);
@@ -614,8 +596,7 @@ suite("boundaries — edge cases", () => {
       "c:/project/src/features/auth/service.ts",
       content,
       config,
-      filesWithBilling,
-      root
+      makeCtx(filesWithBilling)
     );
 
     assert.strictEqual(violations.length, 2);
@@ -637,8 +618,7 @@ suite("boundaries — edge cases", () => {
       "c:/project/src/features/auth/service.ts",
       `import { other } from './other';`,
       config,
-      authKnownFiles,
-      root
+      makeCtx(authKnownFiles)
     );
 
     // Both files are in "features" module, so this matches the deny rule
@@ -656,9 +636,7 @@ suite("boundaries — aliases", () => {
       "c:/project/src/features/auth/service.ts",
       `import { api } from '@/features/billing/api';`,
       config,
-      knownFiles,
-      root,
-      aliases
+      makeCtx(knownFiles, aliases)
     );
 
     assert.strictEqual(violations.length, 1);
@@ -672,9 +650,7 @@ suite("boundaries — aliases", () => {
       "c:/project/src/features/auth/service.ts",
       `import { Button } from '@/components/Button';`,
       config,
-      knownFiles,
-      root,
-      aliases
+      makeCtx(knownFiles, aliases)
     );
 
     assert.strictEqual(violations.length, 0);
@@ -691,8 +667,7 @@ suite("boundaries — rule identification and severity", () => {
       "c:/project/src/features/auth/service.ts",
       `import { api } from '../billing/api';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.strictEqual(violations[0].severity, "warn");
@@ -711,8 +686,7 @@ suite("boundaries — rule identification and severity", () => {
       "c:/project/src/features/auth/service.ts",
       `import { api } from '../billing/api';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     assert.ok(violations[0].message.startsWith("[no-cross-feature]"));
@@ -729,8 +703,7 @@ suite("boundaries — rule identification and severity", () => {
       "c:/project/src/features/auth/service.ts",
       `import { api } from '../billing/api';`,
       config,
-      knownFiles,
-      root
+      makeCtx()
     );
 
     // Second rule (index 1) was violated
@@ -883,8 +856,7 @@ suite("boundaries — only and containedTo rules", () => {
       "c:/project/src/controllers/UserController.ts",
       `import { repo } from '../repositories/UserRepository';`,
       config,
-      customKnownFiles,
-      root
+      makeCtx(customKnownFiles)
     );
 
     assert.strictEqual(violations.length, 1);
@@ -910,8 +882,7 @@ suite("boundaries — only and containedTo rules", () => {
       "c:/project/src/services/UserService.ts",
       `import { repo } from '../repositories/UserRepository';`,
       config,
-      customKnownFiles,
-      root
+      makeCtx(customKnownFiles)
     );
 
     assert.strictEqual(violations.length, 0);
@@ -932,8 +903,7 @@ suite("boundaries — only and containedTo rules", () => {
       "c:/project/src/features/billing/service.ts",
       `import { helper } from '../auth/internal/helper';`,
       config,
-      customKnownFiles,
-      root
+      makeCtx(customKnownFiles)
     );
 
     assert.strictEqual(violations.length, 1);
@@ -957,8 +927,7 @@ suite("boundaries — only and containedTo rules", () => {
       "c:/project/src/features/billing/service.ts",
       `import { helper } from '../auth/internal/helper';`,
       config,
-      customKnownFiles,
-      root
+      makeCtx(customKnownFiles)
     );
 
     assert.strictEqual(violations.length, 1);
@@ -980,8 +949,7 @@ suite("boundaries — only and containedTo rules", () => {
       "c:/project/src/features/auth/service.ts",
       `import { helper } from './internal/helper';`,
       config,
-      customKnownFiles,
-      root
+      makeCtx(customKnownFiles)
     );
 
     assert.strictEqual(violations.length, 0);

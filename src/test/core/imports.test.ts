@@ -1,6 +1,6 @@
 import * as assert from "assert";
-import * as path from "path";
 import { extractImports, resolveImport, matchFileToModule } from "../../core/imports";
+import type { WorkspaceContext } from "../../types";
 
 suite("extractImports", () => {
   // --- Happy path ---
@@ -173,20 +173,25 @@ suite("resolveImport", () => {
     "c:/project/src/utils/helpers.ts",
   ]);
 
+  // Builds a WorkspaceContext from test fixtures
+  function makeCtx(ctxAliases: Record<string, string> = {}): WorkspaceContext {
+    return { knownFiles, root, aliases: ctxAliases };
+  }
+
   // --- Relative imports ---
 
   test("resolves a relative sibling import", () => {
-    const result = resolveImport("./utils", fromFile, knownFiles, root);
+    const result = resolveImport("./utils", fromFile, makeCtx());
     assert.strictEqual(result, "c:/project/src/features/auth/utils.ts");
   });
 
   test("resolves a relative import going up directories", () => {
-    const result = resolveImport("../billing/api", fromFile, knownFiles, root);
+    const result = resolveImport("../billing/api", fromFile, makeCtx());
     assert.strictEqual(result, "c:/project/src/features/billing/api.ts");
   });
 
   test("resolves a relative import to an index file", () => {
-    const result = resolveImport("../../components", fromFile, knownFiles, root);
+    const result = resolveImport("../../components", fromFile, makeCtx());
     assert.strictEqual(result, "c:/project/src/components/index.ts");
   });
 
@@ -194,41 +199,41 @@ suite("resolveImport", () => {
 
   test("resolves a wildcard alias", () => {
     const aliases = { "@/*": "src/*" };
-    const result = resolveImport("@/utils/helpers", fromFile, knownFiles, root, aliases);
+    const result = resolveImport("@/utils/helpers", fromFile, makeCtx(aliases));
     assert.strictEqual(result, "c:/project/src/utils/helpers.ts");
   });
 
   test("resolves an exact alias", () => {
     const aliases = { "@components": "src/components" };
-    const result = resolveImport("@components", fromFile, knownFiles, root, aliases);
+    const result = resolveImport("@components", fromFile, makeCtx(aliases));
     assert.strictEqual(result, "c:/project/src/components/index.ts");
   });
 
   // --- Edge cases ---
 
   test("returns undefined for external packages", () => {
-    const result = resolveImport("react", fromFile, knownFiles, root);
+    const result = resolveImport("react", fromFile, makeCtx());
     assert.strictEqual(result, undefined);
   });
 
   test("returns undefined for scoped external packages", () => {
-    const result = resolveImport("@tanstack/react-query", fromFile, knownFiles, root);
+    const result = resolveImport("@tanstack/react-query", fromFile, makeCtx());
     assert.strictEqual(result, undefined);
   });
 
   test("returns undefined when resolved file is not in knownFiles", () => {
-    const result = resolveImport("./nonexistent", fromFile, knownFiles, root);
+    const result = resolveImport("./nonexistent", fromFile, makeCtx());
     assert.strictEqual(result, undefined);
   });
 
   test("returns undefined for alias that does not match any known file", () => {
     const aliases = { "@/*": "src/*" };
-    const result = resolveImport("@/missing/module", fromFile, knownFiles, root, aliases);
+    const result = resolveImport("@/missing/module", fromFile, makeCtx(aliases));
     assert.strictEqual(result, undefined);
   });
 
   test("handles empty aliases gracefully", () => {
-    const result = resolveImport("./utils", fromFile, knownFiles, root, {});
+    const result = resolveImport("./utils", fromFile, makeCtx());
     assert.strictEqual(result, "c:/project/src/features/auth/utils.ts");
   });
 });

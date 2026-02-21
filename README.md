@@ -16,7 +16,7 @@
 
 Pickety is a VS Code extension that stops architecture erosion before it starts. Define your module boundaries once in a simple JSON file, and every illegal import lights up instantly -- right in your editor, as you type. No more "we don't import that here" comments in code review. No more accidental coupling that quietly rots your codebase over months.
 
-Zero dependencies. Zero build steps. Just drop in a config and your entire team gets real-time, visual enforcement of the rules that actually matter.
+Zero runtime dependencies. Zero build steps. Just drop in a config and your entire team gets real-time, visual enforcement of the rules that actually matter.
 
 ![Pickety in action](resources/illegal-route-import.gif)
 
@@ -39,6 +39,29 @@ AI coding agents are fast but don't know your architecture. Pickety keeps them o
 
 ---
 
+## Why not just use ESLint?
+
+ESLint is great at code-level rules -- naming conventions, unused variables, consistent syntax. Pickety solves a different problem: **architecture-level rules** that ESLint was never designed for.
+
+|                              | ESLint                                                 | Pickety                                                      |
+| ---------------------------- | ------------------------------------------------------ | ------------------------------------------------------------ |
+| **Scope**                    | Single-file lint rules                                 | Cross-module boundary enforcement                            |
+| **Setup**                    | Plugin ecosystem, parser config, flat config migration | One `pickety.json` file                                      |
+| **Boundary logic**           | `no-restricted-imports` with manual regex per path     | Declarative module map + glob-based rules                    |
+| **Interpolation**            | Not supported                                          | `$name` variables enforce scoped relationships automatically |
+| **Strict containment**       | Not supported                                          | `only` and `containedTo` whitelist who can import a target   |
+| **Architectural visibility** | None                                                   | Auto-generated Mermaid boundary diagrams                     |
+| **Health metrics**           | None                                                   | Coupling, instability, and dependency depth per module       |
+| **Impact analysis**          | None                                                   | Transitive dependent graph before you refactor               |
+| **Gradual adoption**         | All-or-nothing per rule                                | `maxViolations` lets you ratchet down tech debt over time    |
+| **Dependencies**             | Dozens of transitive deps                              | Zero (Self-contained)                                        |
+
+ESLint's `no-restricted-imports` can block a handful of hard-coded paths. But the moment you need "features can't cross-import each other" or "route X can only touch feature X's pages", you're writing fragile regex that nobody maintains. Pickety expresses those constraints in a few readable lines and enforces them in real time.
+
+**Use both.** Let ESLint handle code style and correctness. Let Pickety handle the architectural rules that keep your codebase from quietly rotting.
+
+---
+
 ## Features
 
 - **Real-time enforcement** -- violations appear as you type, not just on save
@@ -56,7 +79,8 @@ AI coding agents are fast but don't know your architecture. Pickety keeps them o
 - **Status bar** -- always know whether Pickety is active and how many violations exist
 - **CLI** -- `pickety check` for CI/CD pipelines, matching IDE behavior exactly
 - **JSON Schema** -- autocomplete and inline validation for `pickety.json`
-- **Zero config beyond `pickety.json`** -- no build plugins, no dependencies to manage
+- **No external dependencies** -- self-contained bundle requires zero `npm install` at runtime
+- **Zero config beyond `pickety.json`** -- no build plugins, no complex environment to set up
 
 ---
 
@@ -323,6 +347,25 @@ A complete configuration enforcing feature isolation, dependency direction, util
 ```
 
 For more patterns -- Feature-Sliced Design, Onion Architecture, scoped utilities -- see the [Rule Recipes](docs/recipes.md).
+
+---
+
+## Performance & Limits
+
+Pickety is designed for speed, using optimized regex for import extraction and caching dependency graphs in memory. For most projects, analysis is near-instant.
+
+### Large Workspaces
+
+To prevent IDE hangs on massive codebases, Pickety applies certain limits in the VS Code extension:
+
+- **File Limit:** If your workspace contains more than **5,000** TypeScript/JavaScript source files, Pickety will disable background features (Circular Dependency Detection and Module Health Metrics) for performance.
+- **Real-time Boundary Checks:** Standard boundary enforcement on the active file always remains active, regardless of project size.
+
+If these limits are reached, a warning will appear in the **Pickety** output channel. You can still run full project analysis via the CLI: `pickety check`.
+
+### Benchmarks
+
+In a synthetic project with 500 files and 10 modules, a full project analysis (`pickety check`) completes in under **600ms** on a standard developer machine.
 
 ---
 

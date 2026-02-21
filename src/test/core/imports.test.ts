@@ -1,3 +1,6 @@
+import * as path from "path";
+import { normalizePath } from "../../core/utils";
+const ROOT_DIR = normalizePath(path.resolve("/project"));
 import * as assert from "assert";
 import { extractImports, resolveImport, matchFileToModule } from "../../core/imports";
 import type { WorkspaceContext } from "../../types";
@@ -161,16 +164,16 @@ suite("extractImports", () => {
 
 suite("resolveImport", () => {
   // Use lowercase drive letter to match normalizePath output on Windows
-  const root = "c:/project";
-  const fromFile = "c:/project/src/features/auth/service.ts";
+  const root = ROOT_DIR;
+  const fromFile = `${ROOT_DIR}/src/features/auth/service.ts`;
 
   const knownFiles = new Set([
-    "c:/project/src/features/auth/service.ts",
-    "c:/project/src/features/auth/utils.ts",
-    "c:/project/src/features/billing/api.ts",
-    "c:/project/src/components/Button.tsx",
-    "c:/project/src/components/index.ts",
-    "c:/project/src/utils/helpers.ts",
+    `${ROOT_DIR}/src/features/auth/service.ts`,
+    `${ROOT_DIR}/src/features/auth/utils.ts`,
+    `${ROOT_DIR}/src/features/billing/api.ts`,
+    `${ROOT_DIR}/src/components/Button.tsx`,
+    `${ROOT_DIR}/src/components/index.ts`,
+    `${ROOT_DIR}/src/utils/helpers.ts`,
   ]);
 
   // Builds a WorkspaceContext from test fixtures
@@ -182,17 +185,17 @@ suite("resolveImport", () => {
 
   test("resolves a relative sibling import", () => {
     const result = resolveImport("./utils", fromFile, makeCtx());
-    assert.strictEqual(result, "c:/project/src/features/auth/utils.ts");
+    assert.strictEqual(result, `${ROOT_DIR}/src/features/auth/utils.ts`);
   });
 
   test("resolves a relative import going up directories", () => {
     const result = resolveImport("../billing/api", fromFile, makeCtx());
-    assert.strictEqual(result, "c:/project/src/features/billing/api.ts");
+    assert.strictEqual(result, `${ROOT_DIR}/src/features/billing/api.ts`);
   });
 
   test("resolves a relative import to an index file", () => {
     const result = resolveImport("../../components", fromFile, makeCtx());
-    assert.strictEqual(result, "c:/project/src/components/index.ts");
+    assert.strictEqual(result, `${ROOT_DIR}/src/components/index.ts`);
   });
 
   // --- Alias resolution ---
@@ -200,13 +203,13 @@ suite("resolveImport", () => {
   test("resolves a wildcard alias", () => {
     const aliases = { "@/*": "src/*" };
     const result = resolveImport("@/utils/helpers", fromFile, makeCtx(aliases));
-    assert.strictEqual(result, "c:/project/src/utils/helpers.ts");
+    assert.strictEqual(result, `${ROOT_DIR}/src/utils/helpers.ts`);
   });
 
   test("resolves an exact alias", () => {
     const aliases = { "@components": "src/components" };
     const result = resolveImport("@components", fromFile, makeCtx(aliases));
-    assert.strictEqual(result, "c:/project/src/components/index.ts");
+    assert.strictEqual(result, `${ROOT_DIR}/src/components/index.ts`);
   });
 
   // --- Edge cases ---
@@ -234,12 +237,12 @@ suite("resolveImport", () => {
 
   test("handles empty aliases gracefully", () => {
     const result = resolveImport("./utils", fromFile, makeCtx());
-    assert.strictEqual(result, "c:/project/src/features/auth/utils.ts");
+    assert.strictEqual(result, `${ROOT_DIR}/src/features/auth/utils.ts`);
   });
 });
 
 suite("matchFileToModule", () => {
-  const root = "c:/project";
+  const root = ROOT_DIR;
   const modules = {
     features: "src/features/*",
     components: "src/components/**/*",
@@ -250,7 +253,7 @@ suite("matchFileToModule", () => {
 
   test("matches a file to a module with /* expansion", () => {
     const result = matchFileToModule(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       modules,
       root
     );
@@ -259,7 +262,7 @@ suite("matchFileToModule", () => {
 
   test("matches a deeply nested file to a module with /**/*", () => {
     const result = matchFileToModule(
-      "c:/project/src/components/ui/buttons/Primary.tsx",
+      `${ROOT_DIR}/src/components/ui/buttons/Primary.tsx`,
       modules,
       root
     );
@@ -274,7 +277,7 @@ suite("matchFileToModule", () => {
       all: "src/**/*",
     };
     const result = matchFileToModule(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       overlapping,
       root
     );
@@ -285,7 +288,7 @@ suite("matchFileToModule", () => {
 
   test("returns undefined for a file not in any module", () => {
     const result = matchFileToModule(
-      "c:/project/src/config/database.ts",
+      `${ROOT_DIR}/src/config/database.ts`,
       modules,
       root
     );
@@ -294,7 +297,7 @@ suite("matchFileToModule", () => {
 
   test("returns undefined for a file outside the project root", () => {
     const result = matchFileToModule(
-      "C:/other-project/src/features/auth/service.ts",
+      normalizePath(path.resolve("/other-project/src/features/auth/service.ts")),
       modules,
       root
     );
@@ -303,7 +306,7 @@ suite("matchFileToModule", () => {
 
   test("returns undefined with empty modules object", () => {
     const result = matchFileToModule(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       {},
       root
     );
@@ -313,7 +316,7 @@ suite("matchFileToModule", () => {
   test("handles pattern without expansion (exact glob)", () => {
     const exactModules = { lib: "src/lib/*.ts" };
     const result = matchFileToModule(
-      "c:/project/src/lib/math.ts",
+      `${ROOT_DIR}/src/lib/math.ts`,
       exactModules,
       root
     );

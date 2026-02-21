@@ -1,3 +1,6 @@
+import * as path from "path";
+import { normalizePath } from "../../core/utils";
+const ROOT_DIR = normalizePath(path.resolve("/project"));
 import * as assert from "assert";
 import { checkBoundaries, applyMaxViolations } from "../../core/boundaries";
 import type { PicketyConfig, Violation, WorkspaceContext } from "../../types";
@@ -22,21 +25,21 @@ function makeConfig(
 // Standard set of known files for most tests
 // Use lowercase drive letter to match normalizePath output on Windows
 const knownFiles = new Set([
-  "c:/project/src/features/auth/service.ts",
-  "c:/project/src/features/auth/components/LoginForm.tsx",
-  "c:/project/src/features/auth/pages/LoginPage.tsx",
-  "c:/project/src/features/auth/hooks/useAuth.ts",
-  "c:/project/src/features/auth/schemas/loginSchema.ts",
-  "c:/project/src/features/billing/api.ts",
-  "c:/project/src/features/billing/pages/BillingPage.tsx",
-  "c:/project/src/features/billing/components/Invoice.tsx",
-  "c:/project/src/components/Button.tsx",
-  "c:/project/src/routes/auth/index.ts",
-  "c:/project/src/routes/billing/index.ts",
-  "c:/project/src/utils/helpers.ts",
+  `${ROOT_DIR}/src/features/auth/service.ts`,
+  `${ROOT_DIR}/src/features/auth/components/LoginForm.tsx`,
+  `${ROOT_DIR}/src/features/auth/pages/LoginPage.tsx`,
+  `${ROOT_DIR}/src/features/auth/hooks/useAuth.ts`,
+  `${ROOT_DIR}/src/features/auth/schemas/loginSchema.ts`,
+  `${ROOT_DIR}/src/features/billing/api.ts`,
+  `${ROOT_DIR}/src/features/billing/pages/BillingPage.tsx`,
+  `${ROOT_DIR}/src/features/billing/components/Invoice.tsx`,
+  `${ROOT_DIR}/src/components/Button.tsx`,
+  `${ROOT_DIR}/src/routes/auth/index.ts`,
+  `${ROOT_DIR}/src/routes/billing/index.ts`,
+  `${ROOT_DIR}/src/utils/helpers.ts`,
 ]);
 
-const root = "c:/project";
+const root = ROOT_DIR;
 
 // Builds a WorkspaceContext from test fixtures
 function makeCtx(
@@ -53,7 +56,7 @@ suite("boundaries — simple deny rules", () => {
     ]);
 
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       `import { api } from '../billing/api';`,
       config,
       makeCtx()
@@ -69,7 +72,7 @@ suite("boundaries — simple deny rules", () => {
     ]);
 
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       `import { Button } from '../../components/Button';`,
       config,
       makeCtx()
@@ -84,7 +87,7 @@ suite("boundaries — simple deny rules", () => {
     ]);
 
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       `import { helpers } from '../../utils/helpers';`,
       config,
       makeCtx()
@@ -99,7 +102,7 @@ suite("boundaries — simple deny rules", () => {
     ]);
 
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       `import { Button } from '../../components/Button';`,
       config,
       makeCtx()
@@ -118,7 +121,7 @@ suite("boundaries — simple deny rules", () => {
     ]);
 
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       `import { api } from '../billing/api';`,
       config,
       makeCtx()
@@ -136,7 +139,7 @@ suite("boundaries — simple deny rules", () => {
     );
 
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       `import { api } from '../billing/api';`,
       config,
       makeCtx()
@@ -153,7 +156,7 @@ suite("boundaries — file path glob patterns", () => {
     ]);
 
     const violations = checkBoundaries(
-      "c:/project/src/routes/auth/index.ts",
+      `${ROOT_DIR}/src/routes/auth/index.ts`,
       `import { LoginForm } from '../../features/auth/components/LoginForm';`,
       config,
       makeCtx()
@@ -168,7 +171,7 @@ suite("boundaries — file path glob patterns", () => {
     ]);
 
     const violations = checkBoundaries(
-      "c:/project/src/routes/auth/index.ts",
+      `${ROOT_DIR}/src/routes/auth/index.ts`,
       `import { LoginPage } from '../../features/auth/pages/LoginPage';`,
       config,
       makeCtx()
@@ -189,7 +192,7 @@ suite("boundaries — file path glob patterns", () => {
     ].join("\n");
 
     const violations = checkBoundaries(
-      "c:/project/src/routes/auth/index.ts",
+      `${ROOT_DIR}/src/routes/auth/index.ts`,
       content,
       config,
       makeCtx()
@@ -213,7 +216,7 @@ suite("boundaries — interpolation variables", () => {
 
     // routes/auth importing features/auth/pages — same $name
     const violations = checkBoundaries(
-      "c:/project/src/routes/auth/index.ts",
+      `${ROOT_DIR}/src/routes/auth/index.ts`,
       `import { LoginPage } from '../../features/auth/pages/LoginPage';`,
       config,
       makeCtx()
@@ -233,7 +236,7 @@ suite("boundaries — interpolation variables", () => {
 
     // routes/auth importing features/billing/pages — different $name
     const violations = checkBoundaries(
-      "c:/project/src/routes/auth/index.ts",
+      `${ROOT_DIR}/src/routes/auth/index.ts`,
       `import { BillingPage } from '../../features/billing/pages/BillingPage';`,
       config,
       makeCtx()
@@ -254,7 +257,7 @@ suite("boundaries — interpolation variables", () => {
 
     // routes/auth importing components — not in the general pattern at all
     const violations = checkBoundaries(
-      "c:/project/src/routes/auth/index.ts",
+      `${ROOT_DIR}/src/routes/auth/index.ts`,
       `import { Button } from '../../components/Button';`,
       config,
       makeCtx()
@@ -275,7 +278,7 @@ suite("boundaries — interpolation variables", () => {
 
     // routes/auth importing features/auth/hooks — matches interpolated deny
     const violations = checkBoundaries(
-      "c:/project/src/routes/auth/index.ts",
+      `${ROOT_DIR}/src/routes/auth/index.ts`,
       `import { useAuth } from '../../features/auth/hooks/useAuth';`,
       config,
       makeCtx()
@@ -297,7 +300,7 @@ suite("boundaries — interpolation variables", () => {
     // We don't have features/billing/hooks in knownFiles, so import won't resolve
     // Instead, test with a non-hooks import
     const violations = checkBoundaries(
-      "c:/project/src/routes/auth/index.ts",
+      `${ROOT_DIR}/src/routes/auth/index.ts`,
       `import { LoginPage } from '../../features/auth/pages/LoginPage';`,
       config,
       makeCtx()
@@ -310,10 +313,10 @@ suite("boundaries — interpolation variables", () => {
 
   test("two variables both matching — no violation (allow: true)", () => {
     const multiVarKnownFiles = new Set([
-      "c:/project/src/apps/web/routes/auth/index.ts",
-      "c:/project/src/apps/web/pages/auth/LoginPage.tsx",
-      "c:/project/src/apps/web/pages/billing/BillingPage.tsx",
-      "c:/project/src/apps/mobile/pages/auth/LoginPage.tsx",
+      `${ROOT_DIR}/src/apps/web/routes/auth/index.ts`,
+      `${ROOT_DIR}/src/apps/web/pages/auth/LoginPage.tsx`,
+      `${ROOT_DIR}/src/apps/web/pages/billing/BillingPage.tsx`,
+      `${ROOT_DIR}/src/apps/mobile/pages/auth/LoginPage.tsx`,
     ]);
     const config = makeConfig(
       [
@@ -328,7 +331,7 @@ suite("boundaries — interpolation variables", () => {
 
     // apps/web/routes/auth importing apps/web/pages/auth — both match
     const violations = checkBoundaries(
-      "c:/project/src/apps/web/routes/auth/index.ts",
+      `${ROOT_DIR}/src/apps/web/routes/auth/index.ts`,
       `import { LoginPage } from '../../pages/auth/LoginPage';`,
       config,
       makeCtx(multiVarKnownFiles)
@@ -339,8 +342,8 @@ suite("boundaries — interpolation variables", () => {
 
   test("two variables, second mismatches — violation (allow: true)", () => {
     const multiVarKnownFiles = new Set([
-      "c:/project/src/apps/web/routes/auth/index.ts",
-      "c:/project/src/apps/web/pages/billing/BillingPage.tsx",
+      `${ROOT_DIR}/src/apps/web/routes/auth/index.ts`,
+      `${ROOT_DIR}/src/apps/web/pages/billing/BillingPage.tsx`,
     ]);
     const config = makeConfig(
       [
@@ -355,7 +358,7 @@ suite("boundaries — interpolation variables", () => {
 
     // apps/web/routes/auth importing apps/web/pages/billing — $app matches but $route doesn't
     const violations = checkBoundaries(
-      "c:/project/src/apps/web/routes/auth/index.ts",
+      `${ROOT_DIR}/src/apps/web/routes/auth/index.ts`,
       `import { BillingPage } from '../../pages/billing/BillingPage';`,
       config,
       makeCtx(multiVarKnownFiles)
@@ -366,8 +369,8 @@ suite("boundaries — interpolation variables", () => {
 
   test("two variables, first mismatches — violation (allow: true)", () => {
     const multiVarKnownFiles = new Set([
-      "c:/project/src/apps/web/routes/auth/index.ts",
-      "c:/project/src/apps/mobile/pages/auth/LoginPage.tsx",
+      `${ROOT_DIR}/src/apps/web/routes/auth/index.ts`,
+      `${ROOT_DIR}/src/apps/mobile/pages/auth/LoginPage.tsx`,
     ]);
     const config = makeConfig(
       [
@@ -382,7 +385,7 @@ suite("boundaries — interpolation variables", () => {
 
     // apps/web/routes/auth importing apps/mobile/pages/auth — $route matches but $app doesn't
     const violations = checkBoundaries(
-      "c:/project/src/apps/web/routes/auth/index.ts",
+      `${ROOT_DIR}/src/apps/web/routes/auth/index.ts`,
       `import { LoginPage } from '../../../mobile/pages/auth/LoginPage';`,
       config,
       makeCtx(multiVarKnownFiles)
@@ -393,8 +396,8 @@ suite("boundaries — interpolation variables", () => {
 
   test("two variables deny rule — matching values denied (allow: false)", () => {
     const multiVarKnownFiles = new Set([
-      "c:/project/src/apps/web/routes/auth/index.ts",
-      "c:/project/src/apps/web/internal/auth/secrets.ts",
+      `${ROOT_DIR}/src/apps/web/routes/auth/index.ts`,
+      `${ROOT_DIR}/src/apps/web/internal/auth/secrets.ts`,
     ]);
     const config = makeConfig(
       [
@@ -408,7 +411,7 @@ suite("boundaries — interpolation variables", () => {
 
     // apps/web/routes/auth importing apps/web/internal/auth — both vars match, denied
     const violations = checkBoundaries(
-      "c:/project/src/apps/web/routes/auth/index.ts",
+      `${ROOT_DIR}/src/apps/web/routes/auth/index.ts`,
       `import { secrets } from '../../internal/auth/secrets';`,
       config,
       makeCtx(multiVarKnownFiles)
@@ -430,7 +433,7 @@ suite("boundaries — interpolation variables", () => {
 
     // A features file importing features pages — not a routes/ file, rule should not apply
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       `import { BillingPage } from '../billing/pages/BillingPage';`,
       config,
       makeCtx()
@@ -450,7 +453,7 @@ suite("boundaries — interpolation variables", () => {
     ]);
 
     const violations = checkBoundaries(
-      "c:/project/src/routes/auth/index.ts",
+      `${ROOT_DIR}/src/routes/auth/index.ts`,
       `import { BillingPage } from '../../features/billing/pages/BillingPage';`,
       config,
       makeCtx()
@@ -480,7 +483,7 @@ suite("boundaries — interpolation variables", () => {
     ].join("\n");
 
     const violations = checkBoundaries(
-      "c:/project/src/routes/auth/index.ts",
+      `${ROOT_DIR}/src/routes/auth/index.ts`,
       content,
       config,
       makeCtx()
@@ -497,7 +500,7 @@ suite("boundaries — edge cases", () => {
     ]);
 
     const violations = checkBoundaries(
-      "c:/project/src/config/database.ts",
+      `${ROOT_DIR}/src/config/database.ts`,
       `import { api } from '../features/billing/api';`,
       config,
       makeCtx()
@@ -512,7 +515,7 @@ suite("boundaries — edge cases", () => {
     ]);
 
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       `import { missing } from '../billing/nonexistent';`,
       config,
       makeCtx()
@@ -527,7 +530,7 @@ suite("boundaries — edge cases", () => {
     ]);
 
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       `import React from 'react';`,
       config,
       makeCtx()
@@ -542,7 +545,7 @@ suite("boundaries — edge cases", () => {
     ]);
 
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       "",
       config,
       makeCtx()
@@ -562,7 +565,7 @@ suite("boundaries — edge cases", () => {
     ].join("\n");
 
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       content,
       config,
       makeCtx()
@@ -580,7 +583,7 @@ suite("boundaries — edge cases", () => {
     // Auth importing two different features
     const filesWithBilling = new Set([
       ...knownFiles,
-      "c:/project/src/features/billing/utils.ts",
+      `${ROOT_DIR}/src/features/billing/utils.ts`,
     ]);
 
     const content = [
@@ -589,7 +592,7 @@ suite("boundaries — edge cases", () => {
     ].join("\n");
 
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       content,
       config,
       makeCtx(filesWithBilling)
@@ -607,11 +610,11 @@ suite("boundaries — edge cases", () => {
 
     const authKnownFiles = new Set([
       ...knownFiles,
-      "c:/project/src/features/auth/other.ts",
+      `${ROOT_DIR}/src/features/auth/other.ts`,
     ]);
 
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       `import { other } from './other';`,
       config,
       makeCtx(authKnownFiles)
@@ -629,7 +632,7 @@ suite("boundaries — aliases", () => {
     const config = makeConfig([{ importer: "features", imports: "features" }]);
 
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       `import { api } from '@/features/billing/api';`,
       config,
       makeCtx(knownFiles, aliases)
@@ -643,7 +646,7 @@ suite("boundaries — aliases", () => {
     const config = makeConfig([{ importer: "features", imports: "features" }]);
 
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       `import { Button } from '@/components/Button';`,
       config,
       makeCtx(knownFiles, aliases)
@@ -660,7 +663,7 @@ suite("boundaries — rule identification and severity", () => {
     ]);
 
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       `import { api } from '../billing/api';`,
       config,
       makeCtx()
@@ -679,7 +682,7 @@ suite("boundaries — rule identification and severity", () => {
     ]);
 
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       `import { api } from '../billing/api';`,
       config,
       makeCtx()
@@ -696,7 +699,7 @@ suite("boundaries — rule identification and severity", () => {
     ]);
 
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       `import { api } from '../billing/api';`,
       config,
       makeCtx()
@@ -712,7 +715,7 @@ suite("boundaries — maxViolations threshold", () => {
   // Helper to create a violation with a specific rule name
   function makeViolation(ruleName: string, severity: "error" | "warn" = "error"): Violation {
     return {
-      file: "c:/project/src/features/auth/service.ts",
+      file: `${ROOT_DIR}/src/features/auth/service.ts`,
       line: 0,
       character: 0,
       length: 10,
@@ -842,14 +845,14 @@ suite("boundaries — only and containedTo rules", () => {
     };
 
     const customKnownFiles = new Set([
-      "c:/project/src/services/UserService.ts",
-      "c:/project/src/repositories/UserRepository.ts",
-      "c:/project/src/controllers/UserController.ts"
+      `${ROOT_DIR}/src/services/UserService.ts`,
+      `${ROOT_DIR}/src/repositories/UserRepository.ts`,
+      `${ROOT_DIR}/src/controllers/UserController.ts`
     ]);
 
     // Controller importing Repository — should be a violation
     const violations = checkBoundaries(
-      "c:/project/src/controllers/UserController.ts",
+      `${ROOT_DIR}/src/controllers/UserController.ts`,
       `import { repo } from '../repositories/UserRepository';`,
       config,
       makeCtx(customKnownFiles)
@@ -869,13 +872,13 @@ suite("boundaries — only and containedTo rules", () => {
     };
 
     const customKnownFiles = new Set([
-      "c:/project/src/services/UserService.ts",
-      "c:/project/src/repositories/UserRepository.ts"
+      `${ROOT_DIR}/src/services/UserService.ts`,
+      `${ROOT_DIR}/src/repositories/UserRepository.ts`
     ]);
 
     // Service importing Repository — should be allowed
     const violations = checkBoundaries(
-      "c:/project/src/services/UserService.ts",
+      `${ROOT_DIR}/src/services/UserService.ts`,
       `import { repo } from '../repositories/UserRepository';`,
       config,
       makeCtx(customKnownFiles)
@@ -890,13 +893,13 @@ suite("boundaries — only and containedTo rules", () => {
     ]);
 
     const customKnownFiles = new Set([
-      "c:/project/src/features/auth/internal/helper.ts",
-      "c:/project/src/features/billing/service.ts"
+      `${ROOT_DIR}/src/features/auth/internal/helper.ts`,
+      `${ROOT_DIR}/src/features/billing/service.ts`
     ]);
 
     // Billing importing Auth-internal — should be a violation
     const violations = checkBoundaries(
-      "c:/project/src/features/billing/service.ts",
+      `${ROOT_DIR}/src/features/billing/service.ts`,
       `import { helper } from '../auth/internal/helper';`,
       config,
       makeCtx(customKnownFiles)
@@ -912,15 +915,15 @@ suite("boundaries — only and containedTo rules", () => {
     ]);
 
     const customKnownFiles = new Set([
-      "c:/project/src/features/auth/internal/helper.ts",
-      "c:/project/src/features/auth/service.ts",
-      "c:/project/src/features/billing/service.ts"
+      `${ROOT_DIR}/src/features/auth/internal/helper.ts`,
+      `${ROOT_DIR}/src/features/auth/service.ts`,
+      `${ROOT_DIR}/src/features/billing/service.ts`
     ]);
 
     // Billing importing Auth-internal — $name=auth, so importer must be features/auth/**/*
     // Billing is features/billing/**/*, so it should fail.
     const violations = checkBoundaries(
-      "c:/project/src/features/billing/service.ts",
+      `${ROOT_DIR}/src/features/billing/service.ts`,
       `import { helper } from '../auth/internal/helper';`,
       config,
       makeCtx(customKnownFiles)
@@ -936,13 +939,13 @@ suite("boundaries — only and containedTo rules", () => {
     ]);
 
     const customKnownFiles = new Set([
-      "c:/project/src/features/auth/internal/helper.ts",
-      "c:/project/src/features/auth/service.ts"
+      `${ROOT_DIR}/src/features/auth/internal/helper.ts`,
+      `${ROOT_DIR}/src/features/auth/service.ts`
     ]);
 
     // Auth importing Auth-internal — $name=auth matches both
     const violations = checkBoundaries(
-      "c:/project/src/features/auth/service.ts",
+      `${ROOT_DIR}/src/features/auth/service.ts`,
       `import { helper } from './internal/helper';`,
       config,
       makeCtx(customKnownFiles)

@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
-import { getConfigPath } from "../core/utils";
+import { getConfigPath } from "../utils";
 
 export async function initCommand(workspaceRoot: string, reload: () => void) {
   const configPath = getConfigPath(workspaceRoot);

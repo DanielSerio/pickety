@@ -64,27 +64,27 @@
     "commands": [
       {
         "command": "pickety.init",
-        "title": "Pickety: Initialize Configuration",
+        "title": "Initialize Configuration",
         "category": "Pickety"
       },
       {
         "command": "pickety.refresh",
-        "title": "Pickety: Refresh Configuration",
+        "title": "Refresh Configuration",
         "category": "Pickety"
       },
       {
         "command": "pickety.generateDiagram",
-        "title": "Pickety: Generate Boundary Diagram",
+        "title": "Generate Boundary Diagram",
         "category": "Pickety"
       },
       {
         "command": "pickety.showImpact",
-        "title": "Pickety: Show Impact",
+        "title": "Show Impact",
         "category": "Pickety"
       },
       {
         "command": "pickety.showHealth",
-        "title": "Pickety: Show Module Health",
+        "title": "Show Module Health",
         "category": "Pickety"
       }
     ],

@@ -51,7 +51,7 @@ suite('Extension Integration Test Suite', () => {
       // Cleanup: delete the test file
       try {
         await vscode.workspace.fs.delete(testFileUri);
-      } catch (e) {
+      } catch (_e) {
         // Ignore cleanup errors
       }
     }

@@ -33,7 +33,7 @@ export function showHealthPanel(
   });
 }
 
-import { formatHealthMetricValue } from "./core/utils";
+import { formatHealthMetricValue } from "./utils";
 
 function heatmapStyle(ratio: number): string {
   const clamped = Math.max(0, Math.min(1, ratio));

@@ -1,27 +1,23 @@
 import * as vscode from "vscode";
-import * as path from "path";
 import * as fs from "fs";
 import { loadConfig, loadTsConfigAliases } from "./core/config";
 import { checkBoundaries, applyMaxViolations, getModuleDependencies } from "./core/boundaries";
 import { generateMermaidDiagram } from "./core/diagram";
 import { ImportGraph, getFileDependencies } from "./core/graph";
-import { matchFileToModule } from "./core/imports";
 import {
   normalizePath,
   SOURCE_GLOB,
   CONFIG_FILENAME,
-  findCycles,
   getConfigPath,
-  formatHealthMetricValue,
-} from "./core/utils";
+} from "./utils";
+import { findCycles } from "./core/utils";
 import { PicketyStatusBar } from "./statusBar";
 import { ImpactCodeLensProvider } from "./impactCodeLens";
 import { reportConfigErrors } from "./diagnostics";
-import type { PicketyConfig, ConfigResult, Violation, PicketyMetadata, WorkspaceContext } from "./types";
+import type { PicketyConfig, ConfigResult, Violation, WorkspaceContext } from "./types";
 import { goToRule, allowImport } from "./navigation";
 import { PicketyCodeActionProvider } from "./codeActions";
 import { computeModuleHealth, checkHealthThresholds } from "./core/health";
-import { showHealthPanel } from "./healthPanel";
 import { initCommand } from "./commands/init";
 import { generateDiagramCommand } from "./commands/generateDiagram";
 import { showHealthCommand } from "./commands/showHealth";
@@ -42,14 +38,18 @@ export class PicketyController {
   private configRef: { config: PicketyConfig | undefined; } = { config: undefined };
   private isLargeWorkspace = false;
   private static readonly MAX_FILES_THRESHOLD = 5000;
+  private readonly importGraph: ImportGraph;
+  private readonly statusBar: PicketyStatusBar;
   private telemetry = TelemetryProvider.getInstance();
 
   constructor(
     private readonly context: vscode.ExtensionContext,
-    private readonly workspaceRoot: string,
-    private readonly importGraph: ImportGraph,
-    private readonly statusBar: PicketyStatusBar
+    private readonly workspaceRoot: string
   ) {
+    this.importGraph = new ImportGraph();
+    this.statusBar = new PicketyStatusBar(context);
+    this.context.subscriptions.push(this.statusBar);
+
     this.outputChannel = vscode.window.createOutputChannel("Pickety");
     this.context.subscriptions.push(this.outputChannel);
     this.telemetry.setOutputChannel(this.outputChannel);
@@ -60,6 +60,7 @@ export class PicketyController {
   }
 
   public async activate() {
+    this.telemetry.logEvent("extension_activate");
     this.outputChannel.appendLine(`Pickety: Extension activated for workspace: ${this.workspaceRoot}`);
     this.registerWatchers();
     this.registerCommands();
@@ -134,7 +135,6 @@ export class PicketyController {
         return;
       }
 
-      const ctx = this.getWorkspaceContext();
       const allEntries: { uri: vscode.Uri; violations: Violation[]; }[] = [];
       for (const document of vscode.workspace.textDocuments) {
         if (this.isSourceFile(document)) {

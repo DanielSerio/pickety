@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import * as jsonc from "jsonc-parser";
-import { CONFIG_FILENAME } from "./core/utils";
+import { CONFIG_FILENAME } from "./utils";
 
 export async function goToRule(workspaceRoot: string, ruleName: string | number) {
   const configPath = path.join(workspaceRoot, CONFIG_FILENAME);
@@ -74,7 +74,7 @@ export async function allowImport(workspaceRoot: string, importer: string, targe
 
   const document = await vscode.workspace.openTextDocument(vscode.Uri.file(configPath));
   const text = document.getText();
-  
+
   const edits = jsonc.modify(text, ["rules", "module-boundaries", "rules", -1], {
     importer,
     imports: target,
@@ -94,6 +94,6 @@ export async function allowImport(workspaceRoot: string, importer: string, targe
 
   await vscode.workspace.applyEdit(edit);
   await document.save();
-  
+
   vscode.window.showInformationMessage(`Added exception: Allow '${target}' in '${importer}'`);
 }

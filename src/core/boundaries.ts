@@ -23,7 +23,7 @@ export function checkBoundaries(
   const violations: Violation[] = [];
   const { modules } = config;
   const { severity, rules } = config.rules["module-boundaries"];
-  const { knownFiles, root, aliases } = ctx;
+  const { knownFiles: _knownFiles, root, aliases: _aliases } = ctx;
 
   // Determine which module this file belongs to
   const sourceModule = matchFileToModule(filePath, modules, root);

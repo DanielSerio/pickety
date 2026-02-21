@@ -40,7 +40,7 @@ export function extractImports(content: string): ImportStatement[] {
   COMBINED_REGEX.lastIndex = 0;
 
   while ((match = COMBINED_REGEX.exec(content)) !== null) {
-    const [fullMatch, comment, stringLiteral, staticImport, staticSpecifier, dynamicImport, dynamicSpecifier] = match;
+    const [_fullMatch, comment, stringLiteral, staticImport, staticSpecifier, dynamicImport, dynamicSpecifier] = match;
 
     if (comment || stringLiteral) {
       continue;

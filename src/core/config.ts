@@ -2,7 +2,6 @@ import * as path from "path";
 import * as fs from "fs";
 import * as jsonc from "jsonc-parser";
 import type {
-  PicketyConfig,
   ConfigResult,
   ConfigError,
   BoundaryRule,

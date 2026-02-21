@@ -309,10 +309,6 @@ suite("boundaries — interpolation variables", () => {
   // --- Multiple variables ---
 
   test("two variables both matching — no violation (allow: true)", () => {
-    const multiVarModules = {
-      features: "src/features/*",
-      apps: "src/apps/*",
-    };
     const multiVarKnownFiles = new Set([
       "c:/project/src/apps/web/routes/auth/index.ts",
       "c:/project/src/apps/web/pages/auth/LoginPage.tsx",

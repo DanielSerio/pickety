@@ -5,7 +5,9 @@
     "extension": "src/extension.ts",
     "controller": "src/controller.ts",
     "cli": "src/cli.ts",
-    "vscode-impl": "src/{statusBar,diagnostics,navigation,codeActions}.ts"
+    "vscode-impl": "src/{statusBar,diagnostics,navigation,codeActions,healthPanel,impactCodeLens,diagnosticManager,telemetry}.ts",
+    "shared": "src/{utils,types}.ts",
+    "commands": "src/commands/*.ts"
   },
   "rules": {
     "module-boundaries": {

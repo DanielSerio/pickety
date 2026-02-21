@@ -1,4 +1,3 @@
-import * as vscode from "vscode";
 import { computeModuleHealth } from "../core/health";
 import { showHealthPanel } from "../healthPanel";
 import { requireConfig } from "./utils";

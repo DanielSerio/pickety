@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { ImportGraph } from "./core/graph";
-import { normalizePath } from "./core/utils";
+import { normalizePath } from "./utils";
 import type { PicketyConfig } from "./types";
 
 // Displays a CodeLens at the top of each source file showing
@@ -12,8 +12,8 @@ export class ImpactCodeLensProvider implements vscode.CodeLensProvider {
   constructor(
     private readonly importGraph: ImportGraph,
     private readonly workspaceRoot: string,
-    private configRef: { config: PicketyConfig | undefined }
-  ) {}
+    private configRef: { config: PicketyConfig | undefined; }
+  ) { }
 
   // Signal that CodeLens values may have changed (call after graph updates)
   refresh(): void {

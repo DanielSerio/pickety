@@ -3,7 +3,7 @@
 **Architectural guardrails for TypeScript projects.**
 
 <p align="left">
-  <a href="LICENSE">
+  <a href="https://github.com/DanielSerio/pickety/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/DanielSerio/pickety?style=for-the-badge" alt="License">
   </a>
 </p>
@@ -14,7 +14,7 @@ Pickety is a VS Code extension that stops architecture erosion before it starts.
 
 Zero runtime dependencies. Zero build steps. Just drop in a config and your entire team — and your AI coding agents — get a **real-time Senior Architect** sitting on their shoulder, enforcing the rules that actually matter.
 
-![Pickety in action](resources/illegal-route-import.gif)
+![Pickety in action](https://raw.githubusercontent.com/DanielSerio/pickety/main/resources/illegal-route-import.gif)
 
 ---
 
@@ -266,7 +266,7 @@ Quantify the quality of your architecture with industry-standard coupling metric
 
 View these metrics anytime using **Pickety: Show Module Health**, or enforce project-wide quality standards in `pickety.json`:
 
-![Module Health Report Placeholder](resources/module-health.png)
+![Module Health Report Placeholder](https://raw.githubusercontent.com/DanielSerio/pickety/main/resources/module-health.png)
 
 ### Built for Humans and Agents
 
@@ -359,7 +359,7 @@ A complete configuration enforcing feature isolation, dependency direction, util
 }
 ```
 
-For more patterns -- Feature-Sliced Design, Onion Architecture, scoped utilities -- see the [Rule Recipes](docs/recipes.md).
+For more patterns -- Feature-Sliced Design, Onion Architecture, scoped utilities -- see the [Rule Recipes](https://github.com/DanielSerio/pickety/blob/main/docs/recipes.md).
 
 ---
 
@@ -384,17 +384,17 @@ In a synthetic project with 500 files and 10 modules, a full project analysis (`
 
 ## Documentation
 
-| Resource                                        | Description                                      |
-| ----------------------------------------------- | ------------------------------------------------ |
-| [Setup Guide](docs/setup.md)                    | Get running in under 3 minutes                   |
-| [Configuration Reference](docs/pickety-json.md) | Full `pickety.json` specification                |
-| [Rule Recipes](docs/recipes.md)                 | Common architectural patterns (FSD, Onion, etc.) |
-| [Wishlist](docs/WISHLIST.md)                    | Proposed features and future roadmap             |
+| Resource                                                                                         | Description                                      |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------ |
+| [Setup Guide](https://github.com/DanielSerio/pickety/blob/main/docs/setup.md)                    | Get running in under 3 minutes                   |
+| [Configuration Reference](https://github.com/DanielSerio/pickety/blob/main/docs/pickety-json.md) | Full `pickety.json` specification                |
+| [Rule Recipes](https://github.com/DanielSerio/pickety/blob/main/docs/recipes.md)                 | Common architectural patterns (FSD, Onion, etc.) |
+| [Wishlist](https://github.com/DanielSerio/pickety/blob/main/docs/WISHLIST.md)                    | Proposed features and future roadmap             |
 
 ---
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/DanielSerio/pickety/blob/main/LICENSE)
 
-This project bundles and distributes code from open-source projects. See [ThirdPartyNotices.txt](ThirdPartyNotices.txt) for a complete list of licenses and attributions.
+This project bundles and distributes code from open-source projects. See [ThirdPartyNotices.txt](https://github.com/DanielSerio/pickety/blob/main/ThirdPartyNotices.txt) for a complete list of licenses and attributions.

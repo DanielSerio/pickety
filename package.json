@@ -98,14 +98,15 @@
   "scripts": {
     "vscode:prepublish": "npm run build && npm run build:cli",
     "compile": "npm run build",
+    "compile-tests": "tsc -p ./",
     "build": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --main-fields=module,main --minify",
     "build:cli": "esbuild ./src/cli.ts --bundle --outfile=out/cli.js --format=cjs --platform=node --main-fields=module,main --minify",
     "watch": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --main-fields=module,main --watch",
     "type-check": "tsc -p ./ --noEmit",
-    "pretest": "npm run compile && npm run lint",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
-    "test:core": "npm run compile && mocha --ui tdd out/test/core/**/*.test.js",
+    "test:core": "npm run compile-tests && mocha --ui tdd out/test/core/**/*.test.js",
     "release:patch": "npm version patch && git push --follow-tags",
     "release:minor": "npm version minor && git push --follow-tags",
     "release:major": "npm version major && git push --follow-tags"

@@ -64,255 +64,279 @@ function validateConfig(parsed: unknown): ConfigResult {
 
   const obj = parsed as Record<string, unknown>;
 
-  // modules validation
-  if (obj.modules === undefined) {
+  const modules = validateModules(obj.modules, errors);
+  const boundaryConfig = validateBoundaryRules(obj.rules, errors);
+  const boundaryDiagrams = validateBoundaryDiagrams(obj["boundary-diagrams"], errors);
+  const health = validateHealthConfig(obj.health, errors);
+
+  if (errors.length > 0 || !modules || !boundaryConfig) {
+    return { ok: false, errors };
+  }
+
+  return {
+    ok: true,
+    config: {
+      modules,
+      rules: {
+        "module-boundaries": boundaryConfig,
+      },
+      "boundary-diagrams": boundaryDiagrams,
+      health,
+    },
+  };
+}
+
+function validateModules(
+  modules: unknown,
+  errors: ConfigError[]
+): Record<string, string> | undefined {
+  if (modules === undefined) {
     errors.push({
       message: '"modules" is required and must be an object',
       path: "modules",
     });
-  } else if (typeof obj.modules !== "object" || obj.modules === null) {
+    return undefined;
+  }
+
+  if (typeof modules !== "object" || modules === null) {
     errors.push({
       message: '"modules" must be an object mapping module names to patterns',
       path: "modules",
     });
-  } else {
-    const modules = obj.modules as Record<string, unknown>;
-    for (const [key, value] of Object.entries(modules)) {
-      if (typeof value !== "string") {
-        errors.push({
-          message: `Module "${key}" pattern must be a string, got ${typeof value}`,
-          path: `modules.${key}`,
-        });
-      }
-    }
+    return undefined;
   }
 
-  // rules validation
-  if (obj.rules === undefined) {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(modules)) {
+    if (typeof value !== "string") {
+      errors.push({
+        message: `Module "${key}" pattern must be a string, got ${typeof value}`,
+        path: `modules.${key}`,
+      });
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+function validateBoundaryRules(
+  rules: unknown,
+  errors: ConfigError[]
+): { severity: Severity; rules: BoundaryRule[]; } | undefined {
+  if (rules === undefined) {
     errors.push({
       message: '"rules" is required and must be an object',
       path: "rules",
     });
-  } else if (typeof obj.rules !== "object" || obj.rules === null) {
-    errors.push({ message: '"rules" must be an object', path: "rules" });
-  } else {
-    const rules = obj.rules as Record<string, unknown>;
-    const boundaries = rules["module-boundaries"];
+    return undefined;
+  }
 
-    if (boundaries === undefined) {
+  if (typeof rules !== "object" || rules === null) {
+    errors.push({ message: '"rules" must be an object', path: "rules" });
+    return undefined;
+  }
+
+  const rulesObj = rules as Record<string, unknown>;
+  const boundaries = rulesObj["module-boundaries"];
+
+  if (boundaries === undefined) {
+    errors.push({
+      message: '"rules.module-boundaries" is required and must be an object',
+      path: "rules.module-boundaries",
+    });
+    return undefined;
+  }
+
+  if (typeof boundaries !== "object" || boundaries === null) {
+    errors.push({
+      message: '"rules.module-boundaries" must be an object',
+      path: "rules.module-boundaries",
+    });
+    return undefined;
+  }
+
+  const bObj = boundaries as Record<string, unknown>;
+  let severity: Severity = "error";
+
+  if (bObj.severity !== undefined) {
+    if (bObj.severity !== "error" && bObj.severity !== "warn") {
       errors.push({
-        message: '"rules.module-boundaries" is required and must be an object',
-        path: "rules.module-boundaries",
-      });
-    } else if (typeof boundaries !== "object" || boundaries === null) {
-      errors.push({
-        message: '"rules.module-boundaries" must be an object',
-        path: "rules.module-boundaries",
+        message: `"rules.module-boundaries.severity" must be "error" or "warn", got "${bObj.severity}"`,
+        path: "rules.module-boundaries.severity",
       });
     } else {
-      const bObj = boundaries as Record<string, unknown>;
+      severity = bObj.severity;
+    }
+  }
 
-      // severity validation
-      let severity: Severity = "error";
-      if (bObj.severity !== undefined) {
-        if (bObj.severity !== "error" && bObj.severity !== "warn") {
-          errors.push({
-            message: `"rules.module-boundaries.severity" must be "error" or "warn", got "${bObj.severity}"`,
-            path: "rules.module-boundaries.severity",
-          });
-        } else {
-          severity = bObj.severity;
-        }
-      }
+  if (bObj.rules === undefined) {
+    errors.push({
+      message: '"rules.module-boundaries.rules" is required and must be an array',
+      path: "rules.module-boundaries.rules",
+    });
+    return undefined;
+  }
 
-      // rules array validation
-      if (bObj.rules === undefined) {
+  if (!Array.isArray(bObj.rules)) {
+    errors.push({
+      message: '"rules.module-boundaries.rules" must be an array',
+      path: "rules.module-boundaries.rules",
+    });
+    return undefined;
+  }
+
+  const validatedRules: BoundaryRule[] = [];
+  bObj.rules.forEach((rule, index) => {
+    const rulePath = `rules.module-boundaries.rules[${index}]`;
+    if (typeof rule !== "object" || rule === null) {
+      errors.push({
+        message: `Rule #${index} must be an object`,
+        path: rulePath,
+      });
+      return;
+    }
+
+    const r = rule as Record<string, unknown>;
+
+    if (typeof r.importer !== "string" && typeof r.containedTo !== "string") {
+      errors.push({
+        message: `Rule #${index}: "importer" or "containedTo" is required`,
+        path: rulePath,
+      });
+    }
+    if (r.importer !== undefined && typeof r.importer !== "string") {
+      errors.push({
+        message: `Rule #${index}: "importer" must be a string`,
+        path: `${rulePath}.importer`,
+      });
+    }
+    if (typeof r.imports !== "string") {
+      errors.push({
+        message: `Rule #${index}: "imports" is required and must be a string`,
+        path: `${rulePath}.imports`,
+      });
+    }
+    if (r.allow !== undefined && typeof r.allow !== "boolean") {
+      errors.push({
+        message: `Rule #${index}: "allow" must be a boolean`,
+        path: `${rulePath}.allow`,
+      });
+    }
+    if (r.only !== undefined && typeof r.only !== "boolean") {
+      errors.push({
+        message: `Rule #${index}: "only" must be a boolean`,
+        path: `${rulePath}.only`,
+      });
+    }
+    if (r.containedTo !== undefined && typeof r.containedTo !== "string") {
+      errors.push({
+        message: `Rule #${index}: "containedTo" must be a string`,
+        path: `${rulePath}.containedTo`,
+      });
+    }
+    if (r.message !== undefined && typeof r.message !== "string") {
+      errors.push({
+        message: `Rule #${index}: "message" must be a string`,
+        path: `${rulePath}.message`,
+      });
+    }
+    if (r.severity !== undefined && r.severity !== "error" && r.severity !== "warn") {
+      errors.push({
+        message: `Rule #${index}: "severity" must be "error" or "warn", got "${r.severity}"`,
+        path: `${rulePath}.severity`,
+      });
+    }
+    if (r.name !== undefined && typeof r.name !== "string") {
+      errors.push({
+        message: `Rule #${index}: "name" must be a string`,
+        path: `${rulePath}.name`,
+      });
+    }
+    if (r.maxViolations !== undefined) {
+      if (typeof r.maxViolations !== "number" || !Number.isInteger(r.maxViolations) || r.maxViolations < 0) {
         errors.push({
-          message:
-            '"rules.module-boundaries.rules" is required and must be an array',
-          path: "rules.module-boundaries.rules",
+          message: `Rule #${index}: "maxViolations" must be a non-negative integer`,
+          path: `${rulePath}.maxViolations`,
         });
-      } else if (!Array.isArray(bObj.rules)) {
+      }
+    }
+
+    validatedRules.push(r as unknown as BoundaryRule);
+  });
+
+  return { severity, rules: validatedRules };
+}
+
+function validateBoundaryDiagrams(
+  val: unknown,
+  errors: ConfigError[]
+): boolean | string | undefined {
+  if (val !== undefined) {
+    if (typeof val !== "boolean" && typeof val !== "string") {
+      errors.push({
+        message: '"boundary-diagrams" must be a boolean or a string',
+        path: "boundary-diagrams",
+      });
+      return undefined;
+    }
+    return val as boolean | string;
+  }
+  return undefined;
+}
+
+function validateHealthConfig(
+  health: unknown,
+  errors: ConfigError[]
+): HealthConfig | undefined {
+  if (health === undefined) {
+    return undefined;
+  }
+
+  if (typeof health !== "object" || health === null) {
+    errors.push({
+      message: '"health" must be an object',
+      path: "health",
+    });
+    return undefined;
+  }
+
+  const hObj = health as Record<string, unknown>;
+  const result: HealthConfig = {};
+
+  const intThresholds = [
+    { key: "maxAfferentCoupling", label: "maxAfferentCoupling" },
+    { key: "maxEfferentCoupling", label: "maxEfferentCoupling" },
+    { key: "maxDepth", label: "maxDepth" },
+  ] as const;
+
+  for (const { key, label } of intThresholds) {
+    const val = hObj[key];
+    if (val !== undefined) {
+      if (typeof val !== "number" || !Number.isInteger(val) || val < 1) {
         errors.push({
-          message: '"rules.module-boundaries.rules" must be an array',
-          path: "rules.module-boundaries.rules",
+          message: `"health.${label}" must be a positive integer`,
+          path: `health.${label}`,
         });
       } else {
-        bObj.rules.forEach((rule, index) => {
-          const rulePath = `rules.module-boundaries.rules[${index}]`;
-          if (typeof rule !== "object" || rule === null) {
-            errors.push({
-              message: `Rule #${index} must be an object`,
-              path: rulePath,
-            });
-            return;
-          }
-
-          if (typeof rule.importer !== "string" && typeof rule.containedTo !== "string") {
-            errors.push({
-              message: `Rule #${index}: "importer" or "containedTo" is required`,
-              path: rulePath,
-            });
-          }
-          if (rule.importer !== undefined && typeof rule.importer !== "string") {
-            errors.push({
-              message: `Rule #${index}: "importer" must be a string`,
-              path: `${rulePath}.importer`,
-            });
-          }
-          if (typeof rule.imports !== "string") {
-            errors.push({
-              message: `Rule #${index}: "imports" is required and must be a string`,
-              path: `${rulePath}.imports`,
-            });
-          }
-          if (rule.allow !== undefined && typeof rule.allow !== "boolean") {
-            errors.push({
-              message: `Rule #${index}: "allow" must be a boolean`,
-              path: `${rulePath}.allow`,
-            });
-          }
-          if (rule.only !== undefined && typeof rule.only !== "boolean") {
-            errors.push({
-              message: `Rule #${index}: "only" must be a boolean`,
-              path: `${rulePath}.only`,
-            });
-          }
-          if (rule.containedTo !== undefined && typeof rule.containedTo !== "string") {
-            errors.push({
-              message: `Rule #${index}: "containedTo" must be a string`,
-              path: `${rulePath}.containedTo`,
-            });
-          }
-          if (rule.message !== undefined && typeof rule.message !== "string") {
-            errors.push({
-              message: `Rule #${index}: "message" must be a string`,
-              path: `${rulePath}.message`,
-            });
-          }
-          if (rule.severity !== undefined && rule.severity !== "error" && rule.severity !== "warn") {
-            errors.push({
-              message: `Rule #${index}: "severity" must be "error" or "warn", got "${rule.severity}"`,
-              path: `${rulePath}.severity`,
-            });
-          }
-          if (rule.name !== undefined && typeof rule.name !== "string") {
-            errors.push({
-              message: `Rule #${index}: "name" must be a string`,
-              path: `${rulePath}.name`,
-            });
-          }
-          if (rule.maxViolations !== undefined) {
-            if (typeof rule.maxViolations !== "number" || !Number.isInteger(rule.maxViolations) || rule.maxViolations < 0) {
-              errors.push({
-                message: `Rule #${index}: "maxViolations" must be a non-negative integer`,
-                path: `${rulePath}.maxViolations`,
-              });
-            }
-          }
-        });
-
-      }
-
-      // boundary-diagrams validation
-      let boundaryDiagrams: boolean | string | undefined = undefined;
-      if (obj["boundary-diagrams"] !== undefined) {
-        if (
-          typeof obj["boundary-diagrams"] !== "boolean" &&
-          typeof obj["boundary-diagrams"] !== "string"
-        ) {
-          errors.push({
-            message: '"boundary-diagrams" must be a boolean or a string',
-            path: "boundary-diagrams",
-          });
-        } else {
-          boundaryDiagrams = obj["boundary-diagrams"] as boolean | string;
-        }
-      }
-
-      // health validation
-      let health: HealthConfig | undefined = undefined;
-      if (obj.health !== undefined) {
-        if (typeof obj.health !== "object" || obj.health === null) {
-          errors.push({
-            message: '"health" must be an object',
-            path: "health",
-          });
-        } else {
-          const hObj = obj.health as Record<string, unknown>;
-          health = {};
-
-          if (hObj.maxAfferentCoupling !== undefined) {
-            if (typeof hObj.maxAfferentCoupling !== "number" || !Number.isInteger(hObj.maxAfferentCoupling) || hObj.maxAfferentCoupling < 1) {
-              errors.push({
-                message: '"health.maxAfferentCoupling" must be a positive integer',
-                path: "health.maxAfferentCoupling",
-              });
-            } else {
-              health.maxAfferentCoupling = hObj.maxAfferentCoupling;
-            }
-          }
-
-          if (hObj.maxEfferentCoupling !== undefined) {
-            if (typeof hObj.maxEfferentCoupling !== "number" || !Number.isInteger(hObj.maxEfferentCoupling) || hObj.maxEfferentCoupling < 1) {
-              errors.push({
-                message: '"health.maxEfferentCoupling" must be a positive integer',
-                path: "health.maxEfferentCoupling",
-              });
-            } else {
-              health.maxEfferentCoupling = hObj.maxEfferentCoupling;
-            }
-          }
-
-          if (hObj.maxInstability !== undefined) {
-            if (typeof hObj.maxInstability !== "number" || hObj.maxInstability < 0 || hObj.maxInstability > 1) {
-              errors.push({
-                message: '"health.maxInstability" must be a number between 0 and 1',
-                path: "health.maxInstability",
-              });
-            } else {
-              health.maxInstability = hObj.maxInstability;
-            }
-          }
-
-          if (hObj.maxDepth !== undefined) {
-            if (typeof hObj.maxDepth !== "number" || !Number.isInteger(hObj.maxDepth) || hObj.maxDepth < 1) {
-              errors.push({
-                message: '"health.maxDepth" must be a positive integer',
-                path: "health.maxDepth",
-              });
-            } else {
-              health.maxDepth = hObj.maxDepth;
-            }
-          }
-
-          // If no valid fields were set, treat as undefined
-          if (Object.keys(health).length === 0) {
-            health = undefined;
-          }
-        }
-      }
-
-      if (errors.length === 0) {
-        return {
-          ok: true,
-          config: {
-            modules: obj.modules as Record<string, string>,
-            rules: {
-              "module-boundaries": {
-                severity,
-                rules: bObj.rules as BoundaryRule[],
-              },
-            },
-            "boundary-diagrams": boundaryDiagrams,
-            health,
-          },
-        };
+        result[key] = val;
       }
     }
   }
 
-  return { ok: false, errors };
+  if (hObj.maxInstability !== undefined) {
+    const val = hObj.maxInstability;
+    if (typeof val !== "number" || val < 0 || val > 1) {
+      errors.push({
+        message: '"health.maxInstability" must be a number between 0 and 1',
+        path: "health.maxInstability",
+      });
+    } else {
+      result.maxInstability = val;
+    }
+  }
+
+  return Object.keys(result).length > 0 ? result : undefined;
 }
 
 

@@ -33,16 +33,15 @@ export function showHealthPanel(
   });
 }
 
-// Computes an inline background-color style using a green-to-yellow-to-red gradient.
-// `ratio` is 0–1 where 0 = best (green), 1 = worst (red).
+import { formatHealthMetricValue } from "./core/utils";
+
 function heatmapStyle(ratio: number): string {
   const clamped = Math.max(0, Math.min(1, ratio));
-  // Green (120) -> Yellow (60) -> Red (0)
-  const hue = Math.round((1 - clamped) * 120);
-  return `background-color: hsl(${hue}, 70%, 38%); color: #fff;`;
+  // Green (140) -> Yellow (60) -> Red (0)
+  const hue = Math.round((1 - clamped) * 140);
+  return `background-color: hsla(${hue}, 75%, 40%, 0.9); color: white; text-shadow: 0 1px 1px rgba(0,0,0,0.3);`;
 }
 
-// Returns a threshold-based CSS class if the value exceeds or approaches the limit
 function thresholdClass(value: number, threshold: number | undefined): string {
   if (threshold === undefined) {
     return "";
@@ -57,7 +56,6 @@ function thresholdClass(value: number, threshold: number | undefined): string {
 }
 
 function buildHtml(health: ModuleHealth[], config: HealthConfig | undefined): string {
-  // Find max values across all modules for normalizing the heatmap
   const maxCa = Math.max(1, ...health.map((m) => m.afferentCoupling));
   const maxCe = Math.max(1, ...health.map((m) => m.efferentCoupling));
   const maxDepth = Math.max(1, ...health.map((m) => m.dependencyDepth));
@@ -65,7 +63,7 @@ function buildHtml(health: ModuleHealth[], config: HealthConfig | undefined): st
   const rows = health.map((mod, i) => {
     const caRatio = mod.afferentCoupling / maxCa;
     const ceRatio = mod.efferentCoupling / maxCe;
-    const iRatio = mod.instability; // already 0–1
+    const iRatio = mod.instability; // 0-1
     const dRatio = mod.dependencyDepth / maxDepth;
 
     const caThr = thresholdClass(mod.afferentCoupling, config?.maxAfferentCoupling);
@@ -78,10 +76,10 @@ function buildHtml(health: ModuleHealth[], config: HealthConfig | undefined): st
     return `<tr${rowCls}>
       <td class="module-name">${escapeHtml(mod.moduleName)}</td>
       <td class="num">${mod.fileCount}</td>
-      <td class="num ${caThr}" style="${heatmapStyle(caRatio)}">${mod.afferentCoupling}</td>
-      <td class="num ${ceThr}" style="${heatmapStyle(ceRatio)}">${mod.efferentCoupling}</td>
-      <td class="num ${iThr}" style="${heatmapStyle(iRatio)}">${mod.instability.toFixed(2)}</td>
-      <td class="num ${dThr}" style="${heatmapStyle(dRatio)}">${mod.dependencyDepth}</td>
+      <td class="num ${caThr}" style="${heatmapStyle(caRatio)}">${formatHealthMetricValue("ca", mod.afferentCoupling)}</td>
+      <td class="num ${ceThr}" style="${heatmapStyle(ceRatio)}">${formatHealthMetricValue("ce", mod.efferentCoupling)}</td>
+      <td class="num ${iThr}" style="${heatmapStyle(iRatio)}">${formatHealthMetricValue("instability", mod.instability)}</td>
+      <td class="num ${dThr}" style="${heatmapStyle(dRatio)}">${formatHealthMetricValue("depth", mod.dependencyDepth)}</td>
     </tr>`;
   }).join("\n");
 
@@ -92,76 +90,94 @@ function buildHtml(health: ModuleHealth[], config: HealthConfig | undefined): st
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Module Health</title>
   <style>
+    :root {
+      --bg: var(--vscode-editor-background, #1e1e1e);
+      --fg: var(--vscode-editor-foreground, #cccccc);
+      --border: var(--vscode-widget-border, #333333);
+      --accent: var(--vscode-button-background, #007acc);
+      --row-alt: rgba(128, 128, 128, 0.05);
+    }
     body {
-      font-family: var(--vscode-font-family, system-ui, sans-serif);
-      color: var(--vscode-foreground);
-      background: var(--vscode-editor-background);
-      padding: 20px;
+      font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+      color: var(--fg);
+      background: var(--bg);
+      padding: 24px;
       margin: 0;
+      line-height: 1.4;
     }
     h1 {
-      font-size: 1.3em;
-      margin-bottom: 16px;
+      font-size: 1.5em;
+      margin: 0 0 20px 0;
+      font-weight: 500;
+      letter-spacing: -0.01em;
     }
     table {
-      border-collapse: collapse;
+      border-collapse: separate;
+      border-spacing: 0;
       width: 100%;
-      font-size: 0.9em;
+      font-size: 13px;
     }
     th, td {
       text-align: left;
-      padding: 8px 14px;
-      border-bottom: 1px solid var(--vscode-widget-border, #333);
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
     }
     th {
       font-weight: 600;
-      color: var(--vscode-foreground);
-      opacity: 0.8;
-      font-size: 0.85em;
+      opacity: 0.7;
+      font-size: 11px;
       text-transform: uppercase;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.05em;
+      background: var(--bg);
+      position: sticky;
+      top: 0;
     }
-    tr.alt {
-      background: rgba(128, 128, 128, 0.06);
-    }
-    td.module-name {
-      font-weight: 500;
-    }
+    tr.alt { background: var(--row-alt); }
+    tr:hover { background: rgba(128, 128, 128, 0.1); }
+    
+    td.module-name { font-weight: 600; color: var(--fg); }
     td.num {
       text-align: right;
+      font-family: var(--vscode-editor-font-family, monospace);
       font-variant-numeric: tabular-nums;
-      border-radius: 3px;
     }
-    /* Threshold overrides — applied on top of heatmap colors */
+    
+    /* Metrics with Heatmap */
+    td.num[style*="background-color"] {
+      border-radius: 4px;
+      padding: 6px 10px;
+      margin: 4px;
+      display: table-cell;
+    }
+
+    /* Threshold Highlighting */
     td.exceeds {
-      background-color: #dc2626 !important;
-      color: #fff !important;
-      font-weight: 700;
-      box-shadow: inset 0 0 0 2px #fca5a5;
+      background-color: #e11d48 !important; /* Rose 600 */
+      color: white !important;
+      font-weight: bold;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.4);
     }
     td.approaching {
-      background-color: #d97706 !important;
-      color: #fff !important;
+      background-color: #d97706 !important; /* Amber 600 */
+      color: white !important;
       font-weight: 600;
     }
+
     .legend {
-      margin-top: 20px;
-      font-size: 0.85em;
-      opacity: 0.8;
+      margin-top: 32px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
       display: flex;
-      gap: 20px;
+      gap: 24px;
       flex-wrap: wrap;
+      font-size: 12px;
+      opacity: 0.8;
     }
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .legend-swatch {
-      width: 14px;
-      height: 14px;
-      border-radius: 3px;
-      flex-shrink: 0;
+    .legend-item { display: flex; align-items: center; gap: 8px; }
+    .swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
     }
   </style>
 </head>
@@ -171,7 +187,7 @@ function buildHtml(health: ModuleHealth[], config: HealthConfig | undefined): st
     <thead>
       <tr>
         <th>Module</th>
-        <th>Files</th>
+        <th style="text-align:right">Files</th>
         <th style="text-align:right">Ca</th>
         <th style="text-align:right">Ce</th>
         <th style="text-align:right">Instability</th>
@@ -183,21 +199,13 @@ function buildHtml(health: ModuleHealth[], config: HealthConfig | undefined): st
     </tbody>
   </table>
   <div class="legend">
-    <div class="legend-item">
-      <span class="legend-swatch" style="background: hsl(120, 70%, 38%)"></span> Low
-    </div>
-    <div class="legend-item">
-      <span class="legend-swatch" style="background: hsl(60, 70%, 38%)"></span> Medium
-    </div>
-    <div class="legend-item">
-      <span class="legend-swatch" style="background: hsl(0, 70%, 38%)"></span> High
-    </div>
-    ${config ? `<div class="legend-item">
-      <span class="legend-swatch" style="background: #dc2626; box-shadow: inset 0 0 0 2px #fca5a5;"></span> Exceeds threshold
-    </div>
-    <div class="legend-item">
-      <span class="legend-swatch" style="background: #d97706;"></span> Approaching threshold
-    </div>` : ""}
+    <div class="legend-item"><span class="swatch" style="background: hsla(140, 75%, 40%, 0.9)"></span> Healthy</div>
+    <div class="legend-item"><span class="swatch" style="background: hsla(60, 75%, 40%, 0.9)"></span> Elevated</div>
+    <div class="legend-item"><span class="swatch" style="background: hsla(0, 75%, 40%, 0.9)"></span> High Stress</div>
+    ${config ? `
+      <div class="legend-item"><span class="swatch" style="background: #e11d48"></span> Exceeds Threshold</div>
+      <div class="legend-item"><span class="swatch" style="background: #d97706"></span> Approaching Threshold</div>
+    ` : ""}
   </div>
 </body>
 </html>`;

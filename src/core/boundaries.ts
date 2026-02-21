@@ -1,7 +1,10 @@
 import * as path from "path";
 import { minimatch } from "minimatch";
-import { extractImports, resolveImport, matchFileToModule } from "./imports";
-import type { PicketyConfig, Violation, Severity } from "../types";
+import {
+  matchFileToModule,
+  resolveFileImports,
+} from "./imports";
+import type { PicketyConfig, Violation, Severity, WorkspaceContext } from "../types";
 import {
   normalizePath,
   matchesPattern,
@@ -15,13 +18,12 @@ export function checkBoundaries(
   filePath: string,
   content: string,
   config: PicketyConfig,
-  knownFiles: Set<string>,
-  root: string,
-  aliases: Record<string, string> = {}
+  ctx: WorkspaceContext
 ): Violation[] {
   const violations: Violation[] = [];
   const { modules } = config;
   const { severity, rules } = config.rules["module-boundaries"];
+  const { knownFiles, root, aliases } = ctx;
 
   // Determine which module this file belongs to
   const sourceModule = matchFileToModule(filePath, modules, root);
@@ -31,22 +33,14 @@ export function checkBoundaries(
 
   const sourceRelativePath = normalizePath(path.relative(root, filePath));
 
-  // Extract all imports from the file content
-  const imports = extractImports(content);
+  // Resolve all imports in the file
+  const resolvedImports = resolveFileImports(
+    filePath,
+    content,
+    ctx
+  );
 
-  for (const importStmt of imports) {
-    // Resolve the import specifier to an absolute file path
-    const resolvedPath = resolveImport(
-      importStmt.specifier,
-      filePath,
-      knownFiles,
-      root,
-      aliases
-    );
-    if (!resolvedPath) {
-      continue;
-    }
-
+  for (const { statement: importStmt, resolvedPath } of resolvedImports) {
     // Determine which module the imported file belongs to
     const targetModule = matchFileToModule(resolvedPath, modules, root);
     if (!targetModule) {
@@ -57,9 +51,13 @@ export function checkBoundaries(
     const targetRelativePath = normalizePath(path.relative(root, resolvedPath));
     // Check each boundary rule for a match
     rules.forEach((rule, index) => {
-      const { allow, severity: ruleSeverity, name: ruleName } = resolveRuleDefaults(rule, index, severity);
-      const effectiveImporter = rule.containedTo || rule.importer || "*";
-      const isOnly = rule.only || !!rule.containedTo;
+      const {
+        allow,
+        severity: ruleSeverity,
+        name: ruleName,
+        effectiveImporter,
+        isOnly,
+      } = resolveRuleDefaults(rule, index, severity);
       const variables = findVariables(isOnly ? rule.imports : effectiveImporter);
 
       if (variables.length > 0) {
@@ -236,25 +234,23 @@ export function getModuleDependencies(
   filePath: string,
   content: string,
   config: PicketyConfig,
-  knownFiles: Set<string>,
-  root: string,
-  aliases: Record<string, string> = {}
+  ctx: WorkspaceContext
 ): { sourceModule: string; targetModules: Set<string>; } | undefined {
   const { modules } = config;
+  const { root } = ctx;
   const sourceModule = matchFileToModule(filePath, modules, root);
   if (!sourceModule) {
     return undefined;
   }
 
   const targetModules = new Set<string>();
-  const imports = extractImports(content);
+  const resolvedImports = resolveFileImports(
+    filePath,
+    content,
+    ctx
+  );
 
-  for (const importStmt of imports) {
-    const resolvedPath = resolveImport(importStmt.specifier, filePath, knownFiles, root, aliases);
-    if (!resolvedPath) {
-      continue;
-    }
-
+  for (const { resolvedPath } of resolvedImports) {
     const targetModule = matchFileToModule(resolvedPath, modules, root);
     if (targetModule && targetModule !== sourceModule) {
       targetModules.add(targetModule);

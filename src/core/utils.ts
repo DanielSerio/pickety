@@ -1,3 +1,4 @@
+import * as path from "path";
 import { minimatch } from "minimatch";
 import type { BoundaryRule, ImportStatement, Severity, Violation } from "../types";
 
@@ -19,6 +20,13 @@ export function normalizePath(p: string): string {
 }
 
 /**
+ * Converts an absolute path to a root-relative path with forward slashes.
+ */
+export function toRelativePath(root: string, filePath: string): string {
+  return path.relative(root, filePath).replace(/\\/g, "/");
+}
+
+/**
  * Checks if a value matches a pattern (either exactly or via glob).
  */
 export function matchesPattern(value: string, pattern: string): boolean {
@@ -37,7 +45,24 @@ export function resolveRuleDefaults(
     allow: rule.allow ?? false,
     severity: rule.severity ?? globalSeverity,
     name: rule.name ?? `rule[${index}]`,
+    effectiveImporter: rule.containedTo || rule.importer || "*",
+    isOnly: rule.only || !!rule.containedTo,
+    isAllowStyle: (rule.allow ?? false) || !!rule.containedTo || rule.only,
   };
+}
+
+/**
+ * Returns the absolute path to pickety.json for a given root.
+ */
+export function getConfigPath(root: string): string {
+  return path.join(root, CONFIG_FILENAME);
+}
+
+/**
+ * Formats a health metric value based on its type.
+ */
+export function formatHealthMetricValue(metric: string, value: number): string {
+  return metric === "instability" ? value.toFixed(2) : String(value);
 }
 
 /**

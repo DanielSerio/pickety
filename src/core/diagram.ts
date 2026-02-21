@@ -98,15 +98,19 @@ function buildMermaidContent(config: PicketyConfig, health?: ModuleHealth[]): st
     }
   }
 
+  // Pre-resolve all rule defaults to avoid repeated computation
+  const resolvedRules = rules.map((rule, index) => ({
+    rule,
+    index,
+    ...resolveRuleDefaults(rule, index, globalSeverity),
+  }));
+
   // Each rule gets its own subgraph so the diagram reads rule-by-rule
-  rules.forEach((rule, index) => {
-    const { allow, severity, name } = resolveRuleDefaults(rule, index, globalSeverity);
+  resolvedRules.forEach(({ rule, index, allow, severity, name, effectiveImporter, isOnly, isAllowStyle }) => {
     const ruleName = escapeMermaid(name);
     let action = allow ? "ALLOW" : "DENY";
-    if (rule.containedTo) {
-      action = "CONTAINED TO";
-    } else if (rule.only) {
-      action = "ONLY";
+    if (isOnly) {
+      action = rule.containedTo ? "CONTAINED TO" : "ONLY";
     }
 
     lines.push("");
@@ -114,8 +118,6 @@ function buildMermaidContent(config: PicketyConfig, health?: ModuleHealth[]): st
 
     const fromId = `r${index}_from`;
     const toId = `r${index}_to`;
-
-    const effectiveImporter = rule.containedTo || rule.importer || "*";
 
     // Stadium shape for interpolation patterns, rectangle for plain modules
     const safeImporter = escapeMermaid(effectiveImporter);
@@ -130,8 +132,6 @@ function buildMermaidContent(config: PicketyConfig, health?: ModuleHealth[]): st
     lines.push(`    ${fromId}${fromShape}`);
     lines.push(`    ${toId}${toShape}`);
 
-    // Only/ContainedTo rules are essentially restricted 'allows'
-    const isAllowStyle = allow || !!rule.containedTo || rule.only;
     // Dashed arrow for deny, solid for allow. Label with custom message if present.
     const arrow = isAllowStyle ? "-->" : "-.->";
     const label = rule.message ? ` |"${escapeMermaid(rule.message)}"|` : "";
@@ -142,8 +142,7 @@ function buildMermaidContent(config: PicketyConfig, health?: ModuleHealth[]): st
 
   // Color-code edges: green for allow, red dashed for deny
   lines.push("");
-  rules.forEach((rule, index) => {
-    const isAllowStyle = (rule.allow ?? false) || !!rule.containedTo || rule.only;
+  resolvedRules.forEach(({ isAllowStyle, index }) => {
     if (isAllowStyle) {
       lines.push(`  linkStyle ${index} stroke:#22c55e,stroke-width:2px`);
     } else {

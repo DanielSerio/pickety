@@ -1,27 +1,28 @@
-import { extractImports, resolveImport, matchFileToModule } from "./imports";
+import {
+  matchFileToModule,
+  resolveFileImports,
+} from "./imports";
 import { normalizePath } from "./utils";
+import type { WorkspaceContext } from "../types";
 
-// Extracts the set of resolved file paths that a given file imports.
-// Returns only internal (non-external) imports that resolve to known files.
+/**
+ * Extracts the set of resolved file paths that a given file imports.
+ * Returns only internal (non-external) imports that resolve to known files.
+ */
 export function getFileDependencies(
   filePath: string,
   content: string,
-  knownFiles: Set<string>,
-  root: string,
-  aliases: Record<string, string> = {}
+  ctx: WorkspaceContext
 ): Set<string> {
   const deps = new Set<string>();
-  const imports = extractImports(content);
+  const resolvedImports = resolveFileImports(
+    filePath,
+    content,
+    ctx
+  );
   const normalized = normalizePath(filePath);
 
-  for (const importStmt of imports) {
-    const resolvedPath = resolveImport(
-      importStmt.specifier,
-      filePath,
-      knownFiles,
-      root,
-      aliases
-    );
+  for (const { resolvedPath } of resolvedImports) {
     if (resolvedPath && resolvedPath !== normalized) {
       deps.add(resolvedPath);
     }

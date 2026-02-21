@@ -1,6 +1,8 @@
 import type { ImportGraph } from "./graph";
-import { matchFileToModule } from "./imports";
-import type { ModuleHealth, HealthConfig, HealthViolation } from "../types";
+import {
+  matchFileToModule,
+} from "./imports";
+import type { ModuleHealth, HealthConfig, HealthViolation, WorkspaceContext } from "../types";
 
 /**
  * Computes health metrics for every module in the workspace.
@@ -9,9 +11,9 @@ import type { ModuleHealth, HealthConfig, HealthViolation } from "../types";
 export function computeModuleHealth(
   graph: ImportGraph,
   modules: Record<string, string>,
-  root: string,
-  knownFiles: Set<string>
+  ctx: WorkspaceContext
 ): ModuleHealth[] {
+  const { root, knownFiles } = ctx;
   const moduleGraph = graph.getModuleLevelGraph(modules, root);
   const moduleNames = Object.keys(modules);
 
@@ -116,38 +118,26 @@ export function checkHealthThresholds(
 ): HealthViolation[] {
   const violations: HealthViolation[] = [];
 
+  const metrics = [
+    { key: "maxAfferentCoupling", label: "afferent coupling", getValue: (m: ModuleHealth) => m.afferentCoupling },
+    { key: "maxEfferentCoupling", label: "efferent coupling", getValue: (m: ModuleHealth) => m.efferentCoupling },
+    { key: "maxInstability", label: "instability", getValue: (m: ModuleHealth) => m.instability },
+    { key: "maxDepth", label: "dependency depth", getValue: (m: ModuleHealth) => m.dependencyDepth },
+  ] as const;
+
   for (const mod of health) {
-    if (config.maxAfferentCoupling !== undefined && mod.afferentCoupling > config.maxAfferentCoupling) {
-      violations.push({
-        moduleName: mod.moduleName,
-        metric: "afferent coupling",
-        value: mod.afferentCoupling,
-        threshold: config.maxAfferentCoupling,
-      });
-    }
-    if (config.maxEfferentCoupling !== undefined && mod.efferentCoupling > config.maxEfferentCoupling) {
-      violations.push({
-        moduleName: mod.moduleName,
-        metric: "efferent coupling",
-        value: mod.efferentCoupling,
-        threshold: config.maxEfferentCoupling,
-      });
-    }
-    if (config.maxInstability !== undefined && mod.instability > config.maxInstability) {
-      violations.push({
-        moduleName: mod.moduleName,
-        metric: "instability",
-        value: mod.instability,
-        threshold: config.maxInstability,
-      });
-    }
-    if (config.maxDepth !== undefined && mod.dependencyDepth > config.maxDepth) {
-      violations.push({
-        moduleName: mod.moduleName,
-        metric: "dependency depth",
-        value: mod.dependencyDepth,
-        threshold: config.maxDepth,
-      });
+    for (const metric of metrics) {
+      const threshold = config[metric.key];
+      const value = metric.getValue(mod);
+
+      if (threshold !== undefined && value > threshold) {
+        violations.push({
+          moduleName: mod.moduleName,
+          metric: metric.label,
+          value,
+          threshold,
+        });
+      }
     }
   }
 

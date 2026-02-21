@@ -9,7 +9,9 @@ Pickety uses a `pickety.json` file in the workspace root to define module bounda
   "modules": { ... },
   "rules": {
     "module-boundaries": { ... }
-  }
+  },
+  "boundary-diagrams": true,
+  "health": { ... }
 }
 ```
 
@@ -57,21 +59,21 @@ Defines which modules are allowed or forbidden from importing each other.
 
 `"error"` or `"warn"` — controls how violations appear in the editor. Defaults to `"error"`.
 
-| Value     | Appearance              |
-| --------- | ----------------------- |
-| `"error"` | Red underline           |
-| `"warn"`  | Yellow underline        |
+| Value     | Appearance       |
+| --------- | ---------------- |
+| `"error"` | Red underline    |
+| `"warn"`  | Yellow underline |
 
 ### `rules[]`
 
 An array of boundary rules. Each rule has:
 
-| Field      | Type      | Required | Description                                         |
-| ---------- | --------- | -------- | --------------------------------------------------- |
-| `importer` | `string`  | Yes      | Source module name or glob pattern                   |
-| `imports`  | `string`  | Yes      | Target module name, glob pattern, or file path glob  |
+| Field      | Type      | Required | Description                                                             |
+| ---------- | --------- | -------- | ----------------------------------------------------------------------- |
+| `importer` | `string`  | Yes      | Source module name or glob pattern                                      |
+| `imports`  | `string`  | Yes      | Target module name, glob pattern, or file path glob                     |
 | `allow`    | `boolean` | No       | `true` to permit the import, `false` to forbid it. Defaults to `false`. |
-| `message`  | `string`  | No       | Custom message shown in the diagnostic               |
+| `message`  | `string`  | No       | Custom message shown in the diagnostic                                  |
 
 Both `importer` and `imports` support glob patterns via [minimatch](https://github.com/isaacs/minimatch), so you can write rules like `"*"` (all modules) or `"feature-*"` (any module starting with `feature-`).
 
@@ -121,6 +123,33 @@ With this rule, `routes/auth/index.ts` can import from `features/auth/pages/*` b
 
 With this rule, `routes/auth/index.ts` cannot import from `features/auth/hooks/*`.
 
+## `boundary-diagrams`
+
+Automatically generate a [Mermaid](https://mermaid.js.org/) diagram of your module boundaries on every save.
+
+- `true`: Writes to `picket-boundaries.mermaid` in the workspace root.
+- `"path/to/file.mermaid"`: Writes to a custom relative path.
+
+## `health`
+
+Configure project-wide quality standards. Violations appear as diagnostics on the `pickety.json` file.
+
+| Field                 | Type     | Description                           |
+| --------------------- | -------- | ------------------------------------- |
+| `maxAfferentCoupling` | `number` | Maximum incoming dependencies (Ca).   |
+| `maxEfferentCoupling` | `number` | Maximum outgoing dependencies (Ce).   |
+| `maxInstability`      | `number` | Maximum `Ce / (Ca + Ce)` ratio (0-1). |
+| `maxDepth`            | `number` | Maximum dependency chain depth.       |
+
+```json
+{
+  "health": {
+    "maxInstability": 0.5,
+    "maxDepth": 3
+  }
+}
+```
+
 ## Full Example
 
 ```json
@@ -158,11 +187,17 @@ With this rule, `routes/auth/index.ts` cannot import from `features/auth/hooks/*
         }
       ]
     }
+  },
+  "boundary-diagrams": "docs/architecture.mermaid",
+  "health": {
+    "maxInstability": 0.8,
+    "maxDepth": 5
   }
 }
 ```
 
 This configuration enforces:
+
 - **Feature isolation** — features cannot import from each other
 - **Dependency direction** — shared components cannot reach into features
 - **Utility purity** — utils remain dependency-free

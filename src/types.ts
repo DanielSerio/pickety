@@ -38,6 +38,13 @@ export interface PicketyConfig {
   health?: HealthConfig;
 }
 
+// Runtime context shared across enforcement functions
+export interface WorkspaceContext {
+  knownFiles: Set<string>;
+  root: string;
+  aliases: Record<string, string>;
+}
+
 
 // An extracted import statement with position info
 export interface ImportStatement {

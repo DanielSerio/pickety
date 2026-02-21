@@ -50,6 +50,8 @@ AI coding agents are fast but don't know your architecture. Pickety keeps them o
 - **Named rules** -- identify exactly which rule triggered a violation
 - **tsconfig.json alias support** -- automatically resolves `@/*` and other path aliases
 - **Boundary diagrams** -- auto-generate Mermaid diagrams of your architecture
+- **Impact Analysis** -- see exactly who depends on a file (transitively) before refactoring
+- **Module Health** -- track coupling, instability, and dependency depth across your project
 - **Quick fixes** -- jump directly to the rule in `pickety.json` from any violation
 - **Status bar** -- always know whether Pickety is active and how many violations exist
 - **CLI** -- `pickety check` for CI/CD pipelines, matching IDE behavior exactly
@@ -217,12 +219,47 @@ You can also generate diagrams on demand via the command palette: **Pickety: Gen
 
 ---
 
+## Impact Analysis
+
+Before refactoring a file, you need to know who depends on it. Pickety's Impact Analysis shows you the transitive dependency chain — every file that might be affected by your change, grouped by the module they belong to.
+
+Run **Pickety: Show Impact** from the command palette to see a searchable list of all files that import the current file (directly or indirectly).
+
+---
+
+## Module Health Metrics
+
+Quantify the quality of your architecture with industry-standard coupling metrics. Pickety analyzes your entire project to compute stability and complexity scores for every module.
+
+- **Afferent Coupling (Ca)**: How many modules depend on this one? (Responsibility)
+- **Efferent Coupling (Ce)**: How many modules does this one depend on? (Dependency)
+- **Instability (I)**: The ratio `Ce / (Ca + Ce)`. Measures how resilient a module is to external changes.
+- **Dependency Depth**: The length of the longest dependency chain starting from this module.
+
+View these metrics anytime using **Pickety: Show Module Health**, or enforce project-wide quality standards in `pickety.json`:
+
+```json
+{
+  "health": {
+    "maxInstability": 0.8,
+    "maxDepth": 5,
+    "maxAfferentCoupling": 20
+  }
+}
+```
+
+Threshold violations appear as diagnostics directly on your `pickety.json` file.
+
+---
+
 ## Commands
 
-| Command                              | Description                                    |
-| ------------------------------------ | ---------------------------------------------- |
-| `Pickety: Refresh Configuration`     | Reload `pickety.json`, aliases, and file index |
-| `Pickety: Generate Boundary Diagram` | Generate a Mermaid diagram of your boundaries  |
+| Command                              | Description                                     |
+| ------------------------------------ | ----------------------------------------------- |
+| `Pickety: Refresh Configuration`     | Reload `pickety.json`, aliases, and file index  |
+| `Pickety: Generate Boundary Diagram` | Generate a Mermaid diagram of your boundaries   |
+| `Pickety: Show Impact`               | See transitive dependents of the active file    |
+| `Pickety: Show Module Health`        | View coupling and stability metrics for modules |
 
 ---
 
@@ -277,7 +314,11 @@ A complete configuration enforcing feature isolation, dependency direction, util
       ]
     }
   },
-  "boundary-diagrams": true
+  "boundary-diagrams": true,
+  "health": {
+    "maxInstability": 0.7,
+    "maxDepth": 4
+  }
 }
 ```
 
@@ -292,7 +333,6 @@ For more patterns -- Feature-Sliced Design, Onion Architecture, scoped utilities
 | [Setup Guide](docs/setup.md)                    | Get running in under 3 minutes                   |
 | [Configuration Reference](docs/pickety-json.md) | Full `pickety.json` specification                |
 | [Rule Recipes](docs/recipes.md)                 | Common architectural patterns (FSD, Onion, etc.) |
-| [Roadmap](docs/ROADMAP.md)                      | What's been built and what's planned             |
 
 ---
 

@@ -12,7 +12,7 @@
 
 Pickety is a VS Code extension that stops architecture erosion before it starts. Define your module boundaries once in a simple JSON file, and every illegal import lights up instantly -- right in your editor, as you type. No more "we don't import that here" comments in code review. No more accidental coupling that quietly rots your codebase over months.
 
-Zero runtime dependencies. Zero build steps. Just drop in a config and your entire team gets real-time, visual enforcement of the rules that actually matter.
+Zero runtime dependencies. Zero build steps. Just drop in a config and your entire team — and your AI coding agents — get a **real-time Senior Architect** sitting on their shoulder, enforcing the rules that actually matter.
 
 ![Pickety in action](resources/illegal-route-import.gif)
 
@@ -29,9 +29,16 @@ Every growing TypeScript codebase develops architectural rules:
 
 These rules live in developers' heads and break silently. Pickety makes them **explicit, enforceable, and visible**.
 
-### Built for the AI era
+### Built for the AI Era
 
-AI coding agents are fast but don't know your architecture. Pickety keeps them on rails -- violations appear the instant an agent writes a bad import, not after a review cycle. Works with Claude Code, GitHub Copilot, Cursor, and any tool that edits files in VS Code.
+AI coding agents are incredibly fast, but they don't have "Senior Engineer intuition" — they haven't lived through your project's history and don't know your unwritten architectural rules. Pickety bridges this gap by turning tribal knowledge into hard, machine-readable constraints.
+
+- **Tribal Knowledge &rarr; Hard Constraints:** Don't hope an agent "figures out" your architecture. A single `pickety.json` tells every agent exactly which boundaries are sacred.
+- **Zero-Latency Feedback Loops:** In-editor diagnostics (squiggles) provide instant course-correction. Agents see violations as they write code, fixing architectural errors before you even open a PR.
+- **Machine-Readable Health:** The CLI provides ASCII-formatted health reports (stability, coupling, depth) that agents can ingest to make informed refactoring decisions.
+- **Impact Analysis for Reasoning:** "Show Impact" gives agents a transitive dependency chain, preventing them from making a "simple" change that breaks a dozen distant modules.
+
+Whether you're using **Claude Code**, **Cursor**, **GitHub Copilot**, or **Windsurf**, Pickety acts as an automated Senior Architect sitting on the agent's shoulder, keeping it on the rails.
 
 ---
 

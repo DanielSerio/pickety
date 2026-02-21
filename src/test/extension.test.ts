@@ -61,4 +61,74 @@ suite('Extension Integration Test Suite', () => {
     const commands = await vscode.commands.getCommands(true);
     assert.ok(commands.includes('pickety.refresh'), 'pickety.refresh command should be registered');
   });
+
+  test('Circular dependency should be detected', async () => {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      assert.fail('No workspace folder open');
+    }
+
+    const rootPath = workspaceFolders[0].uri.fsPath;
+    const circularFilePath = path.join(rootPath, 'src', 'core', 'circular_dep_test.ts');
+    const circularFileUri = vscode.Uri.file(circularFilePath);
+    const configUri = vscode.Uri.file(path.join(rootPath, 'pickety.json'));
+
+    // Create a file in 'core' that imports 'showHealthCommand' (in commands), creating a cycle (commands -> core -> commands)
+    const content = 'import { showHealthCommand } from "../commands/showHealth";\n';
+
+    try {
+      await vscode.workspace.fs.writeFile(circularFileUri, Buffer.from(content));
+
+      // Trigger a refresh to ensure circular dependency check runs
+      await vscode.commands.executeCommand('pickety.refresh');
+
+      // Wait for analysis
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      const diagnostics = vscode.languages.getDiagnostics(configUri);
+      const circularDiag = diagnostics.find(d => d.message.includes('Circular dependency detected'));
+
+      assert.ok(circularDiag, 'Circular dependency diagnostic should be present on pickety.json');
+      assert.ok(circularDiag?.message.includes('core -> commands -> core') || circularDiag?.message.includes('commands -> core -> commands'));
+    } finally {
+      try {
+        await vscode.workspace.fs.delete(circularFileUri);
+      } catch (_e) { }
+    }
+  }).timeout(15000);
+
+  test('Module health thresholds should be enforced', async () => {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      assert.fail('No workspace folder open');
+    }
+
+    const rootPath = workspaceFolders[0].uri.fsPath;
+    const configPath = path.join(rootPath, 'pickety.json');
+    const configUri = vscode.Uri.file(configPath);
+
+    const originalConfig = await vscode.workspace.fs.readFile(configUri);
+    const configJson = JSON.parse(originalConfig.toString());
+
+    // Add a strict health threshold
+    configJson.health = {
+      maxEfferentCoupling: 1
+    };
+
+    try {
+      await vscode.workspace.fs.writeFile(configUri, Buffer.from(JSON.stringify(configJson, null, 2)));
+
+      // Wait for config reload and analysis
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      const diagnostics = vscode.languages.getDiagnostics(configUri);
+      const healthDiag = diagnostics.find(d => d.message.includes('has efferent coupling of'));
+
+      assert.ok(healthDiag, 'Health threshold violation diagnostic should be present on pickety.json');
+      assert.strictEqual(healthDiag?.severity, vscode.DiagnosticSeverity.Warning);
+    } finally {
+      // Restore original config
+      await vscode.workspace.fs.writeFile(configUri, originalConfig);
+    }
+  }).timeout(20000);
 });

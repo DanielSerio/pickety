@@ -39,7 +39,7 @@ const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 const jsonc = __importStar(require("jsonc-parser"));
-const utils_1 = require("./core/utils");
+const utils_1 = require("./utils");
 async function goToRule(workspaceRoot, ruleName) {
     const configPath = path.join(workspaceRoot, utils_1.CONFIG_FILENAME);
     if (!fs.existsSync(configPath)) {

@@ -2,10 +2,8 @@
   "$schema": "./resources/pickety.schema.json",
   "modules": {
     "core": "src/core/*",
-    "extension": "src/extension.ts",
-    "controller": "src/controller.ts",
-    "cli": "src/cli.ts",
-    "vscode-impl": "src/{statusBar,diagnostics,navigation,codeActions,healthPanel,impactCodeLens,diagnosticManager,telemetry}.ts",
+    "extension": "src/{extension,commandRegistry}.ts",
+    "infra": "src/{documentValidator,statusBar,diagnostics,navigation,codeActions,healthPanel,impactCodeLens,diagnosticManager,telemetry}.ts",
     "shared": "src/{utils,types}.ts",
     "commands": "src/commands/*.ts"
   },
@@ -20,18 +18,30 @@
         },
         {
           "importer": "core",
-          "imports": "vscode-impl",
+          "imports": "infra",
           "allow": false,
           "message": "Core logic must remain platform-agnostic. No VS Code dependencies in src/core."
         },
         {
+          "importer": "core",
+          "imports": "services",
+          "allow": false,
+          "message": "Core logic must remain platform-agnostic. No VS Code dependencies in src/core."
+        },
+        {
+          "importer": "infra",
+          "imports": "services",
+          "allow": false,
+          "message": "Infrastructure components should not depend on service orchestration."
+        },
+        {
           "importer": "extension",
-          "imports": "controller",
+          "imports": "services",
           "allow": true
         },
         {
-          "importer": "controller",
-          "imports": "core",
+          "importer": "extension",
+          "imports": "infra",
           "allow": true
         },
         {

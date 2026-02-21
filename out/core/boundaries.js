@@ -42,24 +42,20 @@ const imports_1 = require("./imports");
 const utils_1 = require("./utils");
 // Checks a single file for import boundary violations.
 // Returns a list of violations with position info for diagnostics.
-function checkBoundaries(filePath, content, config, knownFiles, root, aliases = {}) {
+function checkBoundaries(filePath, content, config, ctx) {
     const violations = [];
     const { modules } = config;
     const { severity, rules } = config.rules["module-boundaries"];
+    const { knownFiles: _knownFiles, root, aliases: _aliases } = ctx;
     // Determine which module this file belongs to
     const sourceModule = (0, imports_1.matchFileToModule)(filePath, modules, root);
     if (!sourceModule) {
         return [];
     }
     const sourceRelativePath = (0, utils_1.normalizePath)(path.relative(root, filePath));
-    // Extract all imports from the file content
-    const imports = (0, imports_1.extractImports)(content);
-    for (const importStmt of imports) {
-        // Resolve the import specifier to an absolute file path
-        const resolvedPath = (0, imports_1.resolveImport)(importStmt.specifier, filePath, knownFiles, root, aliases);
-        if (!resolvedPath) {
-            continue;
-        }
+    // Resolve all imports in the file
+    const resolvedImports = (0, imports_1.resolveFileImports)(filePath, content, ctx);
+    for (const { statement: importStmt, resolvedPath } of resolvedImports) {
         // Determine which module the imported file belongs to
         const targetModule = (0, imports_1.matchFileToModule)(resolvedPath, modules, root);
         if (!targetModule) {
@@ -69,9 +65,7 @@ function checkBoundaries(filePath, content, config, knownFiles, root, aliases = 
         const targetRelativePath = (0, utils_1.normalizePath)(path.relative(root, resolvedPath));
         // Check each boundary rule for a match
         rules.forEach((rule, index) => {
-            const { allow, severity: ruleSeverity, name: ruleName } = (0, utils_1.resolveRuleDefaults)(rule, index, severity);
-            const effectiveImporter = rule.containedTo || rule.importer || "*";
-            const isOnly = rule.only || !!rule.containedTo;
+            const { allow, severity: ruleSeverity, name: ruleName, effectiveImporter, isOnly, } = (0, utils_1.resolveRuleDefaults)(rule, index, severity);
             const variables = findVariables(isOnly ? rule.imports : effectiveImporter);
             if (variables.length > 0) {
                 if (isOnly) {
@@ -142,18 +136,16 @@ function checkBoundaries(filePath, content, config, knownFiles, root, aliases = 
     return violations;
 }
 // Analyzes a file and returns a set of module names it depends on.
-function getModuleDependencies(filePath, content, config, knownFiles, root, aliases = {}) {
+function getModuleDependencies(filePath, content, config, ctx) {
     const { modules } = config;
+    const { root } = ctx;
     const sourceModule = (0, imports_1.matchFileToModule)(filePath, modules, root);
     if (!sourceModule) {
         return undefined;
     }
     const targetModules = new Set();
-    const imports = (0, imports_1.extractImports)(content);
-    for (const importStmt of imports) {
-        const resolvedPath = (0, imports_1.resolveImport)(importStmt.specifier, filePath, knownFiles, root, aliases);
-        if (!resolvedPath)
-            continue;
+    const resolvedImports = (0, imports_1.resolveFileImports)(filePath, content, ctx);
+    for (const { resolvedPath } of resolvedImports) {
         const targetModule = (0, imports_1.matchFileToModule)(resolvedPath, modules, root);
         if (targetModule && targetModule !== sourceModule) {
             targetModules.add(targetModule);
@@ -175,8 +167,9 @@ function matchesModuleOrPath(moduleName, relativePath, pattern) {
         if ((0, minimatch_1.minimatch)(relativePath, pattern)) {
             return true;
         }
-        // Try with **/ prefix and /** suffix to handle missing root dirs and filenames
-        if ((0, minimatch_1.minimatch)(relativePath, `**/${pattern}/**`)) {
+        // Match against relative path with flexibility for root dirs and subfolders
+        if ((0, minimatch_1.minimatch)(relativePath, `**/${pattern}`) ||
+            (0, minimatch_1.minimatch)(relativePath, `**/${pattern}/**`)) {
             return true;
         }
     }
@@ -307,7 +300,9 @@ function replaceVariables(pattern, variables, values) {
     let result = pattern;
     for (const v of variables) {
         const replacement = typeof values === "string" ? values : values[v];
-        result = result.replace(v, replacement);
+        // Use global replace to handle multiple occurrences of the same variable
+        const escapedV = v.replace(/\$/g, "\\$");
+        result = result.replace(new RegExp(escapedV, "g"), replacement);
     }
     return result;
 }

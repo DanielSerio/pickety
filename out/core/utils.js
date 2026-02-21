@@ -1,32 +1,18 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SOURCE_GLOB = exports.SOURCE_EXTENSIONS = exports.CONFIG_FILENAME = void 0;
-exports.normalizePath = normalizePath;
-exports.matchesPattern = matchesPattern;
+exports.formatHealthMetricValue = exports.getConfigPath = exports.matchesPattern = exports.toRelativePath = exports.normalizePath = exports.SOURCE_GLOB = exports.SOURCE_EXTENSIONS = exports.CONFIG_FILENAME = void 0;
 exports.resolveRuleDefaults = resolveRuleDefaults;
 exports.createViolation = createViolation;
 exports.findCycles = findCycles;
-const minimatch_1 = require("minimatch");
-exports.CONFIG_FILENAME = "pickety.json";
-exports.SOURCE_EXTENSIONS = ["ts", "tsx", "js", "jsx", "mjs", "cjs"];
-exports.SOURCE_GLOB = `**/*.{${exports.SOURCE_EXTENSIONS.join(",")}}`;
-/**
- * Normalizes a file path to use forward slashes and consistent drive letter casing on Windows.
- */
-function normalizePath(p) {
-    let normalized = p.replace(/\\/g, "/");
-    // On Windows, drive letters can be C: or c:. Normalize to lowercase.
-    if (/^[a-zA-Z]:/.test(normalized)) {
-        normalized = normalized[0].toLowerCase() + normalized.slice(1);
-    }
-    return normalized;
-}
-/**
- * Checks if a value matches a pattern (either exactly or via glob).
- */
-function matchesPattern(value, pattern) {
-    return (0, minimatch_1.minimatch)(value, pattern) || value === pattern;
-}
+var utils_1 = require("../utils");
+Object.defineProperty(exports, "CONFIG_FILENAME", { enumerable: true, get: function () { return utils_1.CONFIG_FILENAME; } });
+Object.defineProperty(exports, "SOURCE_EXTENSIONS", { enumerable: true, get: function () { return utils_1.SOURCE_EXTENSIONS; } });
+Object.defineProperty(exports, "SOURCE_GLOB", { enumerable: true, get: function () { return utils_1.SOURCE_GLOB; } });
+Object.defineProperty(exports, "normalizePath", { enumerable: true, get: function () { return utils_1.normalizePath; } });
+Object.defineProperty(exports, "toRelativePath", { enumerable: true, get: function () { return utils_1.toRelativePath; } });
+Object.defineProperty(exports, "matchesPattern", { enumerable: true, get: function () { return utils_1.matchesPattern; } });
+Object.defineProperty(exports, "getConfigPath", { enumerable: true, get: function () { return utils_1.getConfigPath; } });
+Object.defineProperty(exports, "formatHealthMetricValue", { enumerable: true, get: function () { return utils_1.formatHealthMetricValue; } });
 /**
  * Resolves defaults for a boundary rule.
  */
@@ -35,6 +21,9 @@ function resolveRuleDefaults(rule, index, globalSeverity) {
         allow: rule.allow ?? false,
         severity: rule.severity ?? globalSeverity,
         name: rule.name ?? `rule[${index}]`,
+        effectiveImporter: rule.containedTo || rule.importer || "*",
+        isOnly: rule.only || !!rule.containedTo,
+        isAllowStyle: (rule.allow ?? false) || !!rule.containedTo || rule.only,
     };
 }
 /**

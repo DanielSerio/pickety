@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.extractImports = extractImports;
 exports.resolveImport = resolveImport;
 exports.matchFileToModule = matchFileToModule;
+exports.resolveFileImports = resolveFileImports;
 const path = __importStar(require("path"));
 const minimatch_1 = require("minimatch");
 const utils_1 = require("./utils");
@@ -44,28 +45,17 @@ const RESOLVE_EXTENSIONS = utils_1.SOURCE_EXTENSIONS.map((ext) => `.${ext}`);
 // Index filenames to try when resolving directory imports
 const INDEX_FILES = RESOLVE_EXTENSIONS.map((ext) => `index${ext}`);
 // Regex patterns for extracting import/export statements.
-// Captures: the full match (for position/length) and the specifier string.
-// Combined regex to match comments, strings, AND imports.
-// This allows us to skip imports found inside comments or strings.
-// Group 1: Comments (/* ... */ or // ...)
-// Group 2: Strings ("..." or '...' or `...`)
-// Group 3: Static imports/exports
-// Group 4: Specifier for static
-// Group 5: Dynamic imports
-// Group 6: Specifier for dynamic
 const COMBINED_REGEX = /(\/\*[\s\S]*?\*\/|\/\/.*)|(['"`](?:\\.|[^'"`])*['"`])|((?:import|export)\s+(?:[\s\S]*?from\s+)?['"`]([^'"`]+)['"`])|(import\s*\(\s*['"`]([^'"`]+)['"`]\s*\))/gm;
 // Extracts all import/export specifiers from file content with position info.
 function extractImports(content) {
     const imports = [];
     const lines = content.split("\n");
-    // Build a line offset map for converting character offsets to line/column
     const lineOffsets = [];
     let offset = 0;
     for (const line of lines) {
         lineOffsets.push(offset);
-        offset += line.length + 1; // +1 for the newline character
+        offset += line.length + 1;
     }
-    // Helper to convert a character offset to { line, character }
     const offsetToPosition = (charOffset) => {
         let line = 0;
         for (let i = 1; i < lineOffsets.length; i++) {
@@ -79,9 +69,8 @@ function extractImports(content) {
     let match;
     COMBINED_REGEX.lastIndex = 0;
     while ((match = COMBINED_REGEX.exec(content)) !== null) {
-        const [fullMatch, comment, stringLiteral, staticImport, staticSpecifier, dynamicImport, dynamicSpecifier,] = match;
+        const [_fullMatch, comment, stringLiteral, staticImport, staticSpecifier, dynamicImport, dynamicSpecifier] = match;
         if (comment || stringLiteral) {
-            // Ignore matches inside comments or strings
             continue;
         }
         if (staticImport && staticSpecifier) {
@@ -106,9 +95,8 @@ function extractImports(content) {
     return imports;
 }
 // Resolves an import specifier to an absolute file path.
-// Handles aliases and relative imports. Returns undefined if not resolvable.
-function resolveImport(specifier, fromFile, knownFiles, root, aliases = {}) {
-    // 1. Try alias resolution
+function resolveImport(specifier, fromFile, ctx) {
+    const { knownFiles, root, aliases } = ctx;
     for (const [alias, replacement] of Object.entries(aliases)) {
         if (alias.endsWith("/*") && replacement.endsWith("/*")) {
             const aliasPrefix = alias.slice(0, -2);
@@ -122,31 +110,24 @@ function resolveImport(specifier, fromFile, knownFiles, root, aliases = {}) {
             return resolveFile(path.resolve(root, replacement), knownFiles);
         }
     }
-    // 2. Handle relative imports
     if (specifier.startsWith(".")) {
         const dir = path.dirname(fromFile);
         const resolved = path.resolve(dir, specifier);
         return resolveFile(resolved, knownFiles);
     }
-    // 3. Non-relative, non-aliased imports are external packages — skip
     return undefined;
 }
-// Tries to resolve an absolute path to a known file by checking:
-// exact match, then with extensions, then as directory with index file.
 function resolveFile(absolutePath, knownFiles) {
     const normalized = (0, utils_1.normalizePath)(absolutePath);
-    // Exact match
     if (knownFiles.has(normalized)) {
         return normalized;
     }
-    // Try adding extensions
     for (const ext of RESOLVE_EXTENSIONS) {
         const candidate = normalized + ext;
         if (knownFiles.has(candidate)) {
             return candidate;
         }
     }
-    // Try index files in directory
     for (const indexFile of INDEX_FILES) {
         const candidate = normalized + "/" + indexFile;
         if (knownFiles.has(candidate)) {
@@ -155,12 +136,9 @@ function resolveFile(absolutePath, knownFiles) {
     }
     return undefined;
 }
-// Matches a file to a named module from the config.
-// Returns the module name, or undefined if the file doesn't belong to any module.
 function matchFileToModule(filePath, modules, root) {
     const relativePath = (0, utils_1.normalizePath)(path.relative(root, filePath));
     for (const [name, pattern] of Object.entries(modules)) {
-        // Expand trailing /* to /**/* for deep matching (same as code-scanner)
         const expandedPattern = pattern.endsWith("/*")
             ? pattern.slice(0, -2) + "/**/*"
             : pattern;
@@ -170,5 +148,16 @@ function matchFileToModule(filePath, modules, root) {
         }
     }
     return undefined;
+}
+function resolveFileImports(filePath, content, ctx) {
+    const imports = extractImports(content);
+    const resolved = [];
+    for (const statement of imports) {
+        const resolvedPath = resolveImport(statement.specifier, filePath, ctx);
+        if (resolvedPath) {
+            resolved.push({ statement, resolvedPath });
+        }
+    }
+    return resolved;
 }
 //# sourceMappingURL=imports.js.map

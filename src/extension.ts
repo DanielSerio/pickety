@@ -1,21 +1,95 @@
 import * as vscode from "vscode";
-import { PicketyController } from "./controller";
+import { registerAllCommands } from "./commandRegistry";
+import { ConfigService } from "./configService";
+import { AnalysisService } from "./analysisService";
+import { PicketyStatusBar } from "./statusBar";
+import { TelemetryProvider } from "./telemetry";
+import { DiagnosticManager } from "./diagnosticManager";
+import { DocumentValidator } from "./documentValidator";
+import { PicketyCodeActionProvider } from "./codeActions";
+import { ImpactCodeLensProvider } from "./impactCodeLens";
+import { SOURCE_GLOB } from "./utils";
 
-let controller: PicketyController | undefined;
+let disposables: vscode.Disposable[] = [];
 
 export async function activate(context: vscode.ExtensionContext) {
-  console.log("Pickety: Activating...");
+  const telemetry = TelemetryProvider.getInstance();
+  telemetry.logEvent("extension_activate");
+
+  const outputChannel = vscode.window.createOutputChannel("Pickety");
+  context.subscriptions.push(outputChannel);
+  telemetry.setOutputChannel(outputChannel);
+
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (!workspaceRoot) {
-    console.log("Pickety: No workspace root found.");
+    outputChannel.appendLine("Pickety: No workspace root found.");
     return;
   }
+  outputChannel.appendLine(`Pickety: Extension activated for workspace: ${workspaceRoot}`);
 
-  controller = new PicketyController(context, workspaceRoot);
-  await controller.activate();
-  console.log("Pickety: Activated.");
+  // Base Services
+  const configService = new ConfigService(workspaceRoot);
+  context.subscriptions.push(configService);
+
+  const analysisService = new AnalysisService(workspaceRoot, configService);
+  context.subscriptions.push(analysisService);
+
+  // VS Code Infrastructure
+  const statusBar = new PicketyStatusBar(context);
+  context.subscriptions.push(statusBar);
+
+  const diagnosticCollection = vscode.languages.createDiagnosticCollection("pickety");
+  context.subscriptions.push(diagnosticCollection);
+  const diagnosticManager = new DiagnosticManager(diagnosticCollection);
+  context.subscriptions.push(diagnosticManager);
+
+  // Providers
+  const codeActionProvider = new PicketyCodeActionProvider(workspaceRoot);
+  context.subscriptions.push(
+    vscode.languages.registerCodeActionsProvider({ scheme: "file", language: "*" }, codeActionProvider, {
+      providedCodeActionKinds: [vscode.CodeActionKind.QuickFix],
+    })
+  );
+
+  const codeLensProvider = new ImpactCodeLensProvider(analysisService.getImportGraph(), workspaceRoot, { config: undefined });
+  context.subscriptions.push(codeLensProvider);
+
+  const documentValidator = new DocumentValidator(
+    context,
+    configService,
+    analysisService,
+    diagnosticManager,
+    statusBar,
+    outputChannel,
+    workspaceRoot
+  );
+  documentValidator.setCodeLensProvider(codeLensProvider);
+  context.subscriptions.push(documentValidator);
+
+  // Update the CodeLens provider with the shared config reference
+  codeLensProvider.configRef = documentValidator.configRef;
+  context.subscriptions.push(
+    vscode.languages.registerCodeLensProvider(
+      { scheme: "file", pattern: SOURCE_GLOB },
+      codeLensProvider
+    )
+  );
+
+  // Register commands
+  registerAllCommands(context, configService, analysisService, workspaceRoot);
+
+  // Wire up events
+  configService.onConfigChanged((res) => documentValidator.handleConfigResult(res));
+  analysisService.onAnalysisReady(() => {
+    outputChannel.appendLine(`Pickety: Analysis complete. Found ${analysisService.getKnownFiles().size} files.`);
+    documentValidator.analyzeOpenEditors();
+  });
+
+  // Start initialization
+  configService.reload();
+  configService.reloadAliases();
 }
 
 export function deactivate() {
-  controller?.dispose();
+  disposables.forEach((d) => d.dispose());
 }

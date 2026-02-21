@@ -12,7 +12,7 @@ export class ImpactCodeLensProvider implements vscode.CodeLensProvider {
   constructor(
     private readonly importGraph: ImportGraph,
     private readonly workspaceRoot: string,
-    private configRef: { config: PicketyConfig | undefined; }
+    public configRef: { config: PicketyConfig | undefined; }
   ) { }
 
   // Signal that CodeLens values may have changed (call after graph updates)

@@ -36,7 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.reportConfigErrors = reportConfigErrors;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
-const utils_1 = require("./core/utils");
+const utils_1 = require("./utils");
 function reportConfigErrors(errors, workspaceRoot, outputChannel, diagnosticCollection) {
     outputChannel.appendLine("Pickety: Configuration error(s) found:");
     const configUri = vscode.Uri.file(path.join(workspaceRoot, utils_1.CONFIG_FILENAME));

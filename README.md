@@ -262,6 +262,15 @@ Quantify the quality of your architecture with industry-standard coupling metric
 
 View these metrics anytime using **Pickety: Show Module Health**, or enforce project-wide quality standards in `pickety.json`:
 
+![Module Health Report Placeholder](resources/health-panel-placeholder.png)
+
+### Built for Humans and Agents
+
+The Module Health feature provides two interfaces depending on who is using it:
+
+- **For Humans:** Running the VS Code command opens a clean, color-coded HTML Webview panel. The table highlights healthy modules in green and unstable or problematic modules in red, making it easy to spot architectural issues at a glance.
+- **For AI Agents:** Running the `pickety check` CLI with the `health` argument outputs a clean, ASCII-formatted table directly to stdout. This allows agents to ingest the current state of your architecture and make informed decisions about where to place new code or when refactoring is needed.
+
 ```json
 {
   "health": {

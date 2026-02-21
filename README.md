@@ -258,7 +258,7 @@ Quantify the quality of your architecture with industry-standard coupling metric
 
 View these metrics anytime using **Pickety: Show Module Health**, or enforce project-wide quality standards in `pickety.json`:
 
-![Module Health Report Placeholder](resources/health-panel-placeholder.png)
+![Module Health Report Placeholder](resources/module-health.png)
 
 ### Built for Humans and Agents
 

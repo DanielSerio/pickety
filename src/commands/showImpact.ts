@@ -3,7 +3,7 @@ import * as path from "path";
 import { normalizePath, toRelativePath } from "../core/utils";
 import { matchFileToModule } from "../core/imports";
 import { requireConfig } from "./utils";
-import type { PicketyConfig, WorkspaceContext } from "../types";
+import type { PicketyConfig, WorkspaceContext } from "../shared/types";
 import type { ImportGraph } from "../core/graph";
 
 export async function showImpactCommand(

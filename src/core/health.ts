@@ -2,7 +2,7 @@ import type { ImportGraph } from "./graph";
 import {
   matchFileToModule,
 } from "./imports";
-import type { ModuleHealth, HealthConfig, HealthViolation, WorkspaceContext } from "../types";
+import type { ModuleHealth, HealthConfig, HealthViolation, WorkspaceContext } from "../shared/types";
 
 /**
  * Computes health metrics for every module in the workspace.

@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import * as jsonc from "jsonc-parser";
-import { CONFIG_FILENAME } from "./utils";
+import { CONFIG_FILENAME } from "../shared/utils";
 
 export async function goToRule(workspaceRoot: string, ruleName: string | number) {
   const configPath = path.join(workspaceRoot, CONFIG_FILENAME);

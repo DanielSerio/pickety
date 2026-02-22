@@ -7,7 +7,7 @@ import type {
   BoundaryRule,
   HealthConfig,
   Severity,
-} from "../types";
+} from "../shared/types";
 import { CONFIG_FILENAME, normalizePath } from "./utils";
 
 

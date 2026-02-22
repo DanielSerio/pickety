@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import type { PicketyConfig, ModuleHealth } from "../types";
+import type { PicketyConfig, ModuleHealth } from "../shared/types";
 import { resolveRuleDefaults, normalizePath } from "./utils";
 
 /**

@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
-import { loadConfig, loadTsConfigAliases } from "./core/config";
-import { CONFIG_FILENAME } from "./utils";
-import type { PicketyConfig, ConfigResult } from "./types";
+import { loadConfig, loadTsConfigAliases } from "../core/config";
+import { CONFIG_FILENAME } from "../shared/utils";
+import type { PicketyConfig, ConfigResult } from "../shared/types";
 
 export class ConfigService {
   private config: PicketyConfig | undefined;

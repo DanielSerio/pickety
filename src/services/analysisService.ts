@@ -1,10 +1,10 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
-import { ImportGraph, getFileDependencies } from "./core/graph";
-import { findCycles } from "./core/utils";
-import { computeModuleHealth, checkHealthThresholds } from "./core/health";
-import { normalizePath, SOURCE_GLOB } from "./utils";
-import type { PicketyConfig, WorkspaceContext, HealthViolation } from "./types";
+import { ImportGraph, getFileDependencies } from "../core/graph";
+import { findCycles } from "../core/utils";
+import { computeModuleHealth, checkHealthThresholds } from "../core/health";
+import { normalizePath, SOURCE_GLOB } from "../shared/utils";
+import type { PicketyConfig, WorkspaceContext, HealthViolation } from "../shared/types";
 import type { ConfigService } from "./configService";
 
 export class AnalysisService {

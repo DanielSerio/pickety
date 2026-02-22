@@ -1,4 +1,4 @@
-import type { PicketyConfig, Violation, ModuleHealth } from "../types";
+import type { PicketyConfig, Violation, ModuleHealth } from "../shared/types";
 import { toRelativePath, formatHealthMetricValue } from "../core/utils";
 import { matchFileToModule } from "../core/imports";
 import { ImportGraph } from "../core/graph";

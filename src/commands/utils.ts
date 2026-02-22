@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import type { PicketyConfig } from "../types";
+import type { PicketyConfig } from "../shared/types";
 
 /**
  * Ensures that a configuration is available.

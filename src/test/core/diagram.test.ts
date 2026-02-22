@@ -3,7 +3,7 @@ import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
 import { generateMermaidDiagram } from "../../core/diagram";
-import type { PicketyConfig } from "../../types";
+import type { PicketyConfig } from "../../shared/types";
 
 suite("generateMermaidDiagram", () => {
   let tmpDir: string;

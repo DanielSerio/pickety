@@ -3,7 +3,7 @@ import {
   resolveFileImports,
 } from "./imports";
 import { normalizePath } from "./utils";
-import type { WorkspaceContext } from "../types";
+import type { WorkspaceContext } from "../shared/types";
 
 /**
  * Extracts the set of resolved file paths that a given file imports.

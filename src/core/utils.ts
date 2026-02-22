@@ -1,14 +1,15 @@
-import type { BoundaryRule, ImportStatement, Severity, Violation } from "../types";
+import type { BoundaryRule, ImportStatement, Severity, Violation } from "../shared/types";
 export {
   CONFIG_FILENAME,
   SOURCE_EXTENSIONS,
   SOURCE_GLOB,
+  SKIP_DIRS,
   normalizePath,
   toRelativePath,
   matchesPattern,
   getConfigPath,
   formatHealthMetricValue,
-} from "../utils";
+} from "../shared/utils";
 
 /**
  * Resolves defaults for a boundary rule.

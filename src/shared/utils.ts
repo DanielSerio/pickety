@@ -5,6 +5,11 @@ export const CONFIG_FILENAME = "pickety.json";
 export const SOURCE_EXTENSIONS = ["ts", "tsx", "js", "jsx", "mjs", "cjs"];
 export const SOURCE_GLOB = `**/*.{${SOURCE_EXTENSIONS.join(",")}}`;
 
+export const SKIP_DIRS = new Set([
+  "node_modules", ".git", ".next", "dist", "out", "build",
+  ".turbo", ".cache", ".nx", "coverage",
+]);
+
 /**
  * Normalizes a file path to use forward slashes and consistent drive letter casing on Windows.
  */

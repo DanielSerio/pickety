@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import type { ConfigError } from "./types";
-import { CONFIG_FILENAME } from "./utils";
+import type { ConfigError } from "../shared/types";
+import { CONFIG_FILENAME } from "../shared/utils";
 
 export function reportConfigErrors(
   errors: ConfigError[],

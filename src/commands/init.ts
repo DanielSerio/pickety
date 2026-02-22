@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as fs from "fs";
-import { getConfigPath } from "../utils";
+import { getConfigPath } from "../shared/utils";
 
 export async function initCommand(workspaceRoot: string, reload: () => void) {
   const configPath = getConfigPath(workspaceRoot);
@@ -16,7 +16,7 @@ export async function initCommand(workspaceRoot: string, reload: () => void) {
   }
 
   const defaultConfig = {
-    $schema: "https://raw.githubusercontent.com/DanielSerio/pickety/main/src/pickety.schema.json",
+    $schema: "https://raw.githubusercontent.com/DanielSerio/pickety/main/resources/pickety.schema.json",
     modules: {
       features: "src/features/*",
       components: "src/components/**/*",

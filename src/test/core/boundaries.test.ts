@@ -3,7 +3,7 @@ import { normalizePath } from "../../core/utils";
 const ROOT_DIR = normalizePath(path.resolve("/project"));
 import * as assert from "assert";
 import { checkBoundaries, applyMaxViolations } from "../../core/boundaries";
-import type { PicketyConfig, Violation, WorkspaceContext } from "../../types";
+import type { PicketyConfig, Violation, WorkspaceContext } from "../../shared/types";
 
 // Helper to build a minimal config
 function makeConfig(

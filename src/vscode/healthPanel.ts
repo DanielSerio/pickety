@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import type { ModuleHealth, HealthConfig } from "./types";
+import type { ModuleHealth, HealthConfig } from "../shared/types";
 
 // Singleton panel reference so repeated calls reveal the same panel
 let currentPanel: vscode.WebviewPanel | undefined;
@@ -33,7 +33,7 @@ export function showHealthPanel(
   });
 }
 
-import { formatHealthMetricValue } from "./utils";
+import { formatHealthMetricValue } from "../shared/utils";
 
 function heatmapStyle(ratio: number): string {
   const clamped = Math.max(0, Math.min(1, ratio));
@@ -135,14 +135,14 @@ function buildHtml(health: ModuleHealth[], config: HealthConfig | undefined): st
     }
     tr.alt { background: var(--row-alt); }
     tr:hover { background: rgba(128, 128, 128, 0.1); }
-    
+
     td.module-name { font-weight: 600; color: var(--fg); }
     td.num {
       text-align: right;
       font-family: var(--vscode-editor-font-family, monospace);
       font-variant-numeric: tabular-nums;
     }
-    
+
     /* Metrics with Heatmap */
     td.num[style*="background-color"] {
       border-radius: 4px;

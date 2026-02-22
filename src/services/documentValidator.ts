@@ -1,14 +1,14 @@
 import * as vscode from "vscode";
-import { checkBoundaries, applyMaxViolations } from "./core/boundaries";
-import { normalizePath, SOURCE_GLOB, getConfigPath } from "./utils";
+import { checkBoundaries, applyMaxViolations } from "../core/boundaries";
+import { normalizePath, SOURCE_GLOB, getConfigPath } from "../shared/utils";
 import { reportConfigErrors } from "./diagnostics";
-import { generateMermaidDiagram } from "./core/diagram";
-import type { PicketyConfig, ConfigResult, Violation } from "./types";
+import { generateMermaidDiagram } from "../core/diagram";
+import type { PicketyConfig, ConfigResult, Violation } from "../shared/types";
 import type { ConfigService } from "./configService";
 import type { AnalysisService } from "./analysisService";
 import type { DiagnosticManager } from "./diagnosticManager";
-import type { PicketyStatusBar } from "./statusBar";
-import type { ImpactCodeLensProvider } from "./impactCodeLens";
+import type { PicketyStatusBar } from "../vscode/statusBar";
+import type { ImpactCodeLensProvider } from "../vscode/impactCodeLens";
 import { TelemetryProvider } from "./telemetry";
 
 export class DocumentValidator implements vscode.Disposable {

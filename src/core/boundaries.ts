@@ -4,7 +4,7 @@ import {
   matchFileToModule,
   resolveFileImports,
 } from "./imports";
-import type { PicketyConfig, Violation, Severity, WorkspaceContext } from "../types";
+import type { PicketyConfig, Violation, Severity, WorkspaceContext } from "../shared/types";
 import {
   normalizePath,
   matchesPattern,

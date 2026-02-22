@@ -25,9 +25,9 @@ suite('Extension Integration Test Suite', () => {
     const testFilePath = path.join(rootPath, 'src', 'core', 'violation_test.ts');
     const testFileUri = vscode.Uri.file(testFilePath);
 
-    // Rule in pickety.json: "core" cannot import "vscode-impl"
-    // "vscode-impl" is src/{statusBar,diagnostics,navigation,codeActions}.ts
-    const content = 'import { PicketyStatusBar } from "../statusBar";\n';
+    // Rule in pickety.json: "core" cannot import "vscode"
+    // "vscode" module is src/vscode/*.ts
+    const content = 'import { PicketyStatusBar } from "../vscode/statusBar";\n';
 
     try {
       await vscode.workspace.fs.writeFile(testFileUri, Buffer.from(content));
@@ -142,7 +142,7 @@ suite('Extension Integration Test Suite', () => {
     const testFilePath = path.join(rootPath, 'src', 'core', 'clear_violation_test.ts');
     const testFileUri = vscode.Uri.file(testFilePath);
 
-    const violationContent = 'import { PicketyStatusBar } from "../statusBar";\n';
+    const violationContent = 'import { PicketyStatusBar } from "../vscode/statusBar";\n';
     const validContent = 'const validVal = 42;\n';
 
     try {
@@ -200,7 +200,7 @@ suite('Extension Integration Test Suite', () => {
       await vscode.workspace.fs.delete(configUri);
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      await vscode.workspace.fs.writeFile(testUri, Buffer.from('import { PicketyStatusBar } from "../statusBar";\n'));
+      await vscode.workspace.fs.writeFile(testUri, Buffer.from('import { PicketyStatusBar } from "../vscode/statusBar";\n'));
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       const diagnostics = vscode.languages.getDiagnostics(testUri);
@@ -233,7 +233,7 @@ suite('Extension Integration Test Suite', () => {
       await vscode.workspace.fs.writeFile(configUri, Buffer.from('{ invalid syntax ]'));
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      await vscode.workspace.fs.writeFile(testUri, Buffer.from('import { PicketyStatusBar } from "../statusBar";\n'));
+      await vscode.workspace.fs.writeFile(testUri, Buffer.from('import { PicketyStatusBar } from "../vscode/statusBar";\n'));
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       const testDiagnostics = vscode.languages.getDiagnostics(testUri);

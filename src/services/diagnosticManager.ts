@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import type { Violation, PicketyMetadata, HealthViolation } from "./types";
-import { formatHealthMetricValue } from "./core/utils";
+import type { Violation, PicketyMetadata, HealthViolation } from "../shared/types";
+import { formatHealthMetricValue } from "../core/utils";
 
 export class DiagnosticManager {
   private static readonly CIRCULAR_TAG = "pickety/circular";

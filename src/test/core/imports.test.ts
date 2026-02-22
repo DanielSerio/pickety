@@ -3,7 +3,7 @@ import { normalizePath } from "../../core/utils";
 const ROOT_DIR = normalizePath(path.resolve("/project"));
 import * as assert from "assert";
 import { extractImports, resolveImport, matchFileToModule } from "../../core/imports";
-import type { WorkspaceContext } from "../../types";
+import type { WorkspaceContext } from "../../shared/types";
 
 suite("extractImports", () => {
   // --- Happy path ---

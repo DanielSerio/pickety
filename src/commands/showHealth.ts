@@ -1,7 +1,7 @@
 import { computeModuleHealth } from "../core/health";
-import { showHealthPanel } from "../healthPanel";
+import { showHealthPanel } from "../vscode/healthPanel";
 import { requireConfig } from "./utils";
-import type { PicketyConfig, WorkspaceContext } from "../types";
+import type { PicketyConfig, WorkspaceContext } from "../shared/types";
 import type { ImportGraph } from "../core/graph";
 
 export function showHealthCommand(

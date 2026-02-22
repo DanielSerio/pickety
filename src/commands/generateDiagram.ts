@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { computeModuleHealth } from "../core/health";
 import { generateMermaidDiagram } from "../core/diagram";
 import { requireConfig } from "./utils";
-import type { PicketyConfig, WorkspaceContext } from "../types";
+import type { PicketyConfig, WorkspaceContext } from "../shared/types";
 import type { ImportGraph } from "../core/graph";
 
 export function generateDiagramCommand(

@@ -1,13 +1,13 @@
 import * as fs from "fs";
 import * as path from "path";
-import { loadConfig, loadTsConfigAliases } from "./core/config";
-import { checkBoundaries, applyMaxViolations } from "./core/boundaries";
-import { ImportGraph, getFileDependencies } from "./core/graph";
-import { SOURCE_EXTENSIONS, normalizePath } from "./utils";
-import { findCycles } from "./core/utils";
-import { computeModuleHealth, checkHealthThresholds } from "./core/health";
-import { formatViolation, printImpactReport, printHealthReport } from "./cli/formatters";
-import type { PicketyConfig, Violation, WorkspaceContext } from "./types";
+import { loadConfig, loadTsConfigAliases } from "../core/config";
+import { checkBoundaries, applyMaxViolations } from "../core/boundaries";
+import { ImportGraph, getFileDependencies } from "../core/graph";
+import { SOURCE_EXTENSIONS, normalizePath } from "../shared/utils";
+import { findCycles } from "../core/utils";
+import { computeModuleHealth, checkHealthThresholds } from "../core/health";
+import { formatViolation, printImpactReport, printHealthReport } from "./formatters";
+import type { PicketyConfig, Violation, WorkspaceContext } from "../shared/types";
 
 function parseArgs(argv: string[]) {
   const args = argv.slice(2);

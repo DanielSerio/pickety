@@ -1,11 +1,11 @@
 import * as vscode from "vscode";
-import { initCommand } from "./commands/init";
-import { generateDiagramCommand } from "./commands/generateDiagram";
-import { showHealthCommand } from "./commands/showHealth";
-import { showImpactCommand } from "./commands/showImpact";
-import { goToRule, allowImport } from "./navigation";
-import { ConfigService } from "./configService";
-import { AnalysisService } from "./analysisService";
+import { initCommand } from "../commands/init";
+import { generateDiagramCommand } from "../commands/generateDiagram";
+import { showHealthCommand } from "../commands/showHealth";
+import { showImpactCommand } from "../commands/showImpact";
+import { goToRule, allowImport } from "../vscode/navigation";
+import { ConfigService } from "../services/configService";
+import { AnalysisService } from "../services/analysisService";
 
 export function registerAllCommands(
   context: vscode.ExtensionContext,

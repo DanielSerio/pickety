@@ -1,11 +1,13 @@
 {
   "$schema": "./resources/pickety.schema.json",
   "modules": {
+    "cli": "src/cli/*.ts",
+    "commands": "src/commands/*.ts",
     "core": "src/core/*",
-    "extension": "src/{extension,commandRegistry}.ts",
-    "infra": "src/{documentValidator,statusBar,diagnostics,navigation,codeActions,healthPanel,impactCodeLens,diagnosticManager,telemetry}.ts",
-    "shared": "src/{utils,types}.ts",
-    "commands": "src/commands/*.ts"
+    "extension": "src/extension/*.ts",
+    "services": "src/services/*.ts",
+    "shared": "src/shared/*.ts",
+    "vscode": "src/vscode/*.ts"
   },
   "rules": {
     "module-boundaries": {
@@ -18,7 +20,7 @@
         },
         {
           "importer": "core",
-          "imports": "infra",
+          "imports": "vscode",
           "allow": false,
           "message": "Core logic must remain platform-agnostic. No VS Code dependencies in src/core."
         },
@@ -29,7 +31,7 @@
           "message": "Core logic must remain platform-agnostic. No VS Code dependencies in src/core."
         },
         {
-          "importer": "infra",
+          "importer": "vscode",
           "imports": "services",
           "allow": false,
           "message": "Infrastructure components should not depend on service orchestration."
@@ -41,7 +43,7 @@
         },
         {
           "importer": "extension",
-          "imports": "infra",
+          "imports": "vscode",
           "allow": true
         },
         {

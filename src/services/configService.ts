@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
-import { loadConfig, loadTsConfigAliases } from "./core/config";
-import { CONFIG_FILENAME } from "./utils";
-import type { PicketyConfig, ConfigResult } from "./types";
+import { loadConfig, loadTsConfigAliases } from "../core/config";
+import { CONFIG_FILENAME, SKIP_DIRS } from "../shared/utils";
+import type { PicketyConfig, ConfigResult } from "../shared/types";
 
 export class ConfigService {
   private config: PicketyConfig | undefined;
@@ -51,12 +51,30 @@ export class ConfigService {
     });
 
     const tsConfigWatcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(this.workspaceRoot, "tsconfig*.json")
+      new vscode.RelativePattern(this.workspaceRoot, "**/tsconfig*.json")
     );
     this.disposables.push(tsConfigWatcher);
-    tsConfigWatcher.onDidChange(() => this.reloadAliases());
-    tsConfigWatcher.onDidCreate(() => this.reloadAliases());
-    tsConfigWatcher.onDidDelete(() => this.reloadAliases());
+
+    const shouldSkip = (uri: vscode.Uri) => {
+      const parts = uri.fsPath.split(/[\\/]/);
+      return parts.some((part) => SKIP_DIRS.has(part));
+    };
+
+    tsConfigWatcher.onDidChange((uri) => {
+      if (!shouldSkip(uri)) {
+        this.reloadAliases();
+      }
+    });
+    tsConfigWatcher.onDidCreate((uri) => {
+      if (!shouldSkip(uri)) {
+        this.reloadAliases();
+      }
+    });
+    tsConfigWatcher.onDidDelete((uri) => {
+      if (!shouldSkip(uri)) {
+        this.reloadAliases();
+      }
+    });
   }
 
   public dispose() {

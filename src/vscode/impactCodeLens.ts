@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
-import { ImportGraph } from "./core/graph";
-import { normalizePath } from "./utils";
-import type { PicketyConfig } from "./types";
+import { ImportGraph } from "../core/graph";
+import { normalizePath } from "../shared/utils";
+import type { PicketyConfig } from "../shared/types";
 
 // Displays a CodeLens at the top of each source file showing
 // how many files and modules depend on it, and how many it depends on.

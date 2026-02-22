@@ -1,6 +1,6 @@
 import * as path from "path";
 import { minimatch } from "minimatch";
-import type { ImportStatement, WorkspaceContext } from "../types";
+import type { ImportStatement, WorkspaceContext } from "../shared/types";
 import { SOURCE_EXTENSIONS, normalizePath } from "./utils";
 
 // Extensions to try when resolving imports without explicit extensions

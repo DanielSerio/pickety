@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import type { PicketyMetadata } from "./types";
+import type { PicketyMetadata } from "../shared/types";
 
 export class PicketyCodeActionProvider implements vscode.CodeActionProvider {
   constructor(private workspaceRoot: string) { }

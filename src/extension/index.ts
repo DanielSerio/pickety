@@ -1,14 +1,14 @@
 import * as vscode from "vscode";
 import { registerAllCommands } from "./commandRegistry";
-import { ConfigService } from "./configService";
-import { AnalysisService } from "./analysisService";
-import { PicketyStatusBar } from "./statusBar";
-import { TelemetryProvider } from "./telemetry";
-import { DiagnosticManager } from "./diagnosticManager";
-import { DocumentValidator } from "./documentValidator";
-import { PicketyCodeActionProvider } from "./codeActions";
-import { ImpactCodeLensProvider } from "./impactCodeLens";
-import { SOURCE_GLOB } from "./utils";
+import { ConfigService } from "../services/configService";
+import { AnalysisService } from "../services/analysisService";
+import { PicketyStatusBar } from "../vscode/statusBar";
+import { TelemetryProvider } from "../services/telemetry";
+import { DiagnosticManager } from "../services/diagnosticManager";
+import { DocumentValidator } from "../services/documentValidator";
+import { PicketyCodeActionProvider } from "../vscode/codeActions";
+import { ImpactCodeLensProvider } from "../vscode/impactCodeLens";
+import { SOURCE_GLOB } from "../shared/utils";
 
 let disposables: vscode.Disposable[] = [];
 

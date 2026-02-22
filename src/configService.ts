@@ -51,7 +51,7 @@ export class ConfigService {
     });
 
     const tsConfigWatcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(this.workspaceRoot, "tsconfig*.json")
+      new vscode.RelativePattern(this.workspaceRoot, "**/tsconfig*.json")
     );
     this.disposables.push(tsConfigWatcher);
     tsConfigWatcher.onDidChange(() => this.reloadAliases());

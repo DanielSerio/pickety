@@ -339,59 +339,85 @@ function validateHealthConfig(
 }
 
 
+// Directories to skip when searching for tsconfig files
+const SKIP_DIRS = new Set([
+  "node_modules", ".git", ".next", "dist", "out", "build",
+  ".turbo", ".cache", ".nx", "coverage",
+]);
+
+/**
+ * Recursively finds all tsconfig*.json files under a directory,
+ * up to maxDepth levels deep, skipping common build/dependency directories.
+ */
+function findTsConfigFiles(dir: string, maxDepth: number): string[] {
+  if (maxDepth < 0) { return []; }
+
+  const results: string[] = [];
+  let entries: fs.Dirent[];
+
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return results;
+  }
+
+  // Collect files at this level first so shallower tsconfigs take precedence
+  for (const entry of entries) {
+    if (!SKIP_DIRS.has(entry.name) && entry.isFile() && /^tsconfig(\..+)?\.json$/.test(entry.name)) {
+      results.push(path.join(dir, entry.name));
+    }
+  }
+
+  // Then recurse into subdirectories
+  for (const entry of entries) {
+    if (!SKIP_DIRS.has(entry.name) && entry.isDirectory()) {
+      results.push(...findTsConfigFiles(path.join(dir, entry.name), maxDepth - 1));
+    }
+  }
+
+  return results;
+}
+
 /**
  * Loads tsconfig.json and returns path aliases.
+ * Searches recursively for tsconfig files to support monorepo layouts
+ * where tsconfig.json may live in a subdirectory (e.g. apps/web/tsconfig.json).
+ * Aliases are resolved relative to the workspace root so they work with resolveImport.
  */
 export function loadTsConfigAliases(
   workspaceRoot: string
 ): Record<string, string> {
   const aliases: Record<string, string> = {};
+  const tsConfigPaths = findTsConfigFiles(workspaceRoot, 4);
 
-  // Try common tsconfig names
-  const tsConfigNames = [
-    "tsconfig.json",
-    "tsconfig.app.json",
-    "tsconfig.web.json",
-  ];
-  let tsConfigPath: string | undefined;
+  for (const tsConfigPath of tsConfigPaths) {
+    try {
+      const raw = fs.readFileSync(tsConfigPath, "utf-8");
+      // Use jsonc-parser to handle comments and trailing commas correctly
+      const parsed = jsonc.parse(raw);
 
-  for (const name of tsConfigNames) {
-    const p = path.join(workspaceRoot, name);
-    if (fs.existsSync(p)) {
-      tsConfigPath = p;
-      break;
-    }
-  }
+      const compilerOptions = parsed.compilerOptions;
+      if (!compilerOptions?.paths) { continue; }
 
-  if (!tsConfigPath) {
-    return aliases;
-  }
+      // Compute this tsconfig's directory relative to the workspace root so
+      // that alias targets are expressed as workspace-root-relative paths.
+      const tsConfigDir = path.dirname(tsConfigPath);
+      const relDir = path.relative(workspaceRoot, tsConfigDir);
+      const baseUrl = compilerOptions.baseUrl || ".";
 
-  try {
-    const raw = fs.readFileSync(tsConfigPath, "utf-8");
-    // Use jsonc-parser to handle comments and trailing commas correctly
-    const parsed = jsonc.parse(raw);
-
-    const compilerOptions = parsed.compilerOptions;
-    if (!compilerOptions) {
-      return aliases;
-    }
-
-    const baseUrl = compilerOptions.baseUrl || ".";
-    const paths = compilerOptions.paths;
-
-    if (paths) {
-      for (const [key, values] of Object.entries(paths)) {
+      for (const [key, values] of Object.entries(compilerOptions.paths)) {
         if (Array.isArray(values) && values.length > 0) {
-          // Take the first path and join with baseUrl
-          let target = values[0] as string;
-          const replacement = normalizePath(path.join(baseUrl, target));
-          aliases[key] = replacement;
+          const target = values[0] as string;
+          // Resolve alias target relative to workspace root. Shallower tsconfigs
+          // (found first) take precedence over deeper ones for the same alias key.
+          if (!aliases[key]) {
+            aliases[key] = normalizePath(path.join(relDir, baseUrl, target));
+          }
         }
       }
+    } catch {
+      // Silently fail for individual tsconfig errors
     }
-  } catch {
-    // Silently fail for tsconfig errors, just return empty aliases
   }
 
   return aliases;

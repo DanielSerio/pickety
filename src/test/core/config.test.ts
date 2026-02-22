@@ -489,4 +489,48 @@ suite("loadTsConfigAliases", () => {
     const aliases = loadTsConfigAliases(tmpDir);
     assert.strictEqual(aliases["@/*"], "src/*");
   });
+
+  test("finds tsconfig in subdirectory for monorepo layouts", () => {
+    // Simulate: workspace root has no tsconfig, but apps/web/ does (e.g. Next.js monorepo)
+    const subDir = path.join(tmpDir, "apps", "web");
+    fs.mkdirSync(subDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(subDir, "tsconfig.json"),
+      JSON.stringify({
+        compilerOptions: {
+          paths: { "@/*": ["./*"] },
+        },
+      })
+    );
+
+    const aliases = loadTsConfigAliases(tmpDir);
+    // @/* should resolve to apps/web/* (workspace-root-relative)
+    assert.strictEqual(aliases["@/*"], "apps/web/*");
+  });
+
+  test("root tsconfig alias takes precedence over subdirectory tsconfig", () => {
+    // Root tsconfig defines @/*
+    fs.writeFileSync(
+      path.join(tmpDir, "tsconfig.json"),
+      JSON.stringify({
+        compilerOptions: {
+          paths: { "@/*": ["src/*"] },
+        },
+      })
+    );
+    // Subdirectory tsconfig also defines @/* — should be ignored
+    const subDir = path.join(tmpDir, "packages", "ui");
+    fs.mkdirSync(subDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(subDir, "tsconfig.json"),
+      JSON.stringify({
+        compilerOptions: {
+          paths: { "@/*": ["./*"] },
+        },
+      })
+    );
+
+    const aliases = loadTsConfigAliases(tmpDir);
+    assert.strictEqual(aliases["@/*"], "src/*");
+  });
 });

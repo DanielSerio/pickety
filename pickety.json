@@ -1,13 +1,13 @@
 {
   "$schema": "./resources/pickety.schema.json",
   "modules": {
-    "core": "src/core/*",
-    "commands": "src/commands/*.ts",
     "cli": "src/cli/*.ts",
+    "commands": "src/commands/*.ts",
+    "core": "src/core/*",
+    "extension": "src/extension/*.ts",
     "services": "src/services/*.ts",
-    "vscode": "src/vscode/*.ts",
     "shared": "src/shared/*.ts",
-    "extension": "src/extension/*.ts"
+    "vscode": "src/vscode/*.ts"
   },
   "rules": {
     "module-boundaries": {

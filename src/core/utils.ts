@@ -3,6 +3,7 @@ export {
   CONFIG_FILENAME,
   SOURCE_EXTENSIONS,
   SOURCE_GLOB,
+  SKIP_DIRS,
   normalizePath,
   toRelativePath,
   matchesPattern,

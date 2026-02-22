@@ -8,7 +8,7 @@ import type {
   HealthConfig,
   Severity,
 } from "../shared/types";
-import { CONFIG_FILENAME, normalizePath } from "./utils";
+import { CONFIG_FILENAME, normalizePath, SKIP_DIRS } from "./utils";
 
 
 
@@ -339,15 +339,14 @@ function validateHealthConfig(
 }
 
 
-// Directories to skip when searching for tsconfig files
-const SKIP_DIRS = new Set([
-  "node_modules", ".git", ".next", "dist", "out", "build",
-  ".turbo", ".cache", ".nx", "coverage",
-]);
+
 
 /**
  * Recursively finds all tsconfig*.json files under a directory,
  * up to maxDepth levels deep, skipping common build/dependency directories.
+ *
+ * Returns files ordered shallower-first by design (files at the current level
+ * are collected before recursing into subdirectories).
  */
 function findTsConfigFiles(dir: string, maxDepth: number): string[] {
   if (maxDepth < 0) { return []; }
@@ -383,11 +382,15 @@ function findTsConfigFiles(dir: string, maxDepth: number): string[] {
  * Searches recursively for tsconfig files to support monorepo layouts
  * where tsconfig.json may live in a subdirectory (e.g. apps/web/tsconfig.json).
  * Aliases are resolved relative to the workspace root so they work with resolveImport.
+ *
+ * Uses first-write-wins semantics: shallower tsconfig aliases take precedence
+ * over deeper ones for the same key.
  */
 export function loadTsConfigAliases(
   workspaceRoot: string
 ): Record<string, string> {
   const aliases: Record<string, string> = {};
+  // Hardcoded depth of 4 covers most monorepos. Can be made configurable if needed.
   const tsConfigPaths = findTsConfigFiles(workspaceRoot, 4);
 
   for (const tsConfigPath of tsConfigPaths) {

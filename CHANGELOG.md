@@ -4,6 +4,12 @@ All notable changes to the "pickety" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.1.3] - 2026-02-24
+
+### Fixed
+
+- **Interpolation rules with `**` in the `imports` pattern were silently skipped.** `captureVariablesFromPath` computed the maximum starting offset as `pathSegments.length - patternSegments.length`. Because `**` counts as one pattern segment but can match zero path segments, this produced an offset of zero whenever path and pattern had equal segment counts — causing the match to fail immediately and the rule to be ignored with no error. The fix counts only non-`**` segments toward the minimum, so the correct starting offsets are tried. Rules such as `{ imports: "features/$name/components/**/*", containedTo: "features/$name/**/*" }` now enforce correctly.
+
 ## [0.1.0] - 2026-02-21
 
 ### Added

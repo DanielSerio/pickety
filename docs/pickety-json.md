@@ -68,12 +68,17 @@ Defines which modules are allowed or forbidden from importing each other.
 
 An array of boundary rules. Each rule has:
 
-| Field      | Type      | Required | Description                                                             |
-| ---------- | --------- | -------- | ----------------------------------------------------------------------- |
-| `importer` | `string`  | Yes      | Source module name or glob pattern                                      |
-| `imports`  | `string`  | Yes      | Target module name, glob pattern, or file path glob                     |
-| `allow`    | `boolean` | No       | `true` to permit the import, `false` to forbid it. Defaults to `false`. |
-| `message`  | `string`  | No       | Custom message shown in the diagnostic                                  |
+| Field         | Type               | Required    | Description                                                                                      |
+| ------------- | ------------------ | ----------- | ------------------------------------------------------------------------------------------------ |
+| `imports`     | `string`           | Yes         | Target module name, glob pattern, or file path glob                                              |
+| `importer`    | `string`           | Conditional | Source module name or glob pattern. Required unless `containedTo` is set.                        |
+| `allow`       | `boolean`          | No          | `true` to permit the import, `false` to forbid it. Defaults to `false`.                          |
+| `only`        | `boolean`          | No          | `true` = the `imports` target can **only** be used by this `importer`. Everyone else is blocked. |
+| `containedTo` | `string \| object` | No          | Shortcut for `only: true`. See [Strict Containment](#strict-containment-only--containedto).      |
+| `message`     | `string`           | No          | Custom message shown in the diagnostic                                                           |
+| `severity`    | `string`           | No          | `"error"` or `"warn"`. Overrides the rule-set severity for this rule only.                       |
+| `name`        | `string`           | No          | Rule identifier shown in diagnostics and quick-fix labels.                                       |
+| `maxViolations` | `number`         | No          | Violations at or below this count are downgraded to `warn`. Useful for gradual adoption.         |
 
 Both `importer` and `imports` support glob patterns via [minimatch](https://github.com/isaacs/minimatch), so you can write rules like `"*"` (all modules) or `"feature-*"` (any module starting with `feature-`).
 
@@ -122,6 +127,58 @@ With this rule, `routes/auth/index.ts` can import from `features/auth/pages/*` b
 ```
 
 With this rule, `routes/auth/index.ts` cannot import from `features/auth/hooks/*`.
+
+## Strict Containment (`only` & `containedTo`)
+
+Standard rules are "blacklist" style — they forbid specific connections. `only` and `containedTo` are "whitelist" style — they forbid **everyone else** from importing a target.
+
+### `only`
+
+```json
+{
+  "importer": "services",
+  "imports": "repositories",
+  "only": true,
+  "message": "Repositories can only be used by the Service layer"
+}
+```
+
+### `containedTo`
+
+`containedTo` is a shortcut for `only: true` that works well with interpolation variables, letting you express "this pattern is private to its owner" in a single rule.
+
+**String form:**
+
+```json
+{
+  "imports": "src/features/$name/internal/*",
+  "containedTo": "src/features/$name/**/*",
+  "message": "Internal files cannot be imported outside their feature"
+}
+```
+
+**Object form** — adds an `unless` map to exempt specific variable values from the restriction. All entries in `unless` must match simultaneously (AND semantics).
+
+```json
+{
+  "imports": "features/$name/components/**/*",
+  "containedTo": {
+    "path": "features/$name/**/*",
+    "unless": { "$name": "shared" }
+  },
+  "message": "Features components must be imported by their own feature."
+}
+```
+
+With this rule, `features/auth/components/LoginForm.tsx` can only be imported by files inside `features/auth/**/*`. But `features/shared/components/**/*` is exempt — any module may import from the shared feature.
+
+#### `unless` validation
+
+Pickety will report a configuration error if:
+
+- `unless` is an empty object `{}` (meaningless — no variable to match against)
+- `unless` keys do not start with `$` (they must be variable references)
+- `unless` is present but `imports` contains no `$variable` (nothing to capture)
 
 ## `boundary-diagrams`
 

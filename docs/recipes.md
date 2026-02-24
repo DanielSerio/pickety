@@ -72,6 +72,39 @@ Ensure the Domain and Application layers don't depend on Infrastructure.
 }
 ```
 
+## Feature Components with a Shared Exemption
+
+Enforce that each feature's components can only be imported by code in the same feature, while allowing a `shared` feature to act as a project-wide component library.
+
+```json
+{
+  "modules": {
+    "features": "src/features/*"
+  },
+  "rules": {
+    "module-boundaries": {
+      "severity": "error",
+      "rules": [
+        {
+          "imports": "features/$name/components/**/*",
+          "containedTo": {
+            "path": "features/$name/**/*",
+            "unless": { "$name": "shared" }
+          },
+          "message": "Features components must be imported by their own feature."
+        }
+      ]
+    }
+  }
+}
+```
+
+With this rule:
+- `features/auth/components/LoginForm.tsx` → only importable from within `features/auth/**/*`
+- `features/shared/components/Button.tsx` → importable from anywhere (`$name === "shared"` exempts it)
+
+This pattern is common in Feature-Sliced Design and any architecture where one module acts as a shared library alongside isolated feature modules.
+
 ## Scoped Utilities
 
 Prevent "Utility Bloat" by ensuring only specific modules can use certain utils.

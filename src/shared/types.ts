@@ -12,13 +12,19 @@ export type ConfigResult =
   | { ok: true; config: PicketyConfig; }
   | { ok: false; errors: ConfigError[]; };
 
+// Object form of containedTo, allowing variable-based exemptions
+export interface ContainedToOptions {
+  path: string; // the importer pattern (same as the string form)
+  unless?: Record<string, string>; // skip rule when a captured variable matches this value
+}
+
 // A single boundary rule: defines whether an import between two modules is allowed
 export interface BoundaryRule {
   importer?: string; // source module name or glob pattern
   imports: string; // target module name or glob pattern
   allow?: boolean; // defaults to false (deny)
   only?: boolean; // if true, the 'imports' can ONLY be imported by 'importer'
-  containedTo?: string; // shortcut for 'only: true' with this importer pattern
+  containedTo?: string | ContainedToOptions; // shortcut for 'only: true' with this importer pattern
   message?: string; // custom error message
   severity?: Severity; // optional per-rule severity override
   name?: string; // optional rule name for identification

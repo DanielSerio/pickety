@@ -1,7 +1,9 @@
 import * as fs from "fs";
 import * as path from "path";
-import { loadConfig, loadTsConfigAliases } from "../core/config";
-import { checkBoundaries, applyMaxViolations } from "../core/boundaries";
+import { loadConfig } from "../core/config";
+import { loadTsConfigAliases } from "../core/tsconfig";
+import { checkBoundaries } from "../core/boundaries";
+import { applyMaxViolations } from "../core/violations";
 import { ImportGraph, getFileDependencies } from "../core/graph";
 import { SOURCE_EXTENSIONS, normalizePath } from "../shared/utils";
 import { findCycles } from "../core/utils";

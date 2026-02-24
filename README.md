@@ -151,16 +151,16 @@ Map logical module names to file glob patterns. Each file belongs to the **first
 
 Each rule defines an import boundary between modules.
 
-| Field         | Type      | Required    | Description                                                              |
-| ------------- | --------- | ----------- | ------------------------------------------------------------------------ |
-| `imports`     | `string`  | Yes         | Target module name, glob, or file path pattern                           |
-| `importer`    | `string`  | Conditional | Source module name or glob pattern. Required unless using `containedTo`. |
-| `allow`       | `boolean` | No          | `true` = permit, `false` = forbid. Default: `false`                      |
-| `only`        | `boolean` | No          | `true` = the `imports` target can ONLY be used by this `importer`.       |
-| `containedTo` | `string`  | No          | Shortcut for `only: true`. Restricts `imports` to this path pattern.     |
-| `message`     | `string`  | No          | Custom diagnostic message shown in the editor                            |
-| `severity`    | `string`  | No          | `"error"` or `"warn"`. Overrides the global severity                     |
-| `name`        | `string`  | No          | Rule identifier. Shown in diagnostics and quick fix labels               |
+| Field         | Type                | Required    | Description                                                              |
+| ------------- | ------------------- | ----------- | ------------------------------------------------------------------------ |
+| `imports`     | `string`            | Yes         | Target module name, glob, or file path pattern                           |
+| `importer`    | `string`            | Conditional | Source module name or glob pattern. Required unless using `containedTo`. |
+| `allow`       | `boolean`           | No          | `true` = permit, `false` = forbid. Default: `false`                      |
+| `only`        | `boolean`           | No          | `true` = the `imports` target can ONLY be used by this `importer`.       |
+| `containedTo` | `string \| object`  | No          | Shortcut for `only: true`. Restricts `imports` to this path pattern. Accepts a plain string or an object with `path` and optional `unless`. |
+| `message`     | `string`            | No          | Custom diagnostic message shown in the editor                            |
+| `severity`    | `string`            | No          | `"error"` or `"warn"`. Overrides the global severity                     |
+| `name`        | `string`            | No          | Rule identifier. Shown in diagnostics and quick fix labels               |
 
 ### Glob Patterns
 
@@ -205,6 +205,8 @@ Use `only` to ensure a module is only consumed by a specific layer:
 
 Use `containedTo` for "private" file patterns that should never leak outside their owner. It is a shortcut for `only: true` where the `importer` is the allowed scope.
 
+**String form** — the common case:
+
 ```json
 {
   "imports": "src/features/$name/internal/*",
@@ -212,6 +214,21 @@ Use `containedTo` for "private" file patterns that should never leak outside the
   "message": "Internal files cannot be imported outside their feature"
 }
 ```
+
+**Object form** — use when you need to exempt specific variable values from the rule. The `unless` map is evaluated with AND semantics: every entry must match simultaneously for the exemption to apply.
+
+```json
+{
+  "imports": "features/$name/components/**/*",
+  "containedTo": {
+    "path": "features/$name/**/*",
+    "unless": { "$name": "shared" }
+  },
+  "message": "Features components must be imported by their own feature."
+}
+```
+
+This enforces feature isolation for component imports, but allows any module to import from `features/shared/components/**/*` — useful for a shared component library that lives alongside feature modules.
 
 ### Interpolation Variables
 
@@ -317,6 +334,7 @@ A complete configuration enforcing feature isolation, dependency direction, util
   "modules": {
     "app": "src/app/**/*",
     "features": "src/features/*",
+    "routes": "src/routes/*",
     "components": "src/components/**/*",
     "hooks": "src/hooks/**/*",
     "utils": "src/utils/**/*"

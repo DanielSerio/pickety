@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
-import { checkBoundaries, applyMaxViolations } from "../core/boundaries";
+import { checkBoundaries } from "../core/boundaries";
+import { applyMaxViolations } from "../core/violations";
 import { normalizePath, SOURCE_GLOB, getConfigPath } from "../shared/utils";
 import { reportConfigErrors } from "./diagnostics";
 import { generateMermaidDiagram } from "../core/diagram";

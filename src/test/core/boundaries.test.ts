@@ -1172,4 +1172,194 @@ suite("boundaries — only and containedTo rules", () => {
 
     assert.strictEqual(violations.length, 1);
   });
+
+  // containedTo object form (with unless)
+
+  test("containedTo object form: behaves identically to string form when no unless", () => {
+    const config = makeConfig([
+      {
+        imports: "features/$name/components/**/*",
+        containedTo: { path: "features/$name/**/*" },
+        message: "Features components must be imported by their own feature.",
+      },
+    ]);
+
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/billing/service.ts`,
+      `import { LoginForm } from '../auth/components/LoginForm';`,
+      config,
+      makeCtx()
+    );
+
+    assert.strictEqual(violations.length, 1);
+    assert.ok(violations[0].message.includes("Features components must be imported by their own feature."));
+  });
+
+  test("containedTo object form: no violation when same feature", () => {
+    const config = makeConfig([
+      {
+        imports: "features/$name/components/**/*",
+        containedTo: { path: "features/$name/**/*" },
+      },
+    ]);
+
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/auth/service.ts`,
+      `import { LoginForm } from './components/LoginForm';`,
+      config,
+      makeCtx()
+    );
+
+    assert.strictEqual(violations.length, 0);
+  });
+
+  test("containedTo with unless: no violation when captured variable matches exempt value", () => {
+    const sharedFiles = new Set([
+      ...knownFiles,
+      `${ROOT_DIR}/src/features/shared/components/Button.tsx`,
+    ]);
+    const config = makeConfig(
+      [
+        {
+          imports: "features/$name/components/**/*",
+          containedTo: {
+            path: "features/$name/**/*",
+            unless: { $name: "shared" },
+          },
+          message: "Features components must be imported by their own feature.",
+        },
+      ],
+      {
+        features: "src/features/*",
+        components: "src/components/**/*",
+        routes: "src/routes/*",
+        utils: "src/utils/**/*",
+      }
+    );
+
+    // billing imports from shared/components — must be allowed (exempted by unless)
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/billing/service.ts`,
+      `import { Button } from '../shared/components/Button';`,
+      config,
+      makeCtx(sharedFiles)
+    );
+
+    assert.strictEqual(violations.length, 0);
+  });
+
+  test("containedTo with unless: violation still fires for non-exempt features", () => {
+    const sharedFiles = new Set([
+      ...knownFiles,
+      `${ROOT_DIR}/src/features/shared/components/Button.tsx`,
+    ]);
+    const config = makeConfig(
+      [
+        {
+          imports: "features/$name/components/**/*",
+          containedTo: {
+            path: "features/$name/**/*",
+            unless: { $name: "shared" },
+          },
+          message: "Features components must be imported by their own feature.",
+        },
+      ],
+      {
+        features: "src/features/*",
+        components: "src/components/**/*",
+        routes: "src/routes/*",
+        utils: "src/utils/**/*",
+      }
+    );
+
+    // billing importing auth's component — not exempt, must still be a violation
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/billing/service.ts`,
+      `import { LoginForm } from '../auth/components/LoginForm';`,
+      config,
+      makeCtx(sharedFiles)
+    );
+
+    assert.strictEqual(violations.length, 1);
+    assert.ok(violations[0].message.includes("Features components must be imported by their own feature."));
+  });
+
+  // unless AND semantics (multi-variable)
+
+  test("unless AND semantics: exempt only when ALL variables match", () => {
+    // Pattern captures both $name and $layer; exempt only when name=shared AND layer=public
+    const layeredFiles = new Set([
+      ...knownFiles,
+      `${ROOT_DIR}/src/features/shared/layers/public/Button.tsx`,
+      `${ROOT_DIR}/src/features/shared/layers/private/Internal.tsx`,
+    ]);
+    const config = makeConfig([
+      {
+        imports: "features/$name/layers/$layer/**/*",
+        containedTo: {
+          path: "features/$name/**/*",
+          unless: { $name: "shared", $layer: "public" },
+        },
+      },
+    ]);
+
+    // billing imports shared/layers/public — both match the unless condition → exempt
+    const noViolations = checkBoundaries(
+      `${ROOT_DIR}/src/features/billing/service.ts`,
+      `import { Button } from '../shared/layers/public/Button';`,
+      config,
+      makeCtx(layeredFiles)
+    );
+    assert.strictEqual(noViolations.length, 0);
+  });
+
+  test("unless AND semantics: violation when only one of two conditions matches", () => {
+    const layeredFiles = new Set([
+      ...knownFiles,
+      `${ROOT_DIR}/src/features/shared/layers/public/Button.tsx`,
+      `${ROOT_DIR}/src/features/shared/layers/private/Internal.tsx`,
+    ]);
+    const config = makeConfig([
+      {
+        imports: "features/$name/layers/$layer/**/*",
+        containedTo: {
+          path: "features/$name/**/*",
+          unless: { $name: "shared", $layer: "public" },
+        },
+      },
+    ]);
+
+    // $name=shared matches but $layer=private does not — not all conditions met → violation
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/billing/service.ts`,
+      `import { Internal } from '../shared/layers/private/Internal';`,
+      config,
+      makeCtx(layeredFiles)
+    );
+    assert.strictEqual(violations.length, 1);
+  });
+
+  // unless references a variable not present in imports
+
+  test("unless with unknown variable: rule always enforces (variable never captured)", () => {
+    // $zone is not in the imports pattern, so captured[$zone] is always undefined
+    const config = makeConfig([
+      {
+        imports: "features/$name/components/**/*",
+        containedTo: {
+          path: "features/$name/**/*",
+          unless: { $zone: "global" }, // $zone never captured from imports pattern
+        },
+      },
+    ]);
+
+    // billing imports from auth/components — $zone won't match "global" → no exemption → violation
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/billing/service.ts`,
+      `import { LoginForm } from '../auth/components/LoginForm';`,
+      config,
+      makeCtx()
+    );
+    assert.strictEqual(violations.length, 1);
+  });
 });

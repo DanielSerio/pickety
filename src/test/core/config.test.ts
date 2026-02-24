@@ -402,6 +402,94 @@ suite("config", () => {
       assert.ok(result.errors.some(e => e.path === "rules.module-boundaries.rules[0].name"));
     }
   });
+
+  test("accepts containedTo as an object with path only", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { features: "src/features/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ imports: "features/$name/components/**/*", containedTo: { path: "features/$name/**/*" } }],
+          },
+        },
+      })
+    );
+    assert.strictEqual(result.ok, true);
+  });
+
+  test("accepts containedTo as an object with path and unless", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { features: "src/features/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ imports: "features/$name/components/**/*", containedTo: { path: "features/$name/**/*", unless: { $name: "shared" } } }],
+          },
+        },
+      })
+    );
+    assert.strictEqual(result.ok, true);
+  });
+
+  test("returns error when containedTo.unless is an empty object", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { features: "src/features/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ imports: "features/$name/components/**/*", containedTo: { path: "features/$name/**/*", unless: {} } }],
+          },
+        },
+      })
+    );
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.ok(result.errors.some(e =>
+        e.path === "rules.module-boundaries.rules[0].containedTo.unless" &&
+        e.message.includes("must not be empty")
+      ));
+    }
+  });
+
+  test("returns error when containedTo.unless is used but imports has no variables", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { features: "src/features/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ imports: "features/auth/components", containedTo: { path: "features/**/*", unless: { $name: "shared" } } }],
+          },
+        },
+      })
+    );
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.ok(result.errors.some(e =>
+        e.path === "rules.module-boundaries.rules[0].containedTo.unless" &&
+        e.message.includes("$variable")
+      ));
+    }
+  });
+
+  test("returns error when containedTo.unless key does not start with $", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { features: "src/features/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ imports: "features/$name/components/**/*", containedTo: { path: "features/$name/**/*", unless: { name: "shared" } } }],
+          },
+        },
+      })
+    );
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.ok(result.errors.some(e =>
+        e.path === "rules.module-boundaries.rules[0].containedTo.unless" &&
+        e.message.includes("must start with $")
+      ));
+    }
+  });
 });
 
 suite("loadTsConfigAliases", () => {

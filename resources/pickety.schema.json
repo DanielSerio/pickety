@@ -68,9 +68,32 @@
                     "default": false
                   },
                   "containedTo": {
-                    "type": "string",
                     "description": "Restrict the 'imports' target to be contained within this importer pattern. Shortcut for 'only: true'.",
-                    "markdownDescription": "Restrict the 'imports' target to be contained within this importer pattern. Shortcut for 'only: true'.\n\nExample:\n```json\n{ \"imports\": \"**/internal/*\", \"containedTo\": \"src/features/$name/**/*\" }\n```"
+                    "markdownDescription": "Restrict the `imports` target so it can only be imported from within this pattern. Shortcut for `only: true`.\n\n**String form:**\n```json\n{ \"imports\": \"**/internal/*\", \"containedTo\": \"src/features/$name/**/*\" }\n```\n\n**Object form** (supports `unless` to exempt specific variable values):\n```json\n{\n  \"imports\": \"features/$name/components/**/*\",\n  \"containedTo\": {\n    \"path\": \"features/$name/**/*\",\n    \"unless\": { \"$name\": \"shared\" }\n  }\n}\n```",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "description": "Importer glob pattern. Supports $variable interpolation."
+                      },
+                      {
+                        "type": "object",
+                        "required": ["path"],
+                        "additionalProperties": false,
+                        "properties": {
+                          "path": {
+                            "type": "string",
+                            "description": "Importer glob pattern. Supports $variable interpolation."
+                          },
+                          "unless": {
+                            "type": "object",
+                            "description": "Skip this rule when ALL captured variables match the specified values (AND semantics). Keys must be $variable names present in 'imports'.",
+                            "additionalProperties": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    ]
                   },
                   "message": {
                     "type": "string",

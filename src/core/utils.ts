@@ -23,7 +23,11 @@ export function resolveRuleDefaults(
     allow: rule.allow ?? false,
     severity: rule.severity ?? globalSeverity,
     name: rule.name ?? `rule[${index}]`,
-    effectiveImporter: rule.containedTo || rule.importer || "*",
+    effectiveImporter: (
+      typeof rule.containedTo === "object"
+        ? rule.containedTo.path
+        : rule.containedTo
+    ) || rule.importer || "*",
     isOnly: rule.only || !!rule.containedTo,
     isAllowStyle: (rule.allow ?? false) || !!rule.containedTo || rule.only,
   };

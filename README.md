@@ -317,6 +317,7 @@ A complete configuration enforcing feature isolation, dependency direction, util
   "modules": {
     "app": "src/app/**/*",
     "features": "src/features/*",
+    "routes": "src/routes/*",
     "components": "src/components/**/*",
     "hooks": "src/hooks/**/*",
     "utils": "src/utils/**/*"

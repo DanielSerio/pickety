@@ -69,6 +69,18 @@ export function checkBoundaries(
             variables
           );
           if (captured) {
+            // If containedTo has an `unless` condition, skip when ALL entries match (AND semantics).
+            // Empty-entries guard: [].every() is vacuously true, so we require at least one entry.
+            if (typeof rule.containedTo === "object" && rule.containedTo.unless) {
+              const unlessEntries = Object.entries(rule.containedTo.unless);
+              const isExempt =
+                unlessEntries.length > 0 &&
+                unlessEntries.every(([varName, exemptValue]) => captured[varName] === exemptValue);
+              if (isExempt) {
+                return;
+              }
+            }
+
             const expectedImporter = replaceVariables(
               effectiveImporter,
               variables,

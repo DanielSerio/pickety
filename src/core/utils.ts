@@ -1,5 +1,5 @@
-import type { BoundaryRule, ImportStatement, Severity, Violation } from "../shared/types";
-export {
+import type { BoundaryRule, ImportStatement, Severity, Violation, ContainedToOptions } from "../shared/types";
+import {
   CONFIG_FILENAME,
   SOURCE_EXTENSIONS,
   SOURCE_GLOB,
@@ -11,6 +11,20 @@ export {
   formatHealthMetricValue,
 } from "../shared/utils";
 
+export {
+  CONFIG_FILENAME,
+  SOURCE_EXTENSIONS,
+  SOURCE_GLOB,
+  SKIP_DIRS,
+  normalizePath,
+  toRelativePath,
+  matchesPattern,
+  getConfigPath,
+  formatHealthMetricValue,
+};
+
+import { minimatch } from "minimatch";
+
 /**
  * Resolves defaults for a boundary rule.
  */
@@ -19,18 +33,60 @@ export function resolveRuleDefaults(
   index: number,
   globalSeverity: Severity
 ) {
+  const ct = getContainedToOptions(rule);
   return {
     allow: rule.allow ?? false,
     severity: rule.severity ?? globalSeverity,
     name: rule.name ?? `rule[${index}]`,
-    effectiveImporter: (
-      typeof rule.containedTo === "object"
-        ? rule.containedTo.path
-        : rule.containedTo
-    ) || rule.importer || "*",
+    effectiveImporter: ct?.path || rule.importer || "*",
     isOnly: rule.only || !!rule.containedTo,
     isAllowStyle: (rule.allow ?? false) || !!rule.containedTo || rule.only,
   };
+}
+
+/**
+ * Matches a rule pattern against a module name or relative path.
+ * If the pattern is a simple name (no `/`), matches against the module name.
+ * If the pattern contains `/`, also matches against the file's relative path.
+ */
+export function matchesModuleOrPath(
+  moduleName: string,
+  relativePath: string,
+  pattern: string
+): boolean {
+  // Always try module name match
+  if (matchesPattern(moduleName, pattern)) {
+    return true;
+  }
+
+  // If pattern contains `/`, it's a file path glob — match against relative path
+  if (pattern.includes("/")) {
+    // Try exact match against relative path
+    if (minimatch(relativePath, pattern)) {
+      return true;
+    }
+    // Match against relative path with flexibility for root dirs and subfolders
+    if (
+      minimatch(relativePath, `**/${pattern}`) ||
+      minimatch(relativePath, `**/${pattern}/**`)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Normalizes rule.containedTo to its object form.
+ */
+export function getContainedToOptions(rule: BoundaryRule): ContainedToOptions | undefined {
+  if (!rule.containedTo) {
+    return undefined;
+  }
+  return typeof rule.containedTo === "object"
+    ? rule.containedTo
+    : { path: rule.containedTo };
 }
 
 /**

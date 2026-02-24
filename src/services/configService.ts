@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
-import { loadConfig, loadTsConfigAliases } from "../core/config";
+import { loadConfig } from "../core/config";
+import { loadTsConfigAliases } from "../core/tsconfig";
 import { CONFIG_FILENAME, SKIP_DIRS } from "../shared/utils";
 import type { PicketyConfig, ConfigResult } from "../shared/types";
 

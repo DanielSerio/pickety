@@ -2,7 +2,8 @@ import * as assert from "assert";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { loadConfig, loadTsConfigAliases } from "../../core/config";
+import { loadConfig } from "../../core/config";
+import { loadTsConfigAliases } from "../../core/tsconfig";
 
 suite("config", () => {
   let tmpDir: string;

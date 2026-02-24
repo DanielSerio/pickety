@@ -92,10 +92,19 @@ ESLint's `no-restricted-imports` can block a handful of hard-coded paths. But th
 
 **1. Install** the Pickety extension from the VS Code Marketplace.
 
-**2. Create `pickety.json`** in your workspace root:
+**2. Generate your config** using the command palette:
+
+> `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac) → **Pickety: Initialize Configuration**
+
+This creates a `pickety.json` in your workspace root and opens it immediately. The generated file includes a starter module map and example rules — edit them to match your project structure.
+
+**3. Done.** Pickety activates automatically. Violations appear as red/yellow squiggles in the editor, in the Problems panel, and in the status bar.
+
+> **Prefer writing it by hand?** Add a `pickety.json` to your workspace root. The JSON Schema (included via the `$schema` field in the generated file) provides autocomplete and inline validation as you type.
 
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/DanielSerio/pickety/main/resources/pickety.schema.json",
   "modules": {
     "features": "src/features/*",
     "components": "src/components/**/*",
@@ -116,8 +125,6 @@ ESLint's `no-restricted-imports` can block a handful of hard-coded paths. But th
   }
 }
 ```
-
-**3. Done.** Pickety activates automatically. Violations appear as red/yellow squiggles in the editor, in the Problems panel, and in the status bar.
 
 ---
 
@@ -293,6 +300,7 @@ Threshold violations appear as diagnostics directly on your `pickety.json` file.
 
 | Command                              | Description                                     |
 | ------------------------------------ | ----------------------------------------------- |
+| `Pickety: Initialize Configuration`  | Generate a starter `pickety.json` and open it  |
 | `Pickety: Refresh Configuration`     | Reload `pickety.json`, aliases, and file index  |
 | `Pickety: Generate Boundary Diagram` | Generate a Mermaid diagram of your boundaries   |
 | `Pickety: Show Impact`               | See transitive dependents of the active file    |

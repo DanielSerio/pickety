@@ -491,6 +491,42 @@ suite("boundaries — interpolation variables", () => {
 
     assert.strictEqual(violations.length, 2);
   });
+
+  // Item 1: ** in the importer pattern (non-isOnly path) — same maxStart bug existed here
+  // captureVariablesFromPath is called on effectiveImporter against sourceRelativePath
+
+  test("importer with ** and variables: violation when source matches (deny rule)", () => {
+    const config = makeConfig([
+      // Any file inside a feature subtree cannot import utils
+      { importer: "features/$name/**/*", imports: "utils" },
+    ]);
+
+    // features/auth/service.ts matches "features/$name/**/*" → $name=auth captured → deny applies
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/auth/service.ts`,
+      `import { helpers } from '../../utils/helpers';`,
+      config,
+      makeCtx()
+    );
+
+    assert.strictEqual(violations.length, 1);
+  });
+
+  test("importer with ** and variables: no violation when source does not match importer pattern", () => {
+    const config = makeConfig([
+      { importer: "features/$name/**/*", imports: "utils" },
+    ]);
+
+    // components/Button.tsx does not match "features/$name/**/*" → rule is skipped
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/components/Button.tsx`,
+      `import { helpers } from '../utils/helpers';`,
+      config,
+      makeCtx()
+    );
+
+    assert.strictEqual(violations.length, 0);
+  });
 });
 
 suite("boundaries — edge cases", () => {
@@ -933,6 +969,49 @@ suite("boundaries — only and containedTo rules", () => {
     assert.ok(violations[0].message.includes("contained to \"src/features/auth/**/*\""));
   });
 
+  test("containedTo rule with interpolation and ** in imports: violation when cross-feature", () => {
+    // Reproduces: imports: "features/$name/components/**/*", containedTo: "features/$name/**/*"
+    // The ** in the imports pattern was causing captureVariablesFromPath to compute
+    // maxStart = 0 (pathLen - patternLen), skipping the rule entirely.
+    const config = makeConfig([
+      {
+        imports: "features/$name/components/**/*",
+        containedTo: "features/$name/**/*",
+        message: "Features components must be imported by their own feature.",
+      },
+    ]);
+
+    // billing importing auth's component — should be a violation
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/billing/service.ts`,
+      `import { LoginForm } from '../auth/components/LoginForm';`,
+      config,
+      makeCtx()
+    );
+
+    assert.strictEqual(violations.length, 1);
+    assert.ok(violations[0].message.includes("Features components must be imported by their own feature."));
+  });
+
+  test("containedTo rule with interpolation and ** in imports: no violation when same feature", () => {
+    const config = makeConfig([
+      {
+        imports: "features/$name/components/**/*",
+        containedTo: "features/$name/**/*",
+      },
+    ]);
+
+    // auth importing its own component — should be allowed
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/auth/pages/LoginPage.tsx`,
+      `import { LoginForm } from '../components/LoginForm';`,
+      config,
+      makeCtx()
+    );
+
+    assert.strictEqual(violations.length, 0);
+  });
+
   test("containedTo rule with interpolation: no violation when scope matches", () => {
     const config = makeConfig([
       { imports: "src/features/$name/internal/*", containedTo: "src/features/$name/**/*" },
@@ -952,5 +1031,145 @@ suite("boundaries — only and containedTo rules", () => {
     );
 
     assert.strictEqual(violations.length, 0);
+  });
+
+  // Gap 2: ** matching multiple real path segments
+
+  test("containedTo rule: ** in imports matches multiple nested segments (violation)", () => {
+    const config = makeConfig([
+      { imports: "features/$name/components/**/*", containedTo: "features/$name/**/*" },
+    ]);
+
+    const deepFiles = new Set([
+      ...knownFiles,
+      `${ROOT_DIR}/src/features/auth/components/ui/atoms/Button.tsx`,
+    ]);
+
+    // billing importing a deeply-nested auth component — ** spans two segments
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/billing/service.ts`,
+      `import { Button } from '../auth/components/ui/atoms/Button';`,
+      config,
+      makeCtx(deepFiles)
+    );
+
+    assert.strictEqual(violations.length, 1);
+  });
+
+  test("containedTo rule: ** in imports matches multiple nested segments (no violation, same feature)", () => {
+    const config = makeConfig([
+      { imports: "features/$name/components/**/*", containedTo: "features/$name/**/*" },
+    ]);
+
+    const deepFiles = new Set([
+      ...knownFiles,
+      `${ROOT_DIR}/src/features/auth/components/ui/atoms/Button.tsx`,
+    ]);
+
+    // auth importing its own deeply-nested component — same $name, no violation
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/auth/service.ts`,
+      `import { Button } from './components/ui/atoms/Button';`,
+      config,
+      makeCtx(deepFiles)
+    );
+
+    assert.strictEqual(violations.length, 0);
+  });
+
+  // Gap 3: only: true with interpolation variables
+
+  test("only rule with variables: violation when non-owning module imports", () => {
+    const config = makeConfig([
+      { importer: "services/$name", imports: "repositories/$name", only: true },
+    ]);
+    config.modules = {
+      services: "src/services/*",
+      repositories: "src/repositories/*",
+    };
+
+    const customKnownFiles = new Set([
+      `${ROOT_DIR}/src/services/auth/UserService.ts`,
+      `${ROOT_DIR}/src/services/billing/BillingService.ts`,
+      `${ROOT_DIR}/src/repositories/auth/UserRepository.ts`,
+    ]);
+
+    // billing service importing auth repository — $name mismatch → violation
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/services/billing/BillingService.ts`,
+      `import { repo } from '../../repositories/auth/UserRepository';`,
+      config,
+      makeCtx(customKnownFiles)
+    );
+
+    assert.strictEqual(violations.length, 1);
+  });
+
+  test("only rule with variables: no violation when owning module imports", () => {
+    const config = makeConfig([
+      { importer: "services/$name", imports: "repositories/$name", only: true },
+    ]);
+    config.modules = {
+      services: "src/services/*",
+      repositories: "src/repositories/*",
+    };
+
+    const customKnownFiles = new Set([
+      `${ROOT_DIR}/src/services/auth/UserService.ts`,
+      `${ROOT_DIR}/src/repositories/auth/UserRepository.ts`,
+    ]);
+
+    // auth service importing auth repository — same $name → no violation
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/services/auth/UserService.ts`,
+      `import { repo } from '../../repositories/auth/UserRepository';`,
+      config,
+      makeCtx(customKnownFiles)
+    );
+
+    assert.strictEqual(violations.length, 0);
+  });
+
+  // Gap 4: target doesn't match imports pattern — rule must not fire (no false positives)
+
+  test("containedTo rule with interpolation: no action when target does not match imports pattern", () => {
+    const config = makeConfig([
+      { imports: "features/$name/components/**/*", containedTo: "features/$name/**/*" },
+    ]);
+
+    // utils is outside the features/*/components/** pattern — rule must not apply
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/billing/service.ts`,
+      `import { helpers } from '../../utils/helpers';`,
+      config,
+      makeCtx()
+    );
+
+    assert.strictEqual(violations.length, 0);
+  });
+
+  // Item 2: allow: true is silently ignored when containedTo is set.
+  // containedTo forces isOnly=true, which never reads the allow field.
+  // A user writing { containedTo: "X", allow: true } gets the same behaviour
+  // as { containedTo: "X" } — the restriction is always enforced.
+
+  test("allow: true has no effect when containedTo is set — restriction is still enforced", () => {
+    const config = makeConfig([
+      {
+        imports: "features/$name/components/**/*",
+        containedTo: "features/$name/**/*",
+        allow: true, // ignored — containedTo overrides allow semantics
+      },
+    ]);
+
+    // billing importing auth's component — still a violation despite allow: true
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/billing/service.ts`,
+      `import { LoginForm } from '../auth/components/LoginForm';`,
+      config,
+      makeCtx()
+    );
+
+    assert.strictEqual(violations.length, 1);
   });
 });

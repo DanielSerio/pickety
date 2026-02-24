@@ -311,8 +311,10 @@ function captureVariablesFromPath(
 
   // Try matching at every possible starting offset in the path
   // (pattern "routes/$name" should match "src/routes/auth/index.ts")
+  // ** can match zero segments, so only count non-** segments toward the minimum
   const minStart = 0;
-  const maxStart = pathSegments.length - patternSegments.length;
+  const nonStarCount = patternSegments.filter((s) => s !== "**").length;
+  const maxStart = pathSegments.length - nonStarCount;
 
   for (let start = minStart; start <= maxStart; start++) {
     const captured = tryMatchSegments(patternSegments, pathSegments, start, variables);

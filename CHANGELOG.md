@@ -4,6 +4,23 @@ All notable changes to the "pickety" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.2.0] - 2026-02-26
+
+### Changed
+
+- **Validation now triggers on file save instead of on every keystroke.** Replaces the `onDidChangeTextDocument` listener and 300ms debounce timer with `onDidSaveTextDocument`, reducing unnecessary analysis cycles and diagnostic noise while editing.
+- **Missing `pickety.json` is no longer an error.** `loadConfig` returns `{ ok: true, config: undefined }` when no config file exists. The CLI exits cleanly with a message and the VS Code extension silently skips validation, making pickety safe to enable in any workspace.
+- **Mermaid diagram layout overhauled.** Diagrams now render a unified clustered graph instead of one subgraph per rule. Modules are grouped by top-level path segment, nodes display inline health metrics, and `only` constraints use thicker edges for visual distinction.
+
+### Fixed
+
+- **tsconfig path aliases with bare `*` replacements failed to resolve.** Aliases like `"@/*": "./*"` where the replacement value is `"*"` or lacks a trailing `/*` now resolve correctly.
+
+### Added
+
+- **Fixture-based integration test suite.** Tests run against a real `fixtures/next-ddd` project, validating config loading, alias resolution, and boundary checking end-to-end.
+- **Regression test for `containedTo` with `unless` and `@/*` aliasing.** Reproduces the myco-log scenario with cross-feature violations, same-feature imports, and `unless` exemptions.
+
 ## [0.1.4] - 2026-02-24
 
 ### Added

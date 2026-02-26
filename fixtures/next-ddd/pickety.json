@@ -1,0 +1,69 @@
+{
+  "$schema": "https://raw.githubusercontent.com/DanielSerio/pickety/main/resources/pickety.schema.json",
+  "modules": {
+    "domain": "domain/**",
+    "core": "core/**",
+    "infrastructure": "infrastructure/**",
+    "app": "app/**",
+    "features": "features/**"
+  },
+  "rules": {
+    "module-boundaries": {
+      "severity": "error",
+      "rules": [
+        {
+          "importer": "domain",
+          "imports": "core",
+          "allow": false,
+          "message": "Domain layer must be pure and have zero internal dependencies."
+        },
+        {
+          "importer": "domain",
+          "imports": "infrastructure",
+          "allow": false,
+          "message": "Domain layer must be pure and have zero internal dependencies."
+        },
+        {
+          "importer": "domain",
+          "imports": "app",
+          "allow": false,
+          "message": "Domain layer must be pure and have zero internal dependencies."
+        },
+        {
+          "importer": "core",
+          "imports": "infrastructure",
+          "allow": false,
+          "message": "Core layer can only depend on the domain."
+        },
+        {
+          "importer": "core",
+          "imports": "app",
+          "allow": false,
+          "message": "Core layer can only depend on the domain."
+        },
+        {
+          "importer": "infrastructure",
+          "imports": "app",
+          "allow": false,
+          "message": "Infrastructure should not depend on the app layer."
+        },
+        {
+          "importer": "app",
+          "imports": "features/*/pages/**",
+          "only": true,
+          "message": "Feature pages can only be imported by app/."
+        },
+        {
+          "imports": "features/$feature/$section/**",
+          "containedTo": {
+            "path": "features/$feature/**",
+            "unless": {
+              "$section": "pages"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "boundary-diagrams": true
+}

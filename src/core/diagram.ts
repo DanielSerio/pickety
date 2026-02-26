@@ -78,92 +78,103 @@ function buildMermaidContent(config: PicketyConfig, health?: ModuleHealth[]): st
   const rules = config.rules["module-boundaries"].rules;
   const globalSeverity = config.rules["module-boundaries"].severity;
 
-  // Build a lookup for health metrics by module name
+  // 1. Map health for easy access
   const healthByModule = new Map<string, ModuleHealth>();
   if (health) {
-    for (const mod of health) {
-      healthByModule.set(mod.moduleName, mod);
+    for (const h of health) {
+      healthByModule.set(h.moduleName, h);
     }
   }
 
-  // Module reference: list all modules and their patterns (with health metrics if available)
+  // 2. Styles
   lines.push("");
-  lines.push("  %% Module definitions");
-  for (const [name, pattern] of Object.entries(modules)) {
-    const h = healthByModule.get(name);
-    if (h) {
-      lines.push(`  %% ${name}: ${pattern} (Ca=${h.afferentCoupling} Ce=${h.efferentCoupling} I=${h.instability.toFixed(2)} depth=${h.dependencyDepth})`);
-    } else {
-      lines.push(`  %% ${name}: ${pattern}`);
-    }
-  }
+  lines.push("  %% Node Styles");
+  lines.push("  classDef module fill:#f1f5f9,stroke:#64748b,stroke-width:2px;");
+  lines.push("  classDef external fill:#ffffff,stroke:#94a3b8,stroke-width:1px,stroke-dasharray: 5 5;");
 
-  // Pre-resolve all rule defaults to avoid repeated computation
-  const resolvedRules = rules.map((rule, index) => ({
-    rule,
-    index,
-    ...resolveRuleDefaults(rule, index, globalSeverity),
-  }));
+  // 3. Define Nodes and Cluster them
+  const clusters = new Map<string, string[]>();
+  const allInvolvedNodes = new Set<string>(Object.keys(modules));
 
-  // Each rule gets its own subgraph so the diagram reads rule-by-rule
-  resolvedRules.forEach(({ rule, index, allow, severity, name, effectiveImporter, isOnly, isAllowStyle }) => {
-    const ruleName = escapeMermaid(name);
-    let action = allow ? "ALLOW" : "DENY";
-    if (isOnly) {
-      action = rule.containedTo ? "CONTAINED TO" : "ONLY";
-    }
-
-    lines.push("");
-    lines.push(`  subgraph rule_${index} ["${action}: ${ruleName} (${severity})"]`);
-
-    const fromId = `r${index}_from`;
-    const toId = `r${index}_to`;
-
-    // Stadium shape for interpolation patterns, rectangle for plain modules
-    const safeImporter = escapeMermaid(effectiveImporter);
-    const safeImports = escapeMermaid(rule.imports);
-    const fromShape = effectiveImporter.includes("$")
-      ? `(["${safeImporter}"])`
-      : `["${safeImporter}"]`;
-    const toShape = rule.imports.includes("$")
-      ? `(["${safeImports}"])`
-      : `["${safeImports}"]`;
-
-    lines.push(`    ${fromId}${fromShape}`);
-    lines.push(`    ${toId}${toShape}`);
-
-    // Dashed arrow for deny, solid for allow. Label with custom message if present.
-    const arrow = isAllowStyle ? "-->" : "-.->";
-    const label = rule.message ? ` |"${escapeMermaid(rule.message)}"|` : "";
-    lines.push(`    ${fromId} ${arrow}${label} ${toId}`);
-
-    lines.push("  end");
+  // Add any patterns from rules that aren't explicit modules
+  rules.forEach((rule, index) => {
+    const { effectiveImporter } = resolveRuleDefaults(rule, index, globalSeverity);
+    allInvolvedNodes.add(effectiveImporter);
+    allInvolvedNodes.add(rule.imports);
   });
 
-  // Color-code edges: green for allow, red dashed for deny
-  lines.push("");
-  resolvedRules.forEach(({ isAllowStyle, index }) => {
-    if (isAllowStyle) {
-      lines.push(`  linkStyle ${index} stroke:#22c55e,stroke-width:2px`);
-    } else {
-      lines.push(`  linkStyle ${index} stroke:#ef4444,stroke-width:2px,stroke-dasharray:5`);
+  // Simple clustering - group by first segment of module name
+  allInvolvedNodes.forEach((name) => {
+    const parts = name.split("/");
+    const cluster = parts.length > 1 ? parts[0] : "Base";
+    if (!clusters.has(cluster)) {
+      clusters.set(cluster, []);
     }
+    clusters.get(cluster)!.push(name);
   });
 
-  // Health metrics summary section (when health data is available)
-  if (healthByModule.size > 0) {
+  const nodeIds = new Map<string, string>();
+  let idCounter = 0;
+  const getSafeId = (name: string) => {
+    if (!nodeIds.has(name)) {
+      nodeIds.set(name, `n${idCounter++}`);
+    }
+    return nodeIds.get(name)!;
+  };
+
+  clusters.forEach((nodeNames, clusterName) => {
     lines.push("");
-    lines.push(`  subgraph health_summary ["Module Health"]`);
-    for (const [name] of Object.entries(modules)) {
+    lines.push(`  subgraph c${idCounter++} [" ${escapeMermaid(clusterName)} "]`);
+    nodeNames.forEach((name) => {
+      const id = getSafeId(name);
+      const isModule = !!modules[name];
       const h = healthByModule.get(name);
-      if (h) {
-        const id = `health_${escapeMermaid(name)}`;
-        const label = `${escapeMermaid(name)}\\nCa=${h.afferentCoupling} Ce=${h.efferentCoupling} I=${h.instability.toFixed(2)} depth=${h.dependencyDepth}`;
-        lines.push(`    ${id}["${label}"]`);
-      }
-    }
-    lines.push("  end");
-  }
 
-  return lines.join("\n");
+      let label = escapeMermaid(name);
+      if (h) {
+        label += `<br/><small>Ca:${h.afferentCoupling} Ce:${h.efferentCoupling} I:${h.instability.toFixed(
+          2
+        )}</small>`;
+      }
+
+      // Interpolation patterns get stadium shape, others square
+      const shape = name.includes("$") ? `(["${label}"])` : `["${label}"]`;
+      const className = isModule ? "module" : "external";
+
+      lines.push(`    ${id}${shape}:::${className}`);
+    });
+    lines.push("  end");
+  });
+
+  // 4. Edges (Rules)
+  lines.push("");
+  lines.push("  %% Boundary Rules");
+
+  const edgeStyles: string[] = [];
+  let edgeIndex = 0;
+
+  rules.forEach((rule, index) => {
+    const { allow, name, effectiveImporter, isAllowStyle, isOnly } = resolveRuleDefaults(
+      rule,
+      index,
+      globalSeverity
+    );
+
+    const fromId = getSafeId(effectiveImporter);
+    const toId = getSafeId(rule.imports);
+
+    const arrow = isAllowStyle ? "-->" : "-.->";
+    const actionLabel = allow ? "ALLOW" : "DENY";
+    const label = rule.message || `${actionLabel}: ${name}`;
+
+    lines.push(`  ${fromId} ${arrow}|"${escapeMermaid(label)}"| ${toId}`);
+
+    // Style the edge: green for allow, red for deny, thicker for 'only' constraints
+    const color = isAllowStyle ? "#22c55e" : "#ef4444";
+    const width = isOnly ? "4px" : "2px";
+    const dash = isAllowStyle ? "" : ",stroke-dasharray:5";
+    edgeStyles.push(`  linkStyle ${edgeIndex++} stroke:${color},stroke-width:${width}${dash}`);
+  });
+
+  return lines.concat(edgeStyles).join("\n");
 }

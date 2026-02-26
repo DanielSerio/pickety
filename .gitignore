@@ -9,3 +9,8 @@ out
 picket-boundaries.mermaid
 benchmark-project/
 scripts/gen.js
+tmp/
+fixtures/**/package.json
+fixtures/**/package-lock.json
+fixtures/**/*.js
+fixtures/**/*.js.map

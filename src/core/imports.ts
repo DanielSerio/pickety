@@ -76,9 +76,12 @@ export function resolveImport(
   const { knownFiles, root, aliases } = ctx;
 
   for (const [alias, replacement] of Object.entries(aliases)) {
-    if (alias.endsWith("/*") && replacement.endsWith("/*")) {
+    if (alias.endsWith("/*")) {
       const aliasPrefix = alias.slice(0, -2);
-      const replacementPrefix = replacement.slice(0, -2);
+      const replacementPrefix = replacement.endsWith("/*")
+        ? replacement.slice(0, -2)
+        : (replacement === "*" ? "" : replacement);
+
       if (specifier.startsWith(aliasPrefix)) {
         const resolved = specifier.replace(aliasPrefix, replacementPrefix);
         return resolveFile(path.resolve(root, resolved), knownFiles);

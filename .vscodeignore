@@ -20,3 +20,4 @@ fix-paths.js
 **/*.ts
 **/.vscode-test.*
 picket-boundaries.mermaid
+fixtures/**

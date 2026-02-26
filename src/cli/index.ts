@@ -71,6 +71,11 @@ function loadWorkspace(root: string): { config: PicketyConfig; ctx: WorkspaceCon
     process.exit(1);
   }
 
+  if (!result.config) {
+    console.log("No pickety.json found. Skipping check.");
+    process.exit(0);
+  }
+
   const knownFiles = discoverFiles(root);
   const aliases = loadTsConfigAliases(root);
 

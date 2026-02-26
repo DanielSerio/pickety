@@ -67,7 +67,7 @@ ESLint's `no-restricted-imports` can block a handful of hard-coded paths. But th
 
 ## Features
 
-- **Real-time enforcement** -- violations appear as you type, not just on save
+- **On-save enforcement** -- violations appear instantly when you save, keeping feedback fast without noisy mid-keystroke diagnostics
 - **Glob patterns** -- flexible module definitions using [minimatch](https://github.com/isaacs/minimatch) syntax
 - **Interpolation variables** -- enforce scoped relationships like "route X can only import from feature X"
 - **Strict enforcement** -- use `only` and `containedTo` to restrict modules to specific consumers
@@ -249,7 +249,7 @@ With this rule, `routes/auth/index.ts` can import from `features/auth/pages/` bu
 
 ## Boundary Diagrams
 
-Pickety can auto-generate a [Mermaid](https://mermaid.js.org/) diagram of your module boundaries. Each rule appears as its own section with clear ALLOW/DENY labeling.
+Pickety can auto-generate a [Mermaid](https://mermaid.js.org/) diagram of your module boundaries. Modules are clustered by their top-level path segment, with edges labeled by rule action and name.
 
 Add this to your `pickety.json`:
 

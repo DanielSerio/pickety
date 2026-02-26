@@ -13,7 +13,6 @@ import type { ImpactCodeLensProvider } from "../vscode/impactCodeLens";
 import { TelemetryProvider } from "./telemetry";
 
 export class DocumentValidator implements vscode.Disposable {
-  private analysisTimeout: NodeJS.Timeout | undefined;
   private telemetry = TelemetryProvider.getInstance();
   private disposables: vscode.Disposable[] = [];
 
@@ -138,25 +137,16 @@ export class DocumentValidator implements vscode.Disposable {
 
   private registerEventListeners() {
     this.disposables.push(
-      vscode.workspace.onDidChangeTextDocument((event) => {
-        if (!this.isSourceFile(event.document)) {
+      vscode.workspace.onDidSaveTextDocument((document) => {
+        if (!this.isSourceFile(document)) {
           return;
         }
 
-        this.diagnosticManager.delete(event.document.uri);
-        if (this.analysisTimeout) {
-          clearTimeout(this.analysisTimeout);
-        }
-
-        this.analysisTimeout = setTimeout(() => {
-          this.analysisService.updateFile(event.document.uri.fsPath, event.document.getText(), this.analysisService.getWorkspaceContext());
-          this.analyzeDocument(event.document);
-          this.codeLensProvider?.refresh();
-        }, 300);
+        this.analysisService.updateFile(document.uri.fsPath, document.getText(), this.analysisService.getWorkspaceContext());
+        this.analyzeDocument(document);
+        this.codeLensProvider?.refresh();
       })
     );
-
-    this.disposables.push(vscode.workspace.onDidOpenTextDocument((document) => this.analyzeDocument(document)));
 
     const fileWatcher = vscode.workspace.createFileSystemWatcher(SOURCE_GLOB);
     this.disposables.push(fileWatcher);
@@ -174,9 +164,6 @@ export class DocumentValidator implements vscode.Disposable {
   }
 
   public dispose() {
-    if (this.analysisTimeout) {
-      clearTimeout(this.analysisTimeout);
-    }
     this.disposables.forEach(d => d.dispose());
   }
 }

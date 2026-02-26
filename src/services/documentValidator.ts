@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { checkBoundaries } from "../core/boundaries";
 import { applyMaxViolations } from "../core/violations";
-import { SOURCE_GLOB, getConfigPath } from "../shared/utils";
+import { normalizePath, SOURCE_GLOB, getConfigPath } from "../shared/utils";
 import { reportConfigErrors } from "./diagnostics";
 import { generateMermaidDiagram } from "../core/diagram";
 import type { PicketyConfig, ConfigResult, Violation } from "../shared/types";
@@ -150,6 +150,9 @@ export class DocumentValidator implements vscode.Disposable {
 
     const fileWatcher = vscode.workspace.createFileSystemWatcher(SOURCE_GLOB);
     this.disposables.push(fileWatcher);
+    fileWatcher.onDidCreate((uri) => {
+      this.analysisService.getKnownFiles().add(normalizePath(uri.fsPath));
+    });
     fileWatcher.onDidDelete((uri) => {
       this.analysisService.removeFile(uri.fsPath);
       this.codeLensProvider?.refresh();

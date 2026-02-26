@@ -9,7 +9,7 @@ export interface ConfigError {
 
 // Result of loading/validating configuration
 export type ConfigResult =
-  | { ok: true; config: PicketyConfig; }
+  | { ok: true; config: PicketyConfig | undefined; }
   | { ok: false; errors: ConfigError[]; };
 
 // Object form of containedTo, allowing variable-based exemptions

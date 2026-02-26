@@ -48,7 +48,7 @@ export class ConfigService {
     configWatcher.onDidCreate(() => this.reload());
     configWatcher.onDidDelete(() => {
       this.config = undefined;
-      this._onConfigChanged.fire({ ok: false, errors: [{ message: "Configuration file deleted" }] });
+      this._onConfigChanged.fire({ ok: true, config: undefined });
     });
 
     const tsConfigWatcher = vscode.workspace.createFileSystemWatcher(

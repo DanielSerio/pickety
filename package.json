@@ -119,6 +119,7 @@
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test",
+    "test:fixture": "vscode-test --label all-tests",
     "test:core": "npm run compile-tests && mocha --ui tdd out/test/core/**/*.test.js",
     "release:patch": "npm version patch && git push --follow-tags",
     "release:minor": "npm version minor && git push --follow-tags",

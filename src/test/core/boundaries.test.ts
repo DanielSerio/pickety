@@ -1364,3 +1364,125 @@ suite("boundaries — only and containedTo rules", () => {
     assert.strictEqual(violations.length, 1);
   });
 });
+
+// Reproduces the exact myco-log scenario:
+//   modules: { features: "features/**" }  (no src/ prefix, /** not /*)
+//   rule: imports: "features/$feature/$section/**", containedTo: { path: "features/$feature/**", unless: { $section: "pages" } }
+//   violation: features/strain/pages/StrainManagementPage.tsx imports from features/batch/components/index.ts
+suite("myco-log regression: containedTo with unless and flat features/** modules", () => {
+  const mycoRoot = ROOT_DIR;
+
+  // Mirrors the myco-log module layout (no src/ prefix, /** glob)
+  const mycoModules = {
+    domain: "domain/**",
+    core: "core/**",
+    infrastructure: "infrastructure/**",
+    app: "app/**",
+    features: "features/**",
+  };
+
+  const mycoFiles = new Set([
+    `${mycoRoot}/features/strain/pages/StrainManagementPage.tsx`,
+    `${mycoRoot}/features/batch/components/index.ts`,
+    `${mycoRoot}/features/batch/components/TestBatchComponent.tsx`,
+    `${mycoRoot}/features/batch/pages/BatchManagementPage.tsx`,
+    `${mycoRoot}/app/page.tsx`,
+  ]);
+
+  function makeMycoCtx(aliases: Record<string, string> = {}): WorkspaceContext {
+    return { knownFiles: mycoFiles, root: mycoRoot, aliases };
+  }
+
+  // The exact rule from myco-log pickety.json
+  const containedToRule = {
+    imports: "features/$feature/$section/**",
+    containedTo: {
+      path: "features/$feature/**",
+      unless: { $section: "pages" },
+    },
+  };
+
+  function makeMycoConfig(): PicketyConfig {
+    return {
+      modules: mycoModules,
+      rules: { "module-boundaries": { severity: "error", rules: [containedToRule] } },
+    };
+  }
+
+  test("cross-feature import from components section raises a violation", () => {
+    // features/strain/pages/StrainManagementPage.tsx imports features/batch/components/index.ts
+    // $feature=batch, $section=components — not exempt — must be a violation
+    const violations = checkBoundaries(
+      `${mycoRoot}/features/strain/pages/StrainManagementPage.tsx`,
+      `import { TestBatchComponent } from '../../batch/components';`,
+      makeMycoConfig(),
+      makeMycoCtx()
+    );
+    assert.strictEqual(violations.length, 1, "expected 1 violation for cross-feature component import");
+  });
+
+  test("same-feature import from components section raises no violation", () => {
+    // features/strain/pages/StrainManagementPage.tsx imports features/strain/components — allowed
+    const strainFiles = new Set([
+      ...mycoFiles,
+      `${mycoRoot}/features/strain/components/index.ts`,
+    ]);
+    const violations = checkBoundaries(
+      `${mycoRoot}/features/strain/pages/StrainManagementPage.tsx`,
+      `import { StrainCard } from '../components';`,
+      makeMycoConfig(),
+      { knownFiles: strainFiles, root: mycoRoot, aliases: {} }
+    );
+    assert.strictEqual(violations.length, 0, "same-feature import should be allowed");
+  });
+
+  test("cross-feature import from pages section is exempt (unless $section=pages)", () => {
+    // Importing from features/batch/pages is exempt under the unless condition
+    // (pages are handled by a separate `only` rule in the real config)
+    const violations = checkBoundaries(
+      `${mycoRoot}/features/strain/pages/StrainManagementPage.tsx`,
+      `import { BatchManagementPage } from '../../batch/pages/BatchManagementPage';`,
+      makeMycoConfig(),
+      makeMycoCtx()
+    );
+    assert.strictEqual(violations.length, 0, "importing from pages section should be exempt");
+  });
+
+  test("cross-feature import via @ alias raises a violation", () => {
+    // Same violation but using the @/* path alias as in the real myco-log file
+    const aliases = { "@/*": "./*" };
+    const violations = checkBoundaries(
+      `${mycoRoot}/features/strain/pages/StrainManagementPage.tsx`,
+      `import { TestBatchComponent } from '@/features/batch/components';`,
+      makeMycoConfig(),
+      makeMycoCtx(aliases)
+    );
+    assert.strictEqual(violations.length, 1, "expected 1 violation when importing via @ alias");
+  });
+
+  test("explicit user scenario: strain/pages/StrainManagementPage.tsx cannot import from batch/api/client.ts", () => {
+    // Exact file from prompt
+    const filePath = `${mycoRoot}/features/strain/pages/StrainManagementPage.tsx`;
+    const targetPath = `${mycoRoot}/features/batch/api/client.ts`;
+
+    const files = new Set([
+      ...mycoFiles,
+      normalizePath(filePath),
+      normalizePath(targetPath),
+    ]);
+
+    const content = `import { client } from '@/features/batch/api/client';`;
+    const aliases = { "@/*": "./*" };
+
+    const violations = checkBoundaries(
+      filePath,
+      content,
+      makeMycoConfig(),
+      { knownFiles: files, root: mycoRoot, aliases }
+    );
+
+    assert.strictEqual(violations.length, 1, "Should block cross-feature import from non-exempt section");
+    assert.ok(violations[0].message.includes("contained to \"features/batch/**\""), "Message should mention the restriction");
+  });
+});
+

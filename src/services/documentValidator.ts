@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { checkBoundaries } from "../core/boundaries";
 import { applyMaxViolations } from "../core/violations";
-import { normalizePath, SOURCE_GLOB, getConfigPath } from "../shared/utils";
+import { SOURCE_GLOB, getConfigPath } from "../shared/utils";
 import { reportConfigErrors } from "./diagnostics";
 import { generateMermaidDiagram } from "../core/diagram";
 import type { PicketyConfig, ConfigResult, Violation } from "../shared/types";
@@ -13,7 +13,6 @@ import type { ImpactCodeLensProvider } from "../vscode/impactCodeLens";
 import { TelemetryProvider } from "./telemetry";
 
 export class DocumentValidator implements vscode.Disposable {
-  private analysisTimeout: NodeJS.Timeout | undefined;
   private telemetry = TelemetryProvider.getInstance();
   private disposables: vscode.Disposable[] = [];
 
@@ -138,31 +137,19 @@ export class DocumentValidator implements vscode.Disposable {
 
   private registerEventListeners() {
     this.disposables.push(
-      vscode.workspace.onDidChangeTextDocument((event) => {
-        if (!this.isSourceFile(event.document)) {
+      vscode.workspace.onDidSaveTextDocument((document) => {
+        if (!this.isSourceFile(document)) {
           return;
         }
 
-        this.diagnosticManager.delete(event.document.uri);
-        if (this.analysisTimeout) {
-          clearTimeout(this.analysisTimeout);
-        }
-
-        this.analysisTimeout = setTimeout(() => {
-          this.analysisService.updateFile(event.document.uri.fsPath, event.document.getText(), this.analysisService.getWorkspaceContext());
-          this.analyzeDocument(event.document);
-          this.codeLensProvider?.refresh();
-        }, 300);
+        this.analysisService.updateFile(document.uri.fsPath, document.getText(), this.analysisService.getWorkspaceContext());
+        this.analyzeDocument(document);
+        this.codeLensProvider?.refresh();
       })
     );
 
-    this.disposables.push(vscode.workspace.onDidOpenTextDocument((document) => this.analyzeDocument(document)));
-
     const fileWatcher = vscode.workspace.createFileSystemWatcher(SOURCE_GLOB);
     this.disposables.push(fileWatcher);
-    fileWatcher.onDidCreate((uri) => {
-      this.analysisService.getKnownFiles().add(normalizePath(uri.fsPath));
-    });
     fileWatcher.onDidDelete((uri) => {
       this.analysisService.removeFile(uri.fsPath);
       this.codeLensProvider?.refresh();
@@ -174,9 +161,6 @@ export class DocumentValidator implements vscode.Disposable {
   }
 
   public dispose() {
-    if (this.analysisTimeout) {
-      clearTimeout(this.analysisTimeout);
-    }
     this.disposables.forEach(d => d.dispose());
   }
 }

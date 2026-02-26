@@ -26,3 +26,4 @@ resources/*.gif
 resources/*.png
 CONTRIBUTING.md
 CHANGELOG.md
+fixtures/**

@@ -41,6 +41,7 @@ suite("config", () => {
 
     assert.strictEqual(result.ok, true);
     if (result.ok) {
+      assert.ok(result.config);
       assert.strictEqual(result.config.modules.features, "src/features/*");
       assert.strictEqual(result.config.rules["module-boundaries"].severity, "error");
       assert.strictEqual(result.config.rules["module-boundaries"].rules.length, 1);
@@ -62,6 +63,7 @@ suite("config", () => {
 
     assert.strictEqual(result.ok, true);
     if (result.ok) {
+      assert.ok(result.config);
       assert.strictEqual(result.config.rules["module-boundaries"].severity, "error");
     }
   });
@@ -81,6 +83,7 @@ suite("config", () => {
 
     assert.strictEqual(result.ok, true);
     if (result.ok) {
+      assert.ok(result.config);
       const rule = result.config.rules["module-boundaries"].rules[0];
       assert.strictEqual(rule.allow, undefined);
     }
@@ -101,6 +104,7 @@ suite("config", () => {
 
     assert.strictEqual(result.ok, true);
     if (result.ok) {
+      assert.ok(result.config);
       assert.strictEqual(result.config.rules["module-boundaries"].severity, "warn");
     }
   });
@@ -128,6 +132,7 @@ suite("config", () => {
 
     assert.strictEqual(result.ok, true);
     if (result.ok) {
+      assert.ok(result.config);
       assert.strictEqual(Object.keys(result.config.modules).length, 3);
       assert.strictEqual(result.config.rules["module-boundaries"].rules.length, 3);
     }
@@ -135,11 +140,11 @@ suite("config", () => {
 
   // --- Edge cases ---
 
-  test("returns error when pickety.json does not exist", () => {
+  test("returns ok: true and undefined config when pickety.json does not exist", () => {
     const result = loadConfig(tmpDir);
-    assert.strictEqual(result.ok, false);
-    if (!result.ok) {
-      assert.ok(result.errors.some(e => e.message.includes("File not found")));
+    assert.strictEqual(result.ok, true);
+    if (result.ok) {
+      assert.strictEqual(result.config, undefined);
     }
   });
 
@@ -325,6 +330,7 @@ suite("config", () => {
 
     assert.strictEqual(result.ok, true);
     if (result.ok) {
+      assert.ok(result.config);
       assert.strictEqual(result.config.rules["module-boundaries"].rules.length, 0);
     }
   });
@@ -350,6 +356,7 @@ suite("config", () => {
 
     assert.strictEqual(result.ok, true);
     if (result.ok) {
+      assert.ok(result.config);
       const rule = result.config.rules["module-boundaries"].rules[0];
       assert.strictEqual(rule.severity, "warn");
       assert.strictEqual(rule.name, "my-rule");

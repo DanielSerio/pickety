@@ -17,8 +17,8 @@ export function loadConfig(workspaceRoot: string): ConfigResult {
 
   if (!fs.existsSync(configPath)) {
     return {
-      ok: false,
-      errors: [{ message: `File not found: ${CONFIG_FILENAME}` }],
+      ok: true,
+      config: undefined,
     };
   }
 

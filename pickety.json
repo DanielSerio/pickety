@@ -7,7 +7,8 @@
     "extension": "src/extension/*.ts",
     "services": "src/services/*.ts",
     "shared": "src/shared/*.ts",
-    "vscode": "src/vscode/*.ts"
+    "vscode": "src/vscode/*.ts",
+    "dummy": "src/dummy/**"
   },
   "rules": {
     "module-boundaries": {

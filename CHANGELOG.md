@@ -15,6 +15,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Fixed
 
 - **tsconfig path aliases with bare `*` replacements failed to resolve.** Aliases like `"@/*": "./*"` where the replacement value is `"*"` or lacks a trailing `/*` now resolve correctly.
+- **`only` rules not enforced when alias collapsed to bare `*`.** `path.join` normalized `"./*"` to `"*"`, causing aliased imports (e.g. `@/features/batch/pages/BatchPage`) to resolve as absolute paths and bypass `only` rule checks. The alias prefix replacement now correctly preserves the `./` relative prefix.
+- **Hardcoded local path in `launch.json`.** Removed a debug launch configuration that pointed to a machine-specific directory.
+- **New files not discovered until editor reload.** Restored the `fileWatcher.onDidCreate` handler so newly created source files are immediately added to the known file set.
 
 ### Added
 

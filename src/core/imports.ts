@@ -80,7 +80,7 @@ export function resolveImport(
       const aliasPrefix = alias.slice(0, -2);
       const replacementPrefix = replacement.endsWith("/*")
         ? replacement.slice(0, -2)
-        : (replacement === "*" ? "" : replacement);
+        : (replacement === "*" ? "./" : replacement);
 
       if (specifier.startsWith(aliasPrefix)) {
         const resolved = specifier.replace(aliasPrefix, replacementPrefix);

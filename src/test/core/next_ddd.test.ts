@@ -49,16 +49,16 @@ suite("Next-DDD Fixture Validation", () => {
     discover(FIXTURE_DIR);
   });
 
-  test("StrainManagementPage should be valid after user cleanup", () => {
+  test("StrainManagementPage violates the 'only' rule by importing a feature page", () => {
     const filePath = normalizePath(path.join(FIXTURE_DIR, "features/strain/pages/StrainManagementPage.tsx"));
     const content = fs.readFileSync(filePath, "utf-8");
 
     const violations = checkBoundaries(filePath, content, config, makeCtx(knownFiles, FIXTURE_DIR, aliases));
 
-    // The user removed the violations in the previous steps.
-    // However, if the 'only' rule for app/ still applies to BatchPage, there might be 1 left.
-    // Let's see what we find.
-    assert.strictEqual(violations.length, 0, `Expected 0 violations after cleanup, but found: ${violations.map(v => v.message).join(", ")}`);
+    // StrainManagementPage imports @/features/batch/pages/BatchPage, which matches
+    // the "only" rule restricting features/*/pages/** to the app module.
+    assert.strictEqual(violations.length, 1, `Expected 1 violation, but found ${violations.length}: ${violations.map(v => v.message).join(", ")}`);
+    assert.ok(violations[0].message.includes("Feature pages can only be imported by app/"), `Expected 'only' rule message, got: "${violations[0].message}"`);
   });
 
   test("App main should be valid", () => {

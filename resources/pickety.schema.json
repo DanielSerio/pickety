@@ -130,6 +130,12 @@
         "module-boundaries"
       ]
     },
+    "warnOnUntrackedImporters": {
+      "type": "boolean",
+      "default": true,
+      "description": "Emit an info diagnostic when a file does not match any declared module.",
+      "markdownDescription": "Emit an **info** diagnostic when a file does not match any declared module. These files bypass all import rules.\n\n- `true` (default): warn when a file is outside declared modules.\n- `false`: silence this diagnostic."
+    },
     "boundary-diagrams": {
       "oneOf": [
         {

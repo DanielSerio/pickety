@@ -10,7 +10,7 @@ export function formatViolation(v: Violation, root: string): string {
   const relativePath = toRelativePath(root, v.file);
   const line = v.line + 1;
   const col = v.character + 1;
-  const severity = v.severity === "error" ? "error" : "warning";
+  const severity = v.severity === "error" ? "error" : v.severity === "info" ? "info" : "warning";
   return `${relativePath}:${line}:${col}: ${severity} ${v.message}`;
 }
 

@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import type { ConfigError } from "../shared/types";
+import type { ConfigError, ConfigWarning } from "../shared/types";
 import { CONFIG_FILENAME } from "../shared/utils";
 
 export function reportConfigErrors(
@@ -35,4 +35,35 @@ export function reportConfigErrors(
   vscode.window.showErrorMessage(
     "Pickety: Configuration error. Check the Problems panel or Output channel for details."
   );
+}
+
+export function reportConfigWarnings(
+  warnings: ConfigWarning[],
+  workspaceRoot: string,
+  outputChannel: vscode.OutputChannel,
+  diagnosticCollection: vscode.DiagnosticCollection
+) {
+  outputChannel.appendLine("Pickety: Configuration warning(s) found:");
+  const configUri = vscode.Uri.file(path.join(workspaceRoot, CONFIG_FILENAME));
+
+  const diagnostics: vscode.Diagnostic[] = warnings.map((warn) => {
+    outputChannel.appendLine(
+      ` - ${warn.message}${warn.path ? ` (at ${warn.path})` : ""}`
+    );
+
+    const range = new vscode.Range(0, 0, 0, 100);
+    const diagnostic = new vscode.Diagnostic(
+      range,
+      warn.message,
+      vscode.DiagnosticSeverity.Warning
+    );
+    diagnostic.source = "pickety";
+    if (warn.path) {
+      diagnostic.code = warn.path;
+    }
+    return diagnostic;
+  });
+
+  const existing = diagnosticCollection.get(configUri) || [];
+  diagnosticCollection.set(configUri, [...existing, ...diagnostics]);
 }

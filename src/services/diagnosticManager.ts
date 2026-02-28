@@ -15,7 +15,11 @@ export class DiagnosticManager {
   public setViolations(uri: vscode.Uri, violations: Violation[]) {
     const diagnostics = violations.map((v) => {
       const range = new vscode.Range(v.line, v.character, v.line, v.character + v.length);
-      const severity = v.severity === "error" ? vscode.DiagnosticSeverity.Error : vscode.DiagnosticSeverity.Warning;
+      const severity = v.severity === "error"
+        ? vscode.DiagnosticSeverity.Error
+        : v.severity === "info"
+          ? vscode.DiagnosticSeverity.Information
+          : vscode.DiagnosticSeverity.Warning;
 
       const diagnostic = new vscode.Diagnostic(range, v.message, severity);
       diagnostic.source = "pickety";

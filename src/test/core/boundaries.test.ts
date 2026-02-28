@@ -531,10 +531,28 @@ suite("boundaries — interpolation variables", () => {
 });
 
 suite("boundaries — edge cases", () => {
-  test("no violations for a file not in any module", () => {
+  test("warns when a file is not in any module", () => {
     const config = makeConfig([
       { importer: "features", imports: "features" },
     ]);
+
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/config/database.ts`,
+      `import { api } from '../features/billing/api';`,
+      config,
+      makeCtx()
+    );
+
+    assert.strictEqual(violations.length, 1);
+    assert.strictEqual(violations[0].severity, "info");
+    assert.ok(violations[0].message.includes("not covered by any declared module"));
+  });
+
+  test("no warning when warnOnUntrackedImporters is false", () => {
+    const config = makeConfig([
+      { importer: "features", imports: "features" },
+    ]);
+    config.warnOnUntrackedImporters = false;
 
     const violations = checkBoundaries(
       `${ROOT_DIR}/src/config/database.ts`,
@@ -1365,14 +1383,10 @@ suite("boundaries — only and containedTo rules", () => {
   });
 });
 
-// Reproduces the exact myco-log scenario:
-//   modules: { features: "features/**" }  (no src/ prefix, /** not /*)
-//   rule: imports: "features/$feature/$section/**", containedTo: { path: "features/$feature/**", unless: { $section: "pages" } }
-//   violation: features/strain/pages/StrainManagementPage.tsx imports from features/batch/components/index.ts
-suite("myco-log regression: containedTo with unless and flat features/** modules", () => {
+suite("regression: containedTo with unless and flat features/** modules", () => {
   const mycoRoot = ROOT_DIR;
 
-  // Mirrors the myco-log module layout (no src/ prefix, /** glob)
+  // Mirrors the original myco-log module layout (no src/ prefix, /** glob)
   const mycoModules = {
     domain: "domain/**",
     core: "core/**",
@@ -1389,7 +1403,7 @@ suite("myco-log regression: containedTo with unless and flat features/** modules
     `${mycoRoot}/app/page.tsx`,
   ]);
 
-  function makeMycoCtx(aliases: Record<string, string> = {}): WorkspaceContext {
+  function makePlaceholderCtx(aliases: Record<string, string> = {}): WorkspaceContext {
     return { knownFiles: mycoFiles, root: mycoRoot, aliases };
   }
 
@@ -1402,7 +1416,7 @@ suite("myco-log regression: containedTo with unless and flat features/** modules
     },
   };
 
-  function makeMycoConfig(): PicketyConfig {
+  function makePlaceholderConfig(): PicketyConfig {
     return {
       modules: mycoModules,
       rules: { "module-boundaries": { severity: "error", rules: [containedToRule] } },
@@ -1415,8 +1429,8 @@ suite("myco-log regression: containedTo with unless and flat features/** modules
     const violations = checkBoundaries(
       `${mycoRoot}/features/strain/pages/StrainManagementPage.tsx`,
       `import { TestBatchComponent } from '../../batch/components';`,
-      makeMycoConfig(),
-      makeMycoCtx()
+      makePlaceholderConfig(),
+      makePlaceholderCtx()
     );
     assert.strictEqual(violations.length, 1, "expected 1 violation for cross-feature component import");
   });
@@ -1430,7 +1444,7 @@ suite("myco-log regression: containedTo with unless and flat features/** modules
     const violations = checkBoundaries(
       `${mycoRoot}/features/strain/pages/StrainManagementPage.tsx`,
       `import { StrainCard } from '../components';`,
-      makeMycoConfig(),
+      makePlaceholderConfig(),
       { knownFiles: strainFiles, root: mycoRoot, aliases: {} }
     );
     assert.strictEqual(violations.length, 0, "same-feature import should be allowed");
@@ -1442,8 +1456,8 @@ suite("myco-log regression: containedTo with unless and flat features/** modules
     const violations = checkBoundaries(
       `${mycoRoot}/features/strain/pages/StrainManagementPage.tsx`,
       `import { BatchManagementPage } from '../../batch/pages/BatchManagementPage';`,
-      makeMycoConfig(),
-      makeMycoCtx()
+      makePlaceholderConfig(),
+      makePlaceholderCtx()
     );
     assert.strictEqual(violations.length, 0, "importing from pages section should be exempt");
   });
@@ -1454,8 +1468,8 @@ suite("myco-log regression: containedTo with unless and flat features/** modules
     const violations = checkBoundaries(
       `${mycoRoot}/features/strain/pages/StrainManagementPage.tsx`,
       `import { TestBatchComponent } from '@/features/batch/components';`,
-      makeMycoConfig(),
-      makeMycoCtx(aliases)
+      makePlaceholderConfig(),
+      makePlaceholderCtx(aliases)
     );
     assert.strictEqual(violations.length, 1, "expected 1 violation when importing via @ alias");
   });
@@ -1477,7 +1491,7 @@ suite("myco-log regression: containedTo with unless and flat features/** modules
     const violations = checkBoundaries(
       filePath,
       content,
-      makeMycoConfig(),
+      makePlaceholderConfig(),
       { knownFiles: files, root: mycoRoot, aliases }
     );
 

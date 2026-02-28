@@ -68,6 +68,45 @@ suite("config", () => {
     }
   });
 
+  test("warnOnUntrackedImporters defaults to true", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { app: "src/app/**/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ importer: "*", imports: "app" }],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, true);
+    if (result.ok) {
+      assert.ok(result.config);
+      assert.strictEqual(result.config.warnOnUntrackedImporters, true);
+    }
+  });
+
+  test("accepts warnOnUntrackedImporters false", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        warnOnUntrackedImporters: false,
+        modules: { app: "src/app/**/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ importer: "*", imports: "app" }],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, true);
+    if (result.ok) {
+      assert.ok(result.config);
+      assert.strictEqual(result.config.warnOnUntrackedImporters, false);
+    }
+  });
+
   test("allow field is optional and not required", () => {
     const result = writeAndLoad(
       JSON.stringify({
@@ -437,6 +476,60 @@ suite("config", () => {
       })
     );
     assert.strictEqual(result.ok, true);
+  });
+
+  test("does not warn when containedTo variables are bound in imports", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { features: "src/features/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ imports: "features/$name/components/**/*", containedTo: "features/$name/**/*" }],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, true);
+    if (result.ok) {
+      assert.ok(!result.warnings || result.warnings.length === 0);
+    }
+  });
+
+  test("does not warn when importer variables are bound in imports", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { routes: "src/routes/*", features: "src/features/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ importer: "routes/$name", imports: "features/$name/pages", allow: true }],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, true);
+    if (result.ok) {
+      assert.ok(!result.warnings || result.warnings.length === 0);
+    }
+  });
+
+  test("warns when containedTo references an unbound variable", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { features: "src/features/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ imports: "features/components/**/*", containedTo: "features/$name/**/*" }],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, true);
+    if (result.ok) {
+      assert.ok(result.warnings && result.warnings.length > 0);
+    }
   });
 
   test("returns error when containedTo.unless is an empty object", () => {

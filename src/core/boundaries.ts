@@ -21,11 +21,22 @@ export function checkBoundaries(
   const { modules } = config;
   const { severity, rules } = config.rules["module-boundaries"];
   const { root } = ctx;
+  const warnOnUntrackedImporters = config.warnOnUntrackedImporters ?? true;
 
   // Determine which module this file belongs to
   const sourceModule = matchFileToModule(filePath, modules, root);
   if (!sourceModule) {
-    return [];
+    if (warnOnUntrackedImporters) {
+      violations.push({
+        file: filePath,
+        line: 0,
+        character: 0,
+        length: 1,
+        message: "This file is not covered by any declared module. Import rules will not be enforced here.",
+        severity: "info",
+      });
+    }
+    return violations;
   }
 
   const sourceRelativePath = normalizePath(path.relative(root, filePath));

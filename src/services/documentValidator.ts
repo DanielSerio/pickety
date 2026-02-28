@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { checkBoundaries } from "../core/boundaries";
 import { applyMaxViolations } from "../core/violations";
 import { normalizePath, SOURCE_GLOB, getConfigPath } from "../shared/utils";
-import { reportConfigErrors } from "./diagnostics";
+import { reportConfigErrors, reportConfigWarnings } from "./diagnostics";
 import { generateMermaidDiagram } from "../core/diagram";
 import type { PicketyConfig, ConfigResult, Violation } from "../shared/types";
 import type { ConfigService } from "./configService";
@@ -43,6 +43,9 @@ export class DocumentValidator implements vscode.Disposable {
 
     if (result.ok && result.config) {
       this.outputChannel.appendLine("Pickety: Import boundaries active");
+      if (result.warnings && result.warnings.length > 0) {
+        reportConfigWarnings(result.warnings, this.workspaceRoot, this.outputChannel, this.diagnosticManager.getCollection());
+      }
       try {
         const diagramPath = generateMermaidDiagram(result.config, this.workspaceRoot);
         if (diagramPath) {
@@ -54,6 +57,9 @@ export class DocumentValidator implements vscode.Disposable {
       this.analyzeOpenEditors();
     } else if (!result.ok) {
       reportConfigErrors(result.errors, this.workspaceRoot, this.outputChannel, this.diagnosticManager.getCollection());
+      if (result.warnings && result.warnings.length > 0) {
+        reportConfigWarnings(result.warnings, this.workspaceRoot, this.outputChannel, this.diagnosticManager.getCollection());
+      }
     }
     this.statusBar.update(config, this.diagnosticManager.getCollection());
   }

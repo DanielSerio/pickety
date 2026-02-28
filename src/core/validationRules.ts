@@ -1,17 +1,20 @@
 import type {
   ConfigError,
+  ConfigWarning,
   BoundaryRule,
   Severity,
 } from "../shared/types";
 
 import { validateContainedTo } from "./validationContainedTo";
+import { findVariables } from "./interpolation";
 
 /**
  * Validates the "module-boundaries" section of the config.
  */
 export function validateBoundaryRules(
   rules: unknown,
-  errors: ConfigError[]
+  errors: ConfigError[],
+  warnings: ConfigWarning[]
 ): { severity: Severity; rules: BoundaryRule[]; } | undefined {
   if (rules === undefined) {
     errors.push({
@@ -150,6 +153,31 @@ export function validateBoundaryRules(
           message: `Rule #${index}: "maxViolations" must be a non-negative integer`,
           path: `${rulePath}.maxViolations`,
         });
+      }
+    }
+
+    if (typeof r.imports === "string") {
+      const importVars = new Set(findVariables(r.imports));
+      const warnOnUnboundVariables = (pattern: string, path: string, label: string) => {
+        const vars = findVariables(pattern);
+        const unbound = vars.filter((v) => !importVars.has(v));
+        if (unbound.length > 0) {
+          const unique = Array.from(new Set(unbound));
+          warnings.push({
+            message: `Rule #${index}: ${label} references variables not present in "imports": ${unique.join(", ")}`,
+            path,
+          });
+        }
+      };
+
+      if (typeof r.importer === "string") {
+        warnOnUnboundVariables(r.importer, `${rulePath}.importer`, `"importer"`);
+      }
+
+      if (typeof r.containedTo === "string") {
+        warnOnUnboundVariables(r.containedTo, `${rulePath}.containedTo`, `"containedTo"`);
+      } else if (typeof r.containedTo === "object" && r.containedTo !== null && typeof (r.containedTo as { path?: unknown }).path === "string") {
+        warnOnUnboundVariables((r.containedTo as { path: string }).path, `${rulePath}.containedTo.path`, `"containedTo.path"`);
       }
     }
 

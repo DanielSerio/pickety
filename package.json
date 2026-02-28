@@ -111,7 +111,8 @@
   "scripts": {
     "vscode:prepublish": "npm run build && npm run build:cli",
     "compile": "npm run build",
-    "compile-tests": "tsc -p ./",
+    "clean:test": "node -e \"require('fs').rmSync('out/test', { recursive: true, force: true })\"",
+    "compile-tests": "npm run clean:test && tsc -p ./",
     "build": "esbuild ./src/extension/index.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --main-fields=module,main --minify",
     "build:cli": "esbuild ./src/cli/index.ts --bundle --outfile=out/cli.js --format=cjs --platform=node --main-fields=module,main --minify --banner:js=\"#!/usr/bin/env node\"",
     "watch": "esbuild ./src/extension/index.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --main-fields=module,main --watch",

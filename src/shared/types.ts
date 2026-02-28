@@ -1,5 +1,5 @@
 // Severity level for boundary violations
-export type Severity = "error" | "warn";
+export type Severity = "error" | "warn" | "info";
 
 // A single error found during configuration validation
 export interface ConfigError {
@@ -7,10 +7,13 @@ export interface ConfigError {
   path?: string; // JSON path (e.g., "rules.module-boundaries.severity")
 }
 
+// Warning found during configuration validation
+export type ConfigWarning = ConfigError;
+
 // Result of loading/validating configuration
 export type ConfigResult =
-  | { ok: true; config: PicketyConfig | undefined; }
-  | { ok: false; errors: ConfigError[]; };
+  | { ok: true; config: PicketyConfig | undefined; warnings?: ConfigWarning[]; }
+  | { ok: false; errors: ConfigError[]; warnings?: ConfigWarning[]; };
 
 // Object form of containedTo, allowing variable-based exemptions
 export interface ContainedToOptions {
@@ -41,6 +44,7 @@ export interface PicketyConfig {
       rules: BoundaryRule[];
     };
   };
+  warnOnUntrackedImporters?: boolean;
   "boundary-diagrams"?: boolean | string;
   health?: HealthConfig;
 }

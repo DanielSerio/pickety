@@ -68,12 +68,25 @@ function loadWorkspace(root: string): { config: PicketyConfig; ctx: WorkspaceCon
     for (const err of result.errors) {
       console.error(`  ${err.message}${err.path ? ` (at ${err.path})` : ""}`);
     }
+    if (result.warnings && result.warnings.length > 0) {
+      console.warn("Configuration warnings:");
+      for (const warn of result.warnings) {
+        console.warn(`  ${warn.message}${warn.path ? ` (at ${warn.path})` : ""}`);
+      }
+    }
     process.exit(1);
   }
 
   if (!result.config) {
     console.log("No pickety.json found. Skipping check.");
     process.exit(0);
+  }
+
+  if (result.warnings && result.warnings.length > 0) {
+    console.warn("Configuration warnings:");
+    for (const warn of result.warnings) {
+      console.warn(`  ${warn.message}${warn.path ? ` (at ${warn.path})` : ""}`);
+    }
   }
 
   const knownFiles = discoverFiles(root);
@@ -136,9 +149,10 @@ function runCheck(root: string) {
 
   const errorCount = finalViolations.filter((v) => v.severity === "error").length + cycles.length;
   const warnCount = finalViolations.filter((v) => v.severity === "warn").length;
+  const infoCount = finalViolations.filter((v) => v.severity === "info").length;
 
   console.log("");
-  console.log(`Found ${finalViolations.length} violation(s): ${errorCount} error(s), ${warnCount} warning(s)`);
+  console.log(`Found ${finalViolations.length} violation(s): ${errorCount} error(s), ${warnCount} warning(s), ${infoCount} info(s)`);
   process.exit(errorCount > 0 ? 1 : 0);
 }
 

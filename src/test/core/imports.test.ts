@@ -2,7 +2,7 @@ import * as path from "path";
 import { normalizePath } from "../../core/utils";
 const ROOT_DIR = normalizePath(path.resolve("/project"));
 import * as assert from "assert";
-import { extractImports, resolveImport, matchFileToModule } from "../../core/imports";
+import { extractImports, resolveImport, matchFileToModule, matchFileToModuleDetailed } from "../../core/imports";
 import type { WorkspaceContext } from "../../shared/types";
 
 suite("extractImports", () => {
@@ -258,6 +258,18 @@ suite("matchFileToModule", () => {
       root
     );
     assert.strictEqual(result, "features");
+  });
+
+  test("captures variables from module patterns", () => {
+    const variableModules = { feature: "src/features/$feature/**" };
+    const result = matchFileToModuleDetailed(
+      `${ROOT_DIR}/src/features/auth/service.ts`,
+      variableModules,
+      root
+    );
+    assert.ok(result);
+    assert.strictEqual(result?.name, "feature[auth]");
+    assert.deepStrictEqual(result?.variables, { "$feature": "auth" });
   });
 
   test("matches a deeply nested file to a module with /**/*", () => {

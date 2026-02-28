@@ -45,7 +45,34 @@ export function resolveRuleDefaults(
     label,
     effectiveImporter: ct?.path || rule.importer || "*",
     isOnly: rule.only || !!rule.containedTo,
-    isAllowStyle: (rule.allow ?? false) || !!rule.containedTo || rule.only,
+    isAllowStyle: (rule.allow ?? false) || !!rule.containedTo || !!rule.only,
+  };
+}
+
+export type NormalizedRule = {
+  rule: BoundaryRule;
+  allow: boolean;
+  severity: Severity;
+  name: string;
+  label: string;
+  group?: string;
+  effectiveImporter: string;
+  isOnly: boolean;
+  isAllowStyle: boolean;
+  importPatterns: string[];
+};
+
+export function normalizeRule(
+  rule: BoundaryRule,
+  index: number,
+  globalSeverity: Severity
+): NormalizedRule {
+  const defaults = resolveRuleDefaults(rule, index, globalSeverity);
+  const importPatterns = Array.isArray(rule.imports) ? rule.imports : [rule.imports];
+  return {
+    rule,
+    ...defaults,
+    importPatterns: importPatterns.filter((pattern): pattern is string => typeof pattern === "string"),
   };
 }
 
@@ -60,7 +87,11 @@ export function matchesModuleOrPath(
   pattern: string
 ): boolean {
   // Always try module name match
-  if (matchesPattern(moduleName, pattern)) {
+  const baseModuleName = moduleName.includes("[")
+    ? moduleName.slice(0, moduleName.indexOf("["))
+    : moduleName;
+
+  if (matchesPattern(moduleName, pattern) || matchesPattern(baseModuleName, pattern)) {
     return true;
   }
 

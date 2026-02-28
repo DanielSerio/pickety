@@ -6,7 +6,7 @@ import type {
 } from "../shared/types";
 
 import { validateContainedTo } from "./validationContainedTo";
-import { findVariables } from "./interpolation";
+import { collectVariables, findVariables } from "./interpolation";
 
 /**
  * Validates the "module-boundaries" section of the config.
@@ -176,7 +176,7 @@ export function validateBoundaryRules(
     }
 
     if (importPatterns) {
-      const importVars = new Set(importPatterns.flatMap((pattern) => findVariables(pattern)));
+      const importVars = new Set(collectVariables(importPatterns));
       const warnOnUnboundVariables = (pattern: string, path: string, label: string) => {
         const vars = findVariables(pattern);
         const unbound = vars.filter((v) => !importVars.has(v));

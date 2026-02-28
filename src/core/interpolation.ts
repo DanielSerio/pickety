@@ -4,6 +4,17 @@ export function findVariables(pattern: string): string[] {
   return matches || [];
 }
 
+// Collects unique $variables across multiple patterns.
+export function collectVariables(patterns: string[]): string[] {
+  const vars = new Set<string>();
+  for (const pattern of patterns) {
+    for (const v of findVariables(pattern)) {
+      vars.add(v);
+    }
+  }
+  return [...vars];
+}
+
 // Matches a glob pattern with $variables against a file path using segment-based
 // matching. Avoids regex with multiple .* quantifiers to prevent ReDoS.
 // Returns captured variable values, or undefined if no match.

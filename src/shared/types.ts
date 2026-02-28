@@ -21,6 +21,12 @@ export interface ContainedToOptions {
   unless?: Record<string, string>; // skip rule when a captured variable matches this value
 }
 
+export interface ExportRule {
+  path: string;
+  to: string;
+  message?: string;
+}
+
 // A single boundary rule: defines whether an import between two modules is allowed
 export interface BoundaryRule {
   importer?: string; // source module name or glob pattern
@@ -28,6 +34,7 @@ export interface BoundaryRule {
   allow?: boolean; // defaults to false (deny)
   only?: boolean; // if true, the 'imports' can ONLY be imported by 'importer'
   containedTo?: string | ContainedToOptions; // shortcut for 'only: true' with this importer pattern
+  exports?: ExportRule | ExportRule[]; // allowlist exceptions for containedTo
   message?: string; // custom error message
   severity?: Severity; // optional per-rule severity override
   name?: string; // optional rule name for identification
@@ -55,6 +62,24 @@ export interface WorkspaceContext {
   knownFiles: Set<string>;
   root: string;
   aliases: Record<string, string>;
+}
+
+// Result of matching a file path to a module definition.
+export interface ModuleMatch {
+  name: string;
+  pattern: string;
+  relativePath: string;
+  variables?: Record<string, string>;
+}
+
+// Context passed to boundary rule evaluation.
+export interface RuleContext {
+  sourceModule: string;
+  sourceRelativePath: string;
+  targetModule: string;
+  targetRelativePath: string;
+  filePath: string;
+  importStmt: ImportStatement;
 }
 
 

@@ -6,6 +6,7 @@ import {
 import type { PicketyConfig, Violation, WorkspaceContext } from "../shared/types";
 import {
   normalizePath,
+  normalizeRule,
 } from "./utils";
 import { checkRule } from "./ruleChecker";
 
@@ -22,6 +23,7 @@ export function checkBoundaries(
   const { severity, rules } = config.rules["module-boundaries"];
   const { root } = ctx;
   const warnOnUntrackedImporters = config.warnOnUntrackedImporters ?? true;
+  const normalizedRules = rules.map((rule, index) => normalizeRule(rule, index, severity));
 
   // Determine which module this file belongs to
   const sourceModule = matchFileToModule(filePath, modules, root);
@@ -59,18 +61,16 @@ export function checkBoundaries(
     const targetRelativePath = normalizePath(path.relative(root, resolvedPath));
 
     // Check each boundary rule for a match
-    rules.forEach((rule, index) => {
-      const v = checkRule(
-        rule,
-        index,
-        severity,
-        sourceModule,
-        sourceRelativePath,
-        targetModule,
-        targetRelativePath,
-        filePath,
-        importStmt
-      );
+    const ruleContext = {
+      sourceModule,
+      sourceRelativePath,
+      targetModule,
+      targetRelativePath,
+      filePath,
+      importStmt,
+    };
+    normalizedRules.forEach((rule) => {
+      const v = checkRule(rule, ruleContext);
       if (v) {
         violations.push(v);
       }

@@ -550,6 +550,275 @@ suite("boundaries — interpolation variables", () => {
   });
 });
 
+suite("boundaries — module variables in modules (phase 3)", () => {
+  test("allows imports within the same module instance", () => {
+    const config = makeConfig(
+      [
+        { imports: "feature[$feature]", containedTo: "feature[$feature]" },
+      ],
+      { feature: "src/features/$feature/**" }
+    );
+
+    const moduleFiles = new Set([
+      `${ROOT_DIR}/src/features/auth/service.ts`,
+      `${ROOT_DIR}/src/features/auth/internal/secret.ts`,
+    ]);
+
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/auth/service.ts`,
+      `import { secret } from './internal/secret';`,
+      config,
+      makeCtx(moduleFiles)
+    );
+
+    assert.strictEqual(violations.length, 0);
+  });
+
+  test("violates when importing a different module instance", () => {
+    const config = makeConfig(
+      [
+        { imports: "feature[$feature]", containedTo: "feature[$feature]" },
+      ],
+      { feature: "src/features/$feature/**" }
+    );
+
+    const moduleFiles = new Set([
+      `${ROOT_DIR}/src/features/auth/service.ts`,
+      `${ROOT_DIR}/src/features/billing/internal/secret.ts`,
+    ]);
+
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/auth/service.ts`,
+      `import { secret } from '../billing/internal/secret';`,
+      config,
+      makeCtx(moduleFiles)
+    );
+
+    assert.strictEqual(violations.length, 1);
+  });
+
+  test("captures multiple module variables and distinguishes instances", () => {
+    const config = makeConfig(
+      [
+        { imports: "apps[$app,$feature]", containedTo: "apps[$app,$feature]" },
+      ],
+      { apps: "src/apps/$app/features/$feature/**" }
+    );
+
+    const moduleFiles = new Set([
+      `${ROOT_DIR}/src/apps/web/features/auth/service.ts`,
+      `${ROOT_DIR}/src/apps/mobile/features/auth/internal/secret.ts`,
+    ]);
+
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/apps/web/features/auth/service.ts`,
+      `import { secret } from '../../../mobile/features/auth/internal/secret';`,
+      config,
+      makeCtx(moduleFiles)
+    );
+
+    assert.strictEqual(violations.length, 1);
+  });
+
+  test("module instance rules still match base module name", () => {
+    const config = makeConfig(
+      [
+        { importer: "feature", imports: "utils" },
+      ],
+      { feature: "src/features/$feature/**", utils: "src/utils/**" }
+    );
+
+    const moduleFiles = new Set([
+      `${ROOT_DIR}/src/features/auth/service.ts`,
+      `${ROOT_DIR}/src/utils/helpers.ts`,
+    ]);
+
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/auth/service.ts`,
+      `import { helpers } from '../../utils/helpers';`,
+      config,
+      makeCtx(moduleFiles)
+    );
+
+    assert.strictEqual(violations.length, 1);
+  });
+
+  test("first matching module still wins when variable modules overlap", () => {
+    const modules = {
+      features: "src/features/$feature/**",
+      all: "src/**",
+    };
+    const config = makeConfig([{ importer: "features", imports: "features" }], modules);
+
+    const moduleFiles = new Set([
+      `${ROOT_DIR}/src/features/auth/service.ts`,
+      `${ROOT_DIR}/src/features/billing/api.ts`,
+    ]);
+
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/auth/service.ts`,
+      `import { api } from '../billing/api';`,
+      config,
+      makeCtx(moduleFiles)
+    );
+
+    assert.strictEqual(violations.length, 1);
+  });
+});
+
+suite("boundaries — exports block (phase 3)", () => {
+  const exportModules = {
+    app: "src/app/**",
+    features: "src/features/*",
+  };
+
+  const exportRules = [
+    {
+      imports: "features/$feature/**",
+      containedTo: "features/$feature/**",
+      exports: {
+        path: "features/$feature/pages/**",
+        to: "app",
+      },
+    },
+  ];
+
+  test("allows exported paths to designated importer", () => {
+    const config = makeConfig(exportRules, exportModules);
+    const exportFiles = new Set([
+      `${ROOT_DIR}/src/app/App.tsx`,
+      `${ROOT_DIR}/src/features/auth/pages/LoginPage.tsx`,
+    ]);
+
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/app/App.tsx`,
+      `import { LoginPage } from '../features/auth/pages/LoginPage';`,
+      config,
+      makeCtx(exportFiles)
+    );
+
+    assert.strictEqual(violations.length, 0);
+  });
+
+  test("still violates when importer is not allowed", () => {
+    const config = makeConfig(exportRules, exportModules);
+    const exportFiles = new Set([
+      `${ROOT_DIR}/src/features/billing/service.ts`,
+      `${ROOT_DIR}/src/features/auth/pages/LoginPage.tsx`,
+    ]);
+
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/billing/service.ts`,
+      `import { LoginPage } from '../auth/pages/LoginPage';`,
+      config,
+      makeCtx(exportFiles)
+    );
+
+    assert.strictEqual(violations.length, 1);
+  });
+
+  test("still violates when path is not exported", () => {
+    const config = makeConfig(exportRules, exportModules);
+    const exportFiles = new Set([
+      `${ROOT_DIR}/src/app/App.tsx`,
+      `${ROOT_DIR}/src/features/auth/components/LoginForm.tsx`,
+    ]);
+
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/app/App.tsx`,
+      `import { LoginForm } from '../features/auth/components/LoginForm';`,
+      config,
+      makeCtx(exportFiles)
+    );
+
+    assert.strictEqual(violations.length, 1);
+  });
+
+  test("exports array supports multiple paths", () => {
+    const config = makeConfig(
+      [
+        {
+          imports: "features/$feature/**",
+          containedTo: "features/$feature/**",
+          exports: [
+            { path: "features/$feature/pages/**", to: "app" },
+            { path: "features/$feature/public/**", to: "app" },
+          ],
+        },
+      ],
+      exportModules
+    );
+
+    const exportFiles = new Set([
+      `${ROOT_DIR}/src/app/App.tsx`,
+      `${ROOT_DIR}/src/features/auth/public/index.ts`,
+    ]);
+
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/app/App.tsx`,
+      `import { publicApi } from '../features/auth/public';`,
+      config,
+      makeCtx(exportFiles)
+    );
+
+    assert.strictEqual(violations.length, 0);
+  });
+
+  test("exports with variable to: allows matching importer instance", () => {
+    const config = makeConfig(
+      [
+        {
+          imports: "features/$feature/**",
+          containedTo: "features/$feature/**",
+          exports: { path: "features/$feature/pages/**", to: "apps[$app]" },
+        },
+      ],
+      { apps: "src/apps/$app/**", features: "src/features/*" }
+    );
+
+    const exportFiles = new Set([
+      `${ROOT_DIR}/src/apps/web/App.tsx`,
+      `${ROOT_DIR}/src/features/auth/pages/LoginPage.tsx`,
+    ]);
+
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/apps/web/App.tsx`,
+      `import { LoginPage } from '../../features/auth/pages/LoginPage';`,
+      config,
+      makeCtx(exportFiles)
+    );
+
+    assert.strictEqual(violations.length, 0);
+  });
+
+  test("exports with module-name path (no /) can exempt by module", () => {
+    const config = makeConfig(
+      [
+        {
+          imports: "features/$feature/**",
+          containedTo: "features/$feature/**",
+          exports: { path: "features[$feature]", to: "app" },
+        },
+      ],
+      { app: "src/app/**", features: "src/features/$feature/**" }
+    );
+
+    const exportFiles = new Set([
+      `${ROOT_DIR}/src/app/App.tsx`,
+      `${ROOT_DIR}/src/features/auth/pages/LoginPage.tsx`,
+    ]);
+
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/app/App.tsx`,
+      `import { LoginPage } from '../features/auth/pages/LoginPage';`,
+      config,
+      makeCtx(exportFiles)
+    );
+
+    assert.strictEqual(violations.length, 0);
+  });
+});
+
 suite("boundaries — edge cases", () => {
   test("warns when a file is not in any module", () => {
     const config = makeConfig([

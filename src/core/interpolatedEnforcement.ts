@@ -2,7 +2,8 @@ import type {
   BoundaryRule,
   Severity,
   Violation,
-  ImportStatement,
+  RuleContext,
+  ExportRule,
 } from "../shared/types";
 import {
   createViolation,
@@ -11,115 +12,260 @@ import {
 } from "./utils";
 import {
   captureVariablesFromPath,
+  findVariables,
   replaceVariables
 } from "./interpolation";
 
 /**
  * Logic for rules with interpolation variables.
  */
+type InterpolatedRuleArgs = {
+  rule: BoundaryRule;
+  importsPattern: string;
+  variables: string[];
+  isOnly: boolean;
+  allow: boolean;
+  effectiveImporter: string;
+  ruleSeverity: Severity;
+  ruleName: string;
+  ruleLabel: string;
+  ruleGroup: string | undefined;
+  ctx: RuleContext;
+};
+
 export function checkInterpolatedRule(
-  rule: BoundaryRule,
-  importsPattern: string,
-  variables: string[],
-  isOnly: boolean,
-  allow: boolean,
-  effectiveImporter: string,
-  ruleSeverity: Severity,
-  ruleName: string,
-  ruleLabel: string,
-  ruleGroup: string | undefined,
-  sourceModule: string,
-  sourceRelativePath: string,
-  targetModule: string,
-  targetRelativePath: string,
-  filePath: string,
-  importStmt: ImportStatement
+  args: InterpolatedRuleArgs
 ): Violation | undefined {
-  if (isOnly) {
-    // ONLY rule with interpolation: capture variables from target path
-    const captured = captureVariablesFromPath(
-      importsPattern,
-      targetRelativePath,
-      variables
-    );
-    if (captured) {
-      if (isRuleExempt(rule, captured)) {
-        return undefined;
-      }
+  return args.isOnly
+    ? evaluateOnlyInterpolatedRule(args)
+    : evaluateStandardInterpolatedRule(args);
+}
 
-      const expectedImporter = replaceVariables(effectiveImporter, variables, captured);
-      const sourceMatches = matchesModuleOrPath(sourceModule, sourceRelativePath, expectedImporter);
+function captureVariablesFromPattern(
+  pattern: string,
+  variables: string[],
+  moduleName: string,
+  relativePath: string
+): Record<string, string> | undefined {
+  const target = pattern.includes("/") ? relativePath : moduleName;
+  return captureVariablesFromPath(pattern, target, variables);
+}
 
-      if (!sourceMatches) {
-        const message =
-          rule.message ||
-          `Module "${sourceModule}" is not allowed to import from "${targetModule}" (contained to "${expectedImporter}")`;
+function evaluateOnlyInterpolatedRule(args: InterpolatedRuleArgs): Violation | undefined {
+  const {
+    rule,
+    importsPattern,
+    variables,
+    effectiveImporter,
+    ruleSeverity,
+    ruleName,
+    ruleLabel,
+    ruleGroup,
+    ctx,
+  } = args;
 
-        return createViolation(
-          filePath,
-          importStmt,
-          ruleName,
-          ruleLabel,
-          message,
-          ruleSeverity,
-          sourceModule,
-          targetModule,
-          ruleGroup
-        );
-      }
-    }
-  } else {
-    // Normal interpolation rule: capture variables from source file path
-    const captured = captureVariablesFromPath(effectiveImporter, sourceRelativePath, variables);
-    if (!captured) {
+  // ONLY rule with interpolation: capture variables from target path
+  const captured = captureVariablesFromPattern(
+    importsPattern,
+    variables,
+    ctx.targetModule,
+    ctx.targetRelativePath
+  );
+  if (!captured) {
+    return undefined;
+  }
+
+  if (isRuleExempt(rule, captured)) {
+    return undefined;
+  }
+
+  const expectedImporter = replaceVariables(effectiveImporter, variables, captured);
+  const sourceMatches = matchesModuleOrPath(ctx.sourceModule, ctx.sourceRelativePath, expectedImporter);
+
+  if (!sourceMatches) {
+    if (isExportExempt(rule, ctx, captured)) {
       return undefined;
     }
 
-    if (allow) {
-      const generalPattern = replaceVariables(importsPattern, variables, "*");
-      const specificPattern = replaceVariables(importsPattern, variables, captured);
+    const message =
+      rule.message ||
+      `Module "${ctx.sourceModule}" is not allowed to import from "${ctx.targetModule}" (contained to "${expectedImporter}")`;
 
-      const matchesGeneral = matchesModuleOrPath(targetModule, targetRelativePath, generalPattern);
-      const matchesSpecific = matchesModuleOrPath(targetModule, targetRelativePath, specificPattern);
+    return createViolation(
+      ctx.filePath,
+      ctx.importStmt,
+      ruleName,
+      ruleLabel,
+      message,
+      ruleSeverity,
+      ctx.sourceModule,
+      ctx.targetModule,
+      ruleGroup
+    );
+  }
 
-      if (matchesGeneral && !matchesSpecific) {
-        const message = rule.message || `Import must match scoped pattern "${specificPattern}"`;
+  return undefined;
+}
 
-        return createViolation(
-          filePath,
-          importStmt,
-          ruleName,
-          ruleLabel,
-          message,
-          ruleSeverity,
-          sourceModule,
-          targetModule,
-          ruleGroup
-        );
-      }
-    } else {
-      const specificPattern = replaceVariables(importsPattern, variables, captured);
-      const toMatches = matchesModuleOrPath(targetModule, targetRelativePath, specificPattern);
+function evaluateStandardInterpolatedRule(args: InterpolatedRuleArgs): Violation | undefined {
+  const {
+    rule,
+    importsPattern,
+    variables,
+    allow,
+    effectiveImporter,
+    ruleSeverity,
+    ruleName,
+    ruleLabel,
+    ruleGroup,
+    ctx,
+  } = args;
 
-      if (toMatches) {
-        const message = rule.message || `Module "${sourceModule}" cannot import from "${targetModule}"`;
+  // Normal interpolation rule: capture variables from source file path
+  const captured = captureVariablesFromPattern(
+    effectiveImporter,
+    variables,
+    ctx.sourceModule,
+    ctx.sourceRelativePath
+  );
+  if (!captured) {
+    return undefined;
+  }
 
-        return createViolation(
-          filePath,
-          importStmt,
-          ruleName,
-          ruleLabel,
-          message,
-          ruleSeverity,
-          sourceModule,
-          targetModule,
-          ruleGroup
-        );
-      }
+  if (allow) {
+    const generalPattern = replaceVariables(importsPattern, variables, "*");
+    const specificPattern = replaceVariables(importsPattern, variables, captured);
+
+    const matchesGeneral = matchesModuleOrPath(ctx.targetModule, ctx.targetRelativePath, generalPattern);
+    const matchesSpecific = matchesModuleOrPath(ctx.targetModule, ctx.targetRelativePath, specificPattern);
+
+    if (matchesGeneral && !matchesSpecific) {
+      const message = rule.message || `Import must match scoped pattern "${specificPattern}"`;
+
+      return createViolation(
+        ctx.filePath,
+        ctx.importStmt,
+        ruleName,
+        ruleLabel,
+        message,
+        ruleSeverity,
+        ctx.sourceModule,
+        ctx.targetModule,
+        ruleGroup
+      );
+    }
+  } else {
+    const specificPattern = replaceVariables(importsPattern, variables, captured);
+    const toMatches = matchesModuleOrPath(ctx.targetModule, ctx.targetRelativePath, specificPattern);
+
+    if (toMatches) {
+      const message = rule.message || `Module "${ctx.sourceModule}" cannot import from "${ctx.targetModule}"`;
+
+      return createViolation(
+        ctx.filePath,
+        ctx.importStmt,
+        ruleName,
+        ruleLabel,
+        message,
+        ruleSeverity,
+        ctx.sourceModule,
+        ctx.targetModule,
+        ruleGroup
+      );
     }
   }
 
   return undefined;
+}
+
+function normalizeExports(exportsRule: ExportRule | ExportRule[] | undefined): ExportRule[] {
+  if (!exportsRule) {
+    return [];
+  }
+  return Array.isArray(exportsRule) ? exportsRule : [exportsRule];
+}
+
+export function isExportExempt(
+  rule: BoundaryRule,
+  ctx: RuleContext,
+  captured?: Record<string, string>
+): boolean {
+  const exportsList = normalizeExports(rule.exports);
+  if (exportsList.length === 0) {
+    return false;
+  }
+
+  for (const entry of exportsList) {
+    const pathVars = findVariables(entry.path);
+    const toVars = findVariables(entry.to);
+    const targetCaptured =
+      pathVars.length > 0
+        ? getCaptureForPattern(entry.path, pathVars, captured, ctx.targetModule, ctx.targetRelativePath)
+        : {};
+
+    if (pathVars.length > 0 && !targetCaptured) {
+      continue;
+    }
+
+    const sourceCaptured =
+      toVars.length > 0
+        ? getCaptureForPattern(entry.to, toVars, undefined, ctx.sourceModule, ctx.sourceRelativePath)
+        : {};
+
+    if (toVars.length > 0 && !sourceCaptured) {
+      continue;
+    }
+
+    const merged = mergeCaptures(targetCaptured ?? {}, sourceCaptured ?? {});
+    if (!merged) {
+      continue;
+    }
+
+    const exportPath = pathVars.length > 0
+      ? replaceVariables(entry.path, pathVars, merged)
+      : entry.path;
+
+    if (!matchesModuleOrPath(ctx.targetModule, ctx.targetRelativePath, exportPath)) {
+      continue;
+    }
+
+    const exportTo = toVars.length > 0
+      ? replaceVariables(entry.to, toVars, merged)
+      : entry.to;
+
+    if (matchesModuleOrPath(ctx.sourceModule, ctx.sourceRelativePath, exportTo)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function getCaptureForPattern(
+  pattern: string,
+  variables: string[],
+  preferred: Record<string, string> | undefined,
+  moduleName: string,
+  relativePath: string
+): Record<string, string> | undefined {
+  if (preferred && variables.every((v) => preferred[v] !== undefined)) {
+    return preferred;
+  }
+  return captureVariablesFromPattern(pattern, variables, moduleName, relativePath);
+}
+
+function mergeCaptures(
+  left: Record<string, string>,
+  right: Record<string, string>
+): Record<string, string> | undefined {
+  const merged: Record<string, string> = { ...left };
+  for (const [key, value] of Object.entries(right)) {
+    if (merged[key] !== undefined && merged[key] !== value) {
+      return undefined;
+    }
+    merged[key] = value;
+  }
+  return merged;
 }
 
 /**

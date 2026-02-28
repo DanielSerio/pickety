@@ -5,11 +5,12 @@ import { loadTsConfigAliases } from "../core/tsconfig";
 import { checkBoundaries } from "../core/boundaries";
 import { applyMaxViolations } from "../core/violations";
 import { ImportGraph, getFileDependencies } from "../core/graph";
-import { SOURCE_EXTENSIONS, normalizePath } from "../shared/utils";
+import { SOURCE_EXTENSIONS, normalizePath, getConfigPath, CONFIG_FILENAME } from "../shared/utils";
 import { findCycles } from "../core/utils";
 import { computeModuleHealth, checkHealthThresholds } from "../core/health";
 import { buildCheckReport, formatGroupSummary, formatViolation, printImpactReport, printHealthReport } from "./formatters";
 import type { PicketyConfig, Violation, WorkspaceContext } from "../shared/types";
+import { getPreset, listPresets } from "../core/presets";
 
 type OutputFormat = "text" | "json";
 
@@ -18,6 +19,7 @@ function parseArgs(argv: string[]) {
   const command = args[0];
   let root = process.cwd();
   let format: OutputFormat = "text";
+  let preset: string | undefined;
 
   const rootFlagIndex = args.indexOf("--root");
   if (rootFlagIndex !== -1 && args[rootFlagIndex + 1]) {
@@ -38,11 +40,21 @@ function parseArgs(argv: string[]) {
     format = value;
   }
 
+  const presetFlagIndex = args.indexOf("--preset");
+  if (presetFlagIndex !== -1) {
+    const value = args[presetFlagIndex + 1];
+    if (!value || value.startsWith("--")) {
+      console.error('Missing value for "--preset".');
+      process.exit(1);
+    }
+    preset = value;
+  }
+
   const target = command === "impact" && args[1] && !args[1].startsWith("--")
     ? path.resolve(root, args[1])
     : undefined;
 
-  return { command, root, target, format };
+  return { command, root, target, format, preset };
 }
 
 const SOURCE_EXT_SET = new Set(SOURCE_EXTENSIONS.map((ext) => `.${ext}`));
@@ -73,10 +85,12 @@ function printUsage() {
   console.log("  check              Check all files for boundary violations");
   console.log("  impact <file>      Show which files and modules depend on a file");
   console.log("  health             Show module health metrics and check thresholds");
+  console.log("  init               Create a starter pickety.json");
   console.log("");
   console.log("Options:");
   console.log("  --root <path>      Workspace root (defaults to current directory)");
   console.log("  --format <text|json>  Output format for check (defaults to text)");
+  console.log(`  --preset <name>    Preset name for init (${listPresets().join(", ")})`);
 }
 
 function loadWorkspace(root: string): { config: PicketyConfig; ctx: WorkspaceContext; } {
@@ -218,8 +232,67 @@ function runHealth(root: string) {
   }
 }
 
+function runInit(root: string, preset: string | undefined) {
+  const configPath = getConfigPath(root);
+  if (fs.existsSync(configPath)) {
+    console.error(`${CONFIG_FILENAME} already exists at ${configPath}.`);
+    process.exit(1);
+  }
+
+  if (preset) {
+    const presetConfig = getPreset(preset);
+    if (!presetConfig) {
+      console.error(`Unknown preset "${preset}". Available presets: ${listPresets().join(", ")}`);
+      process.exit(1);
+    }
+  }
+
+  const defaultConfig = {
+    $schema: "https://raw.githubusercontent.com/DanielSerio/pickety/main/resources/pickety.schema.json",
+    modules: {
+      features: "src/features/*",
+      components: "src/components/**/*",
+      utils: "src/utils/**/*",
+    },
+    rules: {
+      "module-boundaries": {
+        severity: "error",
+        rules: [
+          {
+            importer: "features",
+            imports: "features",
+            allow: true,
+            message: "Features can import from their own module.",
+          },
+          {
+            importer: "features",
+            imports: "components",
+            allow: true,
+          },
+          {
+            importer: "features",
+            imports: "utils",
+            allow: true,
+          },
+        ],
+      },
+    },
+    "boundary-diagrams": true,
+  };
+
+  const configToWrite = preset
+    ? {
+      $schema: defaultConfig.$schema,
+      preset,
+    }
+    : defaultConfig;
+
+  fs.writeFileSync(configPath, JSON.stringify(configToWrite, null, 2));
+  console.log(`Created ${CONFIG_FILENAME} at ${configPath}`);
+}
+
 function main() {
-  const { command, root, target, format } = parseArgs(process.argv);
+  const { command, root, target, format, preset } = parseArgs(process.argv);
 
   if (!command || command === "--help" || command === "-h") {
     printUsage();
@@ -235,6 +308,9 @@ function main() {
       break;
     case "health":
       runHealth(root);
+      break;
+    case "init":
+      runInit(root, preset);
       break;
     default:
       console.error(`Unknown command: "${command}"`);

@@ -192,6 +192,31 @@ suite("config", () => {
     assert.strictEqual(result.ok, true);
   });
 
+  test("loads config from preset and merges overrides", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        preset: "layered",
+        modules: {
+          domain: "src/domain-core/**",
+        },
+        rules: {
+          "module-boundaries": {
+            rules: [{ importer: "presentation", imports: "domain", allow: true }],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, true);
+    if (result.ok) {
+      assert.ok(result.config);
+      assert.strictEqual(result.config.modules.domain, "src/domain-core/**");
+      const rules = result.config.rules["module-boundaries"].rules;
+      assert.ok(rules.some(rule => rule.message === "Domain should not depend on outer layers."));
+      assert.ok(rules.some(rule => rule.importer === "presentation" && rule.imports === "domain" && rule.allow === true));
+    }
+  });
+
   // --- Edge cases ---
 
   test("returns ok: true and undefined config when pickety.json does not exist", () => {
@@ -322,6 +347,19 @@ suite("config", () => {
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
       assert.ok(result.errors.some(e => e.path === "rules.module-boundaries.rules[0].imports"));
+    }
+  });
+
+  test("returns error when preset is unknown", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        preset: "unknown-preset",
+      })
+    );
+
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.ok(result.errors.some(e => e.path === "preset"));
     }
   });
 

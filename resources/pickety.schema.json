@@ -12,6 +12,16 @@
       ],
       "default": "0.1.0"
     },
+    "preset": {
+      "type": "string",
+      "enum": [
+        "hexagonal",
+        "feature-modules",
+        "layered"
+      ],
+      "description": "Apply a built-in architecture preset and merge with overrides.",
+      "markdownDescription": "Apply a built-in architecture preset and merge with overrides.\n\nWhen set, Pickety loads the preset configuration and merges any modules or rules defined in this file on top of it."
+    },
     "modules": {
       "type": "object",
       "description": "Map module names to file glob patterns. Files belong to the first module that matches.",
@@ -198,8 +208,17 @@
       "additionalProperties": false
     }
   },
-  "required": [
-    "modules",
-    "rules"
+  "anyOf": [
+    {
+      "required": [
+        "modules",
+        "rules"
+      ]
+    },
+    {
+      "required": [
+        "preset"
+      ]
+    }
   ]
 }

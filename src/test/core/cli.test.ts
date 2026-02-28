@@ -42,4 +42,34 @@ suite("CLI execution", () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  test("init creates pickety.json with preset", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pickety-cli-"));
+    try {
+      const result = runCli(["init", "--root", tempDir, "--preset", "layered"]);
+      assert.ifError(result.error);
+      assert.strictEqual(result.status, 0);
+      const configPath = path.join(tempDir, "pickety.json");
+      assert.ok(fs.existsSync(configPath));
+      const parsed = JSON.parse(fs.readFileSync(configPath, "utf8"));
+      assert.strictEqual(parsed.preset, "layered");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("init fails when pickety.json already exists", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pickety-cli-"));
+    const configPath = path.join(tempDir, "pickety.json");
+    fs.writeFileSync(configPath, JSON.stringify({ preset: "layered" }, null, 2));
+    try {
+      const result = runCli(["init", "--root", tempDir, "--preset", "layered"]);
+      assert.ifError(result.error);
+      assert.strictEqual(result.status, 1);
+      const parsed = JSON.parse(fs.readFileSync(configPath, "utf8"));
+      assert.strictEqual(parsed.preset, "layered");
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });

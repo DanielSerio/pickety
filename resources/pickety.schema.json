@@ -245,7 +245,7 @@
         },
         "message": {
           "type": "string",
-          "description": "Custom error message shown when the export exemption applies."
+          "description": "Optional note for documentation; currently not surfaced in diagnostics."
         }
       }
     }

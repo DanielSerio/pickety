@@ -64,3 +64,8 @@ Allow a shared feature to be imported by everyone:
 - **Unbound variables**: If `importer` or `containedTo` contains `$name` but `imports` does not, the variable is never captured. Pickety warns on this configuration.
 - **Overly broad patterns**: Use `**/*` only when you mean “any depth.” Narrow patterns reduce false matches.
 - **Mismatched segments**: `$name` binds per path segment. `features/$name/pages` will not match `features/auth/pages/v1` unless you include `**`.
+
+
+## Other Places Interpolation Applies
+
+Interpolation also works in `modules` patterns to create module instances (for example `features[auth]`) and in `exports` rules for allowlist exceptions.

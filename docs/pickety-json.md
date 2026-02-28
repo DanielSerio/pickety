@@ -1,11 +1,13 @@
 # pickety.json Configuration
 
-Pickety uses a `pickety.json` file in the workspace root to define module boundaries. When this file is present, the extension activates and enforces import rules in real time.
+Pickety uses a `pickety.json` file in the workspace root to define module boundaries. When this file is present, the extension activates and enforces import rules on save.
 
 ## Structure
 
 ```jsonc
 {
+  "version": "0.3.0",
+  "preset": "layered",
   "modules": { ... },
   "rules": {
     "module-boundaries": { ... }
@@ -15,6 +17,27 @@ Pickety uses a `pickety.json` file in the workspace root to define module bounda
   "health": { ... }
 }
 ```
+
+## `version`
+
+Optional schema version marker for future migrations. It is currently informational.
+
+## `preset`
+
+Use a built-in preset to bootstrap a config. Presets define `modules` and `rules` which are merged with any overrides in your file.
+
+Available presets are `hexagonal`, `feature-modules`, and `layered`.
+
+```json
+{
+  "preset": "layered",
+  "modules": {
+    "app": "src/app/**/*"
+  }
+}
+```
+
+When both preset and overrides are provided, preset rules are appended to your rules and preset modules are merged with yours. You can also specify only `preset` and omit `modules` and `rules`.
 
 ## `modules`
 
@@ -34,6 +57,16 @@ A registry of named modules mapped to glob patterns. Each entry assigns a name t
 **Pattern expansion:** Patterns ending with `/*` are automatically expanded to `/**/*` for deep matching. So `"src/features/*"` matches files in any subdirectory of `src/features/`.
 
 **Module matching:** Each file is matched against patterns in order. A file belongs to the **first** module whose pattern matches its path relative to the workspace root.
+
+**Module instances:** Patterns may include `$variable` placeholders. When a file matches, the captured values are appended to the module name for rule matching and diagnostics, for example `features[auth]`.
+
+```json
+{
+  "modules": {
+    "features": "src/features/$name/**"
+  }
+}
+```
 
 ## `rules.module-boundaries`
 
@@ -76,11 +109,12 @@ An array of boundary rules. Each rule has:
 | `allow`       | `boolean`          | No          | `true` to permit the import, `false` to forbid it. Defaults to `false`.                          |
 | `only`        | `boolean`          | No          | `true` = the `imports` target can **only** be used by this `importer`. Everyone else is blocked. |
 | `containedTo` | `string \| object` | No          | Shortcut for `only: true`. See [Strict Containment](#strict-containment-only--containedto).      |
+| `exports`     | `object \| object[]` | No         | Allowlist exceptions for `only`/`containedTo`. See [Exports](#exports).                          |
 | `message`     | `string`           | No          | Custom message shown in the diagnostic                                                           |
 | `severity`    | `string`           | No          | `"error"` or `"warn"`. Overrides the rule-set severity for this rule only.                       |
 | `name`        | `string`           | No          | Rule identifier shown in diagnostics and quick-fix labels.                                       |
 | `group`       | `string`           | No          | Group label shown in diagnostics and used for CLI summaries.                                     |
-| `maxViolations` | `number`         | No          | Violations at or below this count are downgraded to `warn`. Useful for gradual adoption.         |
+| `maxViolations` | `integer`        | No          | Violations at or below this count are downgraded to `warn`. Useful for gradual adoption.         |
 
 Both `importer` and `imports` support glob patterns via [minimatch](https://github.com/isaacs/minimatch), so you can write rules like `"*"` (all modules) or `"feature-*"` (any module starting with `feature-`).
 
@@ -194,9 +228,25 @@ Pickety will report a configuration error if:
 - `unless` keys do not start with `$` (they must be variable references)
 - `unless` is present but `imports` contains no `$variable` (nothing to capture)
 
+## `exports`
+
+`exports` defines allowlist exceptions for `only` or `containedTo`. Each export entry specifies a `path` to allow and a `to` pattern that is allowed to import it.
+
+```json
+{
+  "imports": "features/$name/**",
+  "containedTo": "features/$name/**",
+  "exports": {
+    "path": "features/$name/pages/**",
+    "to": "app",
+    "message": "Only feature pages are public to the app."
+  }
+}
+```
+
 ## `boundary-diagrams`
 
-Automatically generate a [Mermaid](https://mermaid.js.org/) diagram of your module boundaries on every save.
+Automatically generate a [Mermaid](https://mermaid.js.org/) diagram of your module boundaries when the config is saved or via the **Pickety: Generate Boundary Diagram** command.
 
 - `true`: Writes to `picket-boundaries.mermaid` in the workspace root.
 - `"path/to/file.mermaid"`: Writes to a custom relative path.
@@ -215,12 +265,12 @@ When `true` (default), Pickety emits an **info** diagnostic if a file does not m
 
 Configure project-wide quality standards. Violations appear as diagnostics on the `pickety.json` file.
 
-| Field                 | Type     | Description                           |
-| --------------------- | -------- | ------------------------------------- |
-| `maxAfferentCoupling` | `number` | Maximum incoming dependencies (Ca).   |
-| `maxEfferentCoupling` | `number` | Maximum outgoing dependencies (Ce).   |
-| `maxInstability`      | `number` | Maximum `Ce / (Ca + Ce)` ratio (0-1). |
-| `maxDepth`            | `number` | Maximum dependency chain depth.       |
+| Field                 | Type      | Description                           |
+| --------------------- | --------- | ------------------------------------- |
+| `maxAfferentCoupling` | `integer` | Maximum incoming dependencies (Ca).   |
+| `maxEfferentCoupling` | `integer` | Maximum outgoing dependencies (Ce).   |
+| `maxInstability`      | `number`  | Maximum `Ce / (Ca + Ce)` ratio (0-1). |
+| `maxDepth`            | `integer` | Maximum dependency chain depth.       |
 
 ```json
 {

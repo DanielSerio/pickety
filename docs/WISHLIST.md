@@ -2,12 +2,16 @@
 
 ## "Architectural Scaffolding" (The pickety init command)
 
+Status: Not implemented. CLI init exists but does not scan project structure.
+
 The biggest barrier to entry for architectural tools is writing the initial config.
 
 - The Value: A command that scans the src folder, identifies common folder patterns (like features, components, hooks), and generates a draft pickety.json.
 - The Effort: Medium/Low. You already have the discoverFiles logic in the CLI. You would just need a heuristic to group top-level folders into a suggested modules object.
 
 ## Config Templates for Init
+
+Status: Partially implemented in 0.3.0 with presets (hexagonal, feature-modules, layered). Additional templates and selection UI are still open.
 
 The init command currently generates a single generic starter config. Offering curated templates for common architectures would make onboarding faster and more opinionated.
 
@@ -29,9 +33,3 @@ Moving beyond local logs to a cloud-based provider.
 - The Value: Detecting silent extension crashes across different OS/Node versions and understanding which features (Diagrams vs Health vs Impact) are actually used.
 - The Effort: Medium. Requires setting up a backend (AppInsights/Sentry) and ensuring strict compliance with VS Code's telemetry privacy settings.
 
-## CLI Parity ("init" command)
-
-The CLI is currently for checking, but not for bootstrapping.
-
-- The Value: Supporting "Headless" setup or developers who prefer CLI-first workflows.
-- The Effort: Low. Most logic is already in `src/commands/init.ts` and just needs to be adapted for a terminal-friendly `fs` write without `vscode` dependencies.

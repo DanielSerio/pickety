@@ -4,6 +4,19 @@ All notable changes to the "pickety" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.3.0] - 2026-02-28
+
+### Added
+
+- **Architecture presets.** New built-in presets (`hexagonal`, `feature-modules`, `layered`) can bootstrap modules and boundary rules via a top-level `preset` key in `pickety.json`.
+- **CLI init with presets.** `pickety init --preset <name>` scaffolds a `pickety.json` using a preset.
+- **JSON schema support for `preset`.** Autocomplete and validation now include preset options.
+- **Preset tests.** Added coverage for preset merging and CLI initialization behavior.
+
+### Changed
+
+- **Preset-aware config loading.** When `preset` is provided, preset defaults are merged with user overrides, and preset rules are appended to custom rules.
+
 ## [0.2.0] - 2026-02-26
 
 ### Changed
@@ -45,7 +58,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Fixed
 
-- **Interpolation rules with `**` in the `imports` pattern were silently skipped.** `captureVariablesFromPath` computed the maximum starting offset as `pathSegments.length - patternSegments.length`. Because `**` counts as one pattern segment but can match zero path segments, this produced an offset of zero whenever path and pattern had equal segment counts — causing the match to fail immediately and the rule to be ignored with no error. The fix counts only non-`**` segments toward the minimum, so the correct starting offsets are tried. Rules such as `{ imports: "features/$name/components/**/*", containedTo: "features/$name/**/*" }` now enforce correctly.
+- **Interpolation rules with `**`in the`imports`pattern were silently skipped.**`captureVariablesFromPath`computed the maximum starting offset as`pathSegments.length - patternSegments.length`. Because `**` counts as one pattern segment but can match zero path segments, this produced an offset of zero whenever path and pattern had equal segment counts — causing the match to fail immediately and the rule to be ignored with no error. The fix counts only non-`**`segments toward the minimum, so the correct starting offsets are tried. Rules such as`{ imports: "features/$name/components/**/*", containedTo: "features/$name/\*_/_" }` now enforce correctly.
 
 ## [0.1.0] - 2026-02-21
 

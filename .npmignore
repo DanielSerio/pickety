@@ -6,6 +6,8 @@ src/**
 .yarnrc
 vsc-extension-quickstart.md
 GEMINI.md
+AGENTS.md
+CLAUDE.md
 pickety.json
 node_modules/**
 out/**

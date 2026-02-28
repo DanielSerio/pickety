@@ -17,6 +17,13 @@ function runCli(args: string[], cwd?: string): CliResult {
 }
 
 suite("CLI execution", () => {
+  suiteSetup(function () {
+    if (!fs.existsSync(CLI_PATH)) {
+      console.warn(`Skipping CLI tests because compiled CLI output is missing at ${CLI_PATH}. Run npm run build:cli first.`);
+      this.skip();
+    }
+  });
+
   test("check emits JSON and exits non-zero when violations exist", () => {
     const result = runCli(["check", "--root", FIXTURE_DIR, "--format", "json"]);
     assert.ifError(result.error);
@@ -71,5 +78,21 @@ suite("CLI execution", () => {
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
+  });
+
+  test("unknown command exits with error and prints usage", () => {
+    const result = runCli(["unknown-cmd"]);
+    assert.ifError(result.error);
+    assert.strictEqual(result.status, 1);
+    const stderr = typeof result.stderr === "string" ? result.stderr : result.stderr.toString("utf8");
+    assert.ok(stderr.includes("Unknown command"));
+  });
+
+  test("check rejects unsupported format values", () => {
+    const result = runCli(["check", "--root", FIXTURE_DIR, "--format", "xml"]);
+    assert.ifError(result.error);
+    assert.strictEqual(result.status, 1);
+    const stderr = typeof result.stderr === "string" ? result.stderr : result.stderr.toString("utf8");
+    assert.ok(stderr.includes("Invalid format"));
   });
 });

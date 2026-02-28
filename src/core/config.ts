@@ -88,6 +88,75 @@ function mergeHealthConfig(
   return { ...preset, ...override };
 }
 
+function mergeOptionalField(
+  merged: Record<string, unknown>,
+  preset: Record<string, unknown>,
+  override: Record<string, unknown>,
+  key: string
+) {
+  if (override[key] !== undefined) {
+    merged[key] = override[key];
+  } else if (preset[key] !== undefined) {
+    merged[key] = preset[key];
+  }
+}
+
+function mergeModules(
+  presetModules: PicketyConfig["modules"],
+  overrideModules: unknown
+): unknown {
+  if (overrideModules === undefined) {
+    return presetModules;
+  }
+  if (isRecord(overrideModules)) {
+    return {
+      ...presetModules,
+      ...overrideModules,
+    };
+  }
+  return overrideModules;
+}
+
+function mergeRules(
+  presetRules: PicketyConfig["rules"],
+  overrideRules: unknown
+): unknown {
+  if (overrideRules === undefined) {
+    return presetRules;
+  }
+  if (!isRecord(overrideRules)) {
+    return overrideRules;
+  }
+
+  const overrideBoundaries = overrideRules["module-boundaries"];
+  if (!isRecord(overrideBoundaries)) {
+    return overrideRules;
+  }
+
+  const mergedRules: Record<string, unknown> = {
+    ...presetRules,
+    ...overrideRules,
+  };
+
+  const presetBoundaries = presetRules["module-boundaries"];
+  const mergedBoundaries: Record<string, unknown> = {
+    ...presetBoundaries,
+    ...overrideBoundaries,
+  };
+
+  const presetBoundaryRules = Array.isArray(presetBoundaries.rules) ? presetBoundaries.rules : [];
+  if (overrideBoundaries.rules === undefined) {
+    mergedBoundaries.rules = presetBoundaryRules;
+  } else if (Array.isArray(overrideBoundaries.rules)) {
+    mergedBoundaries.rules = [...presetBoundaryRules, ...overrideBoundaries.rules];
+  } else {
+    mergedBoundaries.rules = overrideBoundaries.rules;
+  }
+
+  mergedRules["module-boundaries"] = mergedBoundaries;
+  return mergedRules;
+}
+
 function mergePresetConfig(
   preset: PicketyConfig,
   override: Record<string, unknown>
@@ -97,72 +166,15 @@ function mergePresetConfig(
     ...override,
   };
 
-  if (override.modules === undefined) {
-    merged.modules = preset.modules;
-  } else if (isRecord(override.modules)) {
-    merged.modules = {
-      ...preset.modules,
-      ...override.modules,
-    };
-  } else {
-    merged.modules = override.modules;
-  }
+  merged.modules = mergeModules(preset.modules, override.modules);
+  merged.rules = mergeRules(preset.rules, override.rules);
 
-  if (override.rules === undefined) {
-    merged.rules = preset.rules;
-  } else if (!isRecord(override.rules)) {
-    merged.rules = override.rules;
-  } else {
-    const overrideRules = override.rules as Record<string, unknown>;
-    const overrideBoundaries = overrideRules["module-boundaries"];
-
-    if (overrideBoundaries === undefined) {
-      merged.rules = override.rules;
-    } else if (!isRecord(overrideBoundaries)) {
-      merged.rules = override.rules;
-    } else {
-      const presetBoundaries = preset.rules["module-boundaries"];
-      const presetRules = Array.isArray(presetBoundaries.rules) ? presetBoundaries.rules : [];
-      const mergedBoundaries: Record<string, unknown> = {
-        ...presetBoundaries,
-        ...overrideBoundaries,
-      };
-
-      if (overrideBoundaries.rules === undefined) {
-        mergedBoundaries.rules = presetRules;
-      } else if (Array.isArray(overrideBoundaries.rules)) {
-        mergedBoundaries.rules = [...presetRules, ...overrideBoundaries.rules];
-      } else {
-        mergedBoundaries.rules = overrideBoundaries.rules;
-      }
-
-      merged.rules = {
-        ...preset.rules,
-        ...overrideRules,
-        "module-boundaries": mergedBoundaries,
-      };
-    }
-  }
-
-  if (override.warnOnUntrackedImporters !== undefined) {
-    merged.warnOnUntrackedImporters = override.warnOnUntrackedImporters;
-  } else if (preset.warnOnUntrackedImporters !== undefined) {
-    merged.warnOnUntrackedImporters = preset.warnOnUntrackedImporters;
-  }
-
-  if (override["boundary-diagrams"] !== undefined) {
-    merged["boundary-diagrams"] = override["boundary-diagrams"];
-  } else if (preset["boundary-diagrams"] !== undefined) {
-    merged["boundary-diagrams"] = preset["boundary-diagrams"];
-  }
+  const presetRecord = preset as unknown as Record<string, unknown>;
+  mergeOptionalField(merged, presetRecord, override, "warnOnUntrackedImporters");
+  mergeOptionalField(merged, presetRecord, override, "boundary-diagrams");
 
   merged.health = mergeHealthConfig(preset.health, override.health);
-
-  if (override.version !== undefined) {
-    merged.version = override.version;
-  } else if (preset.version !== undefined) {
-    merged.version = preset.version;
-  }
+  mergeOptionalField(merged, presetRecord, override, "version");
 
   return merged;
 }

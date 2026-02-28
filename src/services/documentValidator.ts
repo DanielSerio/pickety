@@ -81,11 +81,20 @@ export class DocumentValidator implements vscode.Disposable {
       const allViolations = allEntries.flatMap((e) => e.violations);
       const adjusted = applyMaxViolations(allViolations, config);
 
-      let offset = 0;
+      const violationsByFile = new Map<string, Violation[]>();
+      for (const v of adjusted) {
+        const key = normalizePath(v.file);
+        const list = violationsByFile.get(key);
+        if (list) {
+          list.push(v);
+        } else {
+          violationsByFile.set(key, [v]);
+        }
+      }
+
       for (const entry of allEntries) {
-        const count = entry.violations.length;
-        this.diagnosticManager.setViolations(entry.uri, adjusted.slice(offset, offset + count));
-        offset += count;
+        const key = normalizePath(entry.uri.fsPath);
+        this.diagnosticManager.setViolations(entry.uri, violationsByFile.get(key) ?? []);
       }
 
       this.statusBar.update(config, this.diagnosticManager.getCollection());

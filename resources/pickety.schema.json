@@ -6,11 +6,13 @@
   "properties": {
     "version": {
       "type": "string",
-      "description": "Configuration schema version. Currently 0.1.0.",
+      "description": "Configuration schema version. Latest is 0.3.0.",
       "enum": [
-        "0.1.0"
+        "0.1.0",
+        "0.2.0",
+        "0.3.0"
       ],
-      "default": "0.1.0"
+      "default": "0.3.0"
     },
     "preset": {
       "type": "string",
@@ -117,6 +119,21 @@
                       }
                     ]
                   },
+                  "exports": {
+                    "description": "Allowlist exceptions for containedTo/only rules.",
+                    "markdownDescription": "Allowlist exceptions for containedTo/only rules. Each entry declares a path pattern to export and the module/path that may import it.",
+                    "oneOf": [
+                      {
+                        "$ref": "#/definitions/exportRule"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/definitions/exportRule"
+                        }
+                      }
+                    ]
+                  },
                   "message": {
                     "type": "string",
                     "description": "Custom error message shown in the editor."
@@ -206,6 +223,31 @@
         }
       },
       "additionalProperties": false
+    }
+  },
+  "definitions": {
+    "exportRule": {
+      "type": "object",
+      "required": [
+        "path",
+        "to"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Path pattern to export from the target module.",
+          "markdownDescription": "Path pattern to export from the target module. Supports `$variable` interpolation."
+        },
+        "to": {
+          "type": "string",
+          "description": "Module name or path pattern allowed to import the export.",
+          "markdownDescription": "Module name or path pattern allowed to import the export. Supports `$variable` interpolation."
+        },
+        "message": {
+          "type": "string",
+          "description": "Custom error message shown when the export exemption applies."
+        }
+      }
     }
   },
   "anyOf": [

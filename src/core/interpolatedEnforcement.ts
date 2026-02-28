@@ -185,19 +185,41 @@ function normalizeExports(exportsRule: ExportRule | ExportRule[] | undefined): E
   return Array.isArray(exportsRule) ? exportsRule : [exportsRule];
 }
 
+type CachedExportRule = {
+  entry: ExportRule;
+  pathVars: string[];
+  toVars: string[];
+};
+
+const exportRuleCache = new WeakMap<BoundaryRule, CachedExportRule[]>();
+
+function getCachedExports(rule: BoundaryRule): CachedExportRule[] {
+  const cached = exportRuleCache.get(rule);
+  if (cached) {
+    return cached;
+  }
+
+  const exportsList = normalizeExports(rule.exports);
+  const prepared = exportsList.map((entry) => ({
+    entry,
+    pathVars: findVariables(entry.path),
+    toVars: findVariables(entry.to),
+  }));
+  exportRuleCache.set(rule, prepared);
+  return prepared;
+}
+
 export function isExportExempt(
   rule: BoundaryRule,
   ctx: RuleContext,
   captured?: Record<string, string>
 ): boolean {
-  const exportsList = normalizeExports(rule.exports);
+  const exportsList = getCachedExports(rule);
   if (exportsList.length === 0) {
     return false;
   }
 
-  for (const entry of exportsList) {
-    const pathVars = findVariables(entry.path);
-    const toVars = findVariables(entry.to);
+  for (const { entry, pathVars, toVars } of exportsList) {
     const targetCaptured =
       pathVars.length > 0
         ? getCaptureForPattern(entry.path, pathVars, captured, ctx.targetModule, ctx.targetRelativePath)

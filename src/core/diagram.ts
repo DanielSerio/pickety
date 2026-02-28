@@ -112,10 +112,9 @@ function buildMermaidContent(config: PicketyConfig, health?: ModuleHealth[]): st
   allInvolvedNodes.forEach((name) => {
     const parts = name.split("/");
     const cluster = parts.length > 1 ? parts[0] : "Base";
-    if (!clusters.has(cluster)) {
-      clusters.set(cluster, []);
-    }
-    clusters.get(cluster)!.push(name);
+    const existing = clusters.get(cluster) ?? [];
+    existing.push(name);
+    clusters.set(cluster, existing);
   });
 
   const nodeIds = new Map<string, string>();

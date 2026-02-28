@@ -1,5 +1,6 @@
 import type { PicketyConfig, Violation, ModuleHealth } from "../shared/types";
 import { toRelativePath, formatHealthMetricValue } from "../core/utils";
+import { countViolationsBySeverity } from "../shared/utils";
 import { matchFileToModule } from "../core/imports";
 import { ImportGraph } from "../core/graph";
 
@@ -86,9 +87,10 @@ export function buildCheckReport(
     targetModule: v.targetModule,
   }));
 
-  const errors = violations.filter((v) => v.severity === "error").length + cycles.length;
-  const warnings = violations.filter((v) => v.severity === "warn").length;
-  const info = violations.filter((v) => v.severity === "info").length;
+  const counts = countViolationsBySeverity(violations);
+  const errors = counts.errors + cycles.length;
+  const warnings = counts.warnings;
+  const info = counts.info;
 
   const groups: Record<string, number> = {};
   let ungrouped = 0;

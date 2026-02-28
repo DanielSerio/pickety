@@ -2,6 +2,7 @@ import type {
   ConfigError,
   ConfigWarning,
   BoundaryRule,
+  ExportRule,
   Severity,
 } from "../shared/types";
 
@@ -175,6 +176,27 @@ export function validateBoundaryRules(
       }
     }
 
+    let exportsRules: ExportRule | ExportRule[] | undefined;
+    if (r.exports !== undefined) {
+      if (Array.isArray(r.exports)) {
+        const parsed: ExportRule[] = [];
+        r.exports.forEach((entry, exportIndex) => {
+          const parsedEntry = parseExportRule(entry, `${rulePath}.exports[${exportIndex}]`, errors);
+          if (parsedEntry) {
+            parsed.push(parsedEntry);
+          }
+        });
+        if (parsed.length > 0) {
+          exportsRules = parsed;
+        }
+      } else {
+        const parsedEntry = parseExportRule(r.exports, `${rulePath}.exports`, errors);
+        if (parsedEntry) {
+          exportsRules = parsedEntry;
+        }
+      }
+    }
+
     if (importPatterns) {
       const importVars = new Set(collectVariables(importPatterns));
       const warnOnUnboundVariables = (pattern: string, path: string, label: string) => {
@@ -200,9 +222,99 @@ export function validateBoundaryRules(
       }
     }
 
-    validatedRules.push(r as unknown as BoundaryRule);
+    if (!importPatterns) {
+      return;
+    }
+
+    const validatedRule: BoundaryRule = {
+      imports: typeof r.imports === "string" ? r.imports : importPatterns,
+    };
+
+    if (typeof r.importer === "string") {
+      validatedRule.importer = r.importer;
+    }
+    if (typeof r.allow === "boolean") {
+      validatedRule.allow = r.allow;
+    }
+    if (typeof r.only === "boolean") {
+      validatedRule.only = r.only;
+    }
+    if (r.containedTo !== undefined && (typeof r.containedTo === "string" || (typeof r.containedTo === "object" && r.containedTo !== null))) {
+      validatedRule.containedTo = r.containedTo as BoundaryRule["containedTo"];
+    }
+    if (typeof r.message === "string") {
+      validatedRule.message = r.message;
+    }
+    if (r.severity === "error" || r.severity === "warn") {
+      validatedRule.severity = r.severity;
+    }
+    if (typeof r.name === "string") {
+      validatedRule.name = r.name;
+    }
+    if (typeof r.group === "string") {
+      validatedRule.group = r.group;
+    }
+    if (typeof r.maxViolations === "number" && Number.isInteger(r.maxViolations) && r.maxViolations >= 0) {
+      validatedRule.maxViolations = r.maxViolations;
+    }
+    if (exportsRules) {
+      validatedRule.exports = exportsRules;
+    }
+
+    validatedRules.push(validatedRule);
   });
 
   return { severity, rules: validatedRules };
+}
+
+function parseExportRule(
+  value: unknown,
+  path: string,
+  errors: ConfigError[]
+): ExportRule | undefined {
+  if (typeof value !== "object" || value === null) {
+    errors.push({
+      message: `"${path}" must be an object`,
+      path,
+    });
+    return undefined;
+  }
+
+  const entry = value as Record<string, unknown>;
+  let hasError = false;
+
+  if (typeof entry.path !== "string") {
+    errors.push({
+      message: `"${path}.path" is required and must be a string`,
+      path: `${path}.path`,
+    });
+    hasError = true;
+  }
+
+  if (typeof entry.to !== "string") {
+    errors.push({
+      message: `"${path}.to" is required and must be a string`,
+      path: `${path}.to`,
+    });
+    hasError = true;
+  }
+
+  if (entry.message !== undefined && typeof entry.message !== "string") {
+    errors.push({
+      message: `"${path}.message" must be a string`,
+      path: `${path}.message`,
+    });
+    hasError = true;
+  }
+
+  if (hasError) {
+    return undefined;
+  }
+
+  return {
+    path: entry.path as string,
+    to: entry.to as string,
+    message: typeof entry.message === "string" ? entry.message : undefined,
+  };
 }
 

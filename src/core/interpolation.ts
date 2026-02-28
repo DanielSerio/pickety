@@ -128,9 +128,8 @@ export function replaceVariables(
   let result = pattern;
   for (const v of variables) {
     const replacement = typeof values === "string" ? values : values[v];
-    // Use global replace to handle multiple occurrences of the same variable
-    const escapedV = v.replace(/\$/g, "\\$");
-    result = result.replace(new RegExp(escapedV, "g"), replacement);
+    // Use replaceAll to handle multiple occurrences of the same variable
+    result = result.replaceAll(v, replacement);
   }
   return result;
 }

@@ -69,12 +69,12 @@ export function checkBoundaries(
       filePath,
       importStmt,
     };
-    normalizedRules.forEach((rule) => {
+    for (const rule of normalizedRules) {
       const v = checkRule(rule, ruleContext);
       if (v) {
         violations.push(v);
       }
-    });
+    }
   }
 
   return violations;

@@ -8,7 +8,14 @@ Install the **Pickety** extension from the VS Code Marketplace.
 
 ## 2. Basic Configuration
 
-Create a `pickety.json` file in your workspace root. Paste this base template:
+You can scaffold a starter config using either the VS Code command palette or the CLI:
+
+```bash
+pickety init
+pickety init --preset layered
+```
+
+Or create a `pickety.json` file in your workspace root by hand. Paste this base template:
 
 ```json
 {
@@ -47,4 +54,4 @@ When Pickety flags a violation, click the **Quick Fix** (lightbulb) on the red s
 
 ---
 
-For detailed rule syntax, see [pickety.json Reference](./pickety-json.md).
+For detailed rule syntax, see [pickety.json Reference](./pickety-json.md). For CI and local enforcement, see [CLI Usage](./cli.md).

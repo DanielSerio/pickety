@@ -1,7 +1,8 @@
 import * as path from "path";
 import { minimatch } from "minimatch";
-import type { ImportStatement, WorkspaceContext } from "../shared/types";
+import type { ImportStatement, WorkspaceContext, ModuleMatch } from "../shared/types";
 import { SOURCE_EXTENSIONS, normalizePath } from "./utils";
+import { captureVariablesFromPath, findVariables } from "./interpolation";
 
 // Extensions to try when resolving imports without explicit extensions
 const RESOLVE_EXTENSIONS = SOURCE_EXTENSIONS.map((ext) => `.${ext}`);
@@ -127,26 +128,69 @@ function resolveFile(
 
 
 
-export function matchFileToModule(
+function expandModulePattern(pattern: string): string {
+  return pattern.endsWith("/*")
+    ? pattern.slice(0, -2) + "/**/*"
+    : pattern;
+}
+
+function buildModuleInstanceName(
+  name: string,
+  variables: string[],
+  captured: Record<string, string>
+): string {
+  if (variables.length === 0) {
+    return name;
+  }
+  const values = variables.map((v) => captured[v]);
+  return `${name}[${values.join(",")}]`;
+}
+
+export function matchFileToModuleDetailed(
   filePath: string,
   modules: Record<string, string>,
   root: string
-): string | undefined {
+): ModuleMatch | undefined {
   const relativePath = normalizePath(path.relative(root, filePath));
 
   for (const [name, pattern] of Object.entries(modules)) {
-    const expandedPattern = pattern.endsWith("/*")
-      ? pattern.slice(0, -2) + "/**/*"
-      : pattern;
+    const expandedPattern = expandModulePattern(pattern);
+    const variables = findVariables(pattern);
+
+    if (variables.length > 0) {
+      const captured =
+        captureVariablesFromPath(expandedPattern, relativePath, variables) ||
+        (expandedPattern !== pattern
+          ? captureVariablesFromPath(pattern, relativePath, variables)
+          : undefined);
+
+      if (captured) {
+        return {
+          name: buildModuleInstanceName(name, variables, captured),
+          pattern,
+          relativePath,
+          variables: captured,
+        };
+      }
+      continue;
+    }
 
     if (
       minimatch(relativePath, expandedPattern) ||
       minimatch(relativePath, pattern)
     ) {
-      return name;
+      return { name, pattern, relativePath };
     }
   }
   return undefined;
+}
+
+export function matchFileToModule(
+  filePath: string,
+  modules: Record<string, string>,
+  root: string
+): string | undefined {
+  return matchFileToModuleDetailed(filePath, modules, root)?.name;
 }
 
 export interface ResolvedImport {

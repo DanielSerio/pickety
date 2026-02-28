@@ -1,6 +1,7 @@
 import type {
   ConfigError,
   ConfigResult,
+  ConfigWarning,
 } from "../shared/types";
 
 import { validateBoundaryRules } from "./validationRules";
@@ -12,6 +13,7 @@ import { validateHealthConfig } from "./validationHealth";
  */
 export function validateConfig(parsed: unknown): ConfigResult {
   const errors: ConfigError[] = [];
+  const warnings: ConfigWarning[] = [];
 
   if (typeof parsed !== "object" || parsed === null) {
     return {
@@ -23,12 +25,15 @@ export function validateConfig(parsed: unknown): ConfigResult {
   const obj = parsed as Record<string, unknown>;
 
   const modules = validateModules(obj.modules, errors);
-  const boundaryConfig = validateBoundaryRules(obj.rules, errors);
+  const boundaryConfig = validateBoundaryRules(obj.rules, errors, warnings);
   const boundaryDiagrams = validateBoundaryDiagrams(obj["boundary-diagrams"], errors);
   const health = validateHealthConfig(obj.health, errors);
+  const warnOnUntrackedImporters = validateWarnOnUntrackedImporters(obj.warnOnUntrackedImporters, errors);
 
   if (errors.length > 0 || !modules || !boundaryConfig) {
-    return { ok: false, errors };
+    return warnings.length > 0
+      ? { ok: false, errors, warnings }
+      : { ok: false, errors };
   }
 
   return {
@@ -38,9 +43,11 @@ export function validateConfig(parsed: unknown): ConfigResult {
       rules: {
         "module-boundaries": boundaryConfig,
       },
+      warnOnUntrackedImporters,
       "boundary-diagrams": boundaryDiagrams,
       health,
     },
+    warnings: warnings.length > 0 ? warnings : undefined,
   };
 }
 
@@ -93,4 +100,23 @@ function validateBoundaryDiagrams(
     return val as boolean | string;
   }
   return undefined;
+}
+
+function validateWarnOnUntrackedImporters(
+  val: unknown,
+  errors: ConfigError[]
+): boolean {
+  if (val === undefined) {
+    return true;
+  }
+
+  if (typeof val !== "boolean") {
+    errors.push({
+      message: '"warnOnUntrackedImporters" must be a boolean',
+      path: "warnOnUntrackedImporters",
+    });
+    return true;
+  }
+
+  return val;
 }

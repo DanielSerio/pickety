@@ -1,5 +1,6 @@
 import type { PicketyConfig, Violation, ModuleHealth } from "../shared/types";
 import { toRelativePath, formatHealthMetricValue } from "../core/utils";
+import { countViolationsBySeverity } from "../shared/utils";
 import { matchFileToModule } from "../core/imports";
 import { ImportGraph } from "../core/graph";
 
@@ -10,8 +11,112 @@ export function formatViolation(v: Violation, root: string): string {
   const relativePath = toRelativePath(root, v.file);
   const line = v.line + 1;
   const col = v.character + 1;
-  const severity = v.severity === "error" ? "error" : "warning";
+  const severity = v.severity === "error" ? "error" : v.severity === "info" ? "info" : "warning";
   return `${relativePath}:${line}:${col}: ${severity} ${v.message}`;
+}
+
+export function formatGroupSummary(violations: Violation[]): string | undefined {
+  const grouped = new Map<string, number>();
+  let ungrouped = 0;
+  let hasGroup = false;
+
+  for (const v of violations) {
+    if (v.ruleGroup) {
+      hasGroup = true;
+      grouped.set(v.ruleGroup, (grouped.get(v.ruleGroup) ?? 0) + 1);
+    } else {
+      ungrouped += 1;
+    }
+  }
+
+  if (!hasGroup) {
+    return undefined;
+  }
+
+  const lines: string[] = [];
+  lines.push("");
+  lines.push("Groups:");
+  for (const [group, count] of grouped.entries()) {
+    lines.push(`  ${group}: ${count}`);
+  }
+  if (ungrouped > 0) {
+    lines.push(`  (ungrouped): ${ungrouped}`);
+  }
+  return lines.join("\n");
+}
+
+export type CheckReport = {
+  violations: Array<{
+    file: string;
+    line: number;
+    column: number;
+    length: number;
+    message: string;
+    severity: string;
+    ruleName?: string;
+    ruleGroup?: string;
+    sourceModule?: string;
+    targetModule?: string;
+  }>;
+  cycles: string[][];
+  summary: {
+    violations: number;
+    cycles: number;
+    errors: number;
+    warnings: number;
+    info: number;
+  };
+  groups: Record<string, number>;
+};
+
+export function buildCheckReport(
+  violations: Violation[],
+  cycles: string[][],
+  root: string
+): CheckReport {
+  const formattedViolations = violations.map((v) => ({
+    file: toRelativePath(root, v.file),
+    line: v.line + 1,
+    column: v.character + 1,
+    length: v.length,
+    message: v.message,
+    severity: v.severity,
+    ruleName: v.ruleName,
+    ruleGroup: v.ruleGroup,
+    sourceModule: v.sourceModule,
+    targetModule: v.targetModule,
+  }));
+
+  const counts = countViolationsBySeverity(violations);
+  const errors = counts.errors + cycles.length;
+  const warnings = counts.warnings;
+  const info = counts.info;
+
+  const groups: Record<string, number> = {};
+  let ungrouped = 0;
+  for (const v of violations) {
+    if (v.ruleGroup) {
+      groups[v.ruleGroup] = (groups[v.ruleGroup] ?? 0) + 1;
+    } else {
+      ungrouped += 1;
+    }
+  }
+  if (ungrouped > 0) {
+    groups.ungrouped = ungrouped;
+  }
+
+  return {
+    violations: formattedViolations,
+    cycles,
+    summary: {
+      violations: violations.length,
+      cycles: cycles.length,
+      errors,
+      warnings,
+      info,
+    },
+    groups,
+  };
 }
 
 /**

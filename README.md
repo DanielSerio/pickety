@@ -10,7 +10,7 @@
 
 ---
 
-Pickety is a VS Code extension that stops architecture erosion before it starts. Define your module boundaries once in a simple JSON file, and every illegal import lights up instantly -- right in your editor, as you type. No more "we don't import that here" comments in code review. No more accidental coupling that quietly rots your codebase over months.
+Pickety is a VS Code extension that stops architecture erosion before it starts. Define your module boundaries once in a simple JSON file, and every illegal import lights up instantly -- right in your editor, when you save. No more "we don't import that here" comments in code review. No more accidental coupling that quietly rots your codebase over months.
 
 Zero runtime dependencies. Zero build steps. Just drop in a config and your entire team — and your AI coding agents — get a **real-time Senior Architect** sitting on their shoulder, enforcing the rules that actually matter.
 
@@ -70,6 +70,8 @@ ESLint's `no-restricted-imports` can block a handful of hard-coded paths. But th
 - **On-save enforcement** -- violations appear instantly when you save, keeping feedback fast without noisy mid-keystroke diagnostics
 - **Glob patterns** -- flexible module definitions using [minimatch](https://github.com/isaacs/minimatch) syntax
 - **Interpolation variables** -- enforce scoped relationships like "route X can only import from feature X"
+- **Architecture presets** -- bootstrap configs with built-in presets (`hexagonal`, `feature-modules`, `layered`)
+- **CLI init** -- scaffold `pickety.json` from the terminal, optionally from a preset
 - **Strict enforcement** -- use `only` and `containedTo` to restrict modules to specific consumers
 - **Per-rule severity** -- mark some boundaries as hard errors and others as soft warnings
 - **Debt tracking** -- set a `maxViolations` threshold per rule to adopt boundaries gradually in legacy codebases
@@ -81,7 +83,7 @@ ESLint's `no-restricted-imports` can block a handful of hard-coded paths. But th
 - **Circular dependencies** -- auto-detect feedback loops between your modules
 - **Quick fixes** -- jump directly to the rule in `pickety.json` from any violation
 - **Status bar** -- always know whether Pickety is active and how many violations exist
-- **CLI** -- `pickety check` for CI/CD pipelines, matching IDE behavior exactly
+- **CLI** -- `pickety check` for CI/CD pipelines, using the same rule logic as the IDE
 - **JSON Schema** -- autocomplete and inline validation for `pickety.json`
 - **No external dependencies** -- self-contained bundle requires zero `npm install` at runtime
 - **Zero config beyond `pickety.json`** -- no build plugins, no complex environment to set up
@@ -97,6 +99,15 @@ ESLint's `no-restricted-imports` can block a handful of hard-coded paths. But th
 > `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac) → **Pickety: Initialize Configuration**
 
 This creates a `pickety.json` in your workspace root and opens it immediately. The generated file includes a starter module map and example rules — edit them to match your project structure.
+
+You can also scaffold from the terminal:
+
+```bash
+pickety init
+pickety init --preset layered
+```
+
+You can also set `"preset": "layered"` in `pickety.json` and then override `modules` or `rules`. Preset rules are appended to your own rules.
 
 **3. Done.** Pickety activates automatically. Violations appear as red/yellow squiggles in the editor, in the Problems panel, and in the status bar.
 
@@ -153,14 +164,17 @@ Each rule defines an import boundary between modules.
 
 | Field         | Type                | Required    | Description                                                              |
 | ------------- | ------------------- | ----------- | ------------------------------------------------------------------------ |
-| `imports`     | `string`            | Yes         | Target module name, glob, or file path pattern                           |
+| `imports`     | `string \| string[]` | Yes        | Target module name(s), glob(s), or file path pattern(s)                   |
 | `importer`    | `string`            | Conditional | Source module name or glob pattern. Required unless using `containedTo`. |
 | `allow`       | `boolean`           | No          | `true` = permit, `false` = forbid. Default: `false`                      |
 | `only`        | `boolean`           | No          | `true` = the `imports` target can ONLY be used by this `importer`.       |
 | `containedTo` | `string \| object`  | No          | Shortcut for `only: true`. Restricts `imports` to this path pattern. Accepts a plain string or an object with `path` and optional `unless`. |
+| `exports`     | `object \| object[]` | No         | Allowlist exceptions for `only`/`containedTo` (exported paths and allowed importers) |
 | `message`     | `string`            | No          | Custom diagnostic message shown in the editor                            |
 | `severity`    | `string`            | No          | `"error"` or `"warn"`. Overrides the global severity                     |
 | `name`        | `string`            | No          | Rule identifier. Shown in diagnostics and quick fix labels               |
+| `group`       | `string`            | No          | Optional group label for diagnostics and CLI summaries                   |
+| `maxViolations` | `integer`         | No          | Debt threshold: violations at/below the count are downgraded to warnings |
 
 ### Glob Patterns
 
@@ -245,11 +259,27 @@ Use `$variable` placeholders to enforce that path segments match between the imp
 
 With this rule, `routes/auth/index.ts` can import from `features/auth/pages/` but **not** from `features/billing/pages/`.
 
+### Export Allowlist (`exports`)
+
+Use `exports` to allow specific paths to be imported by specific modules even when `only` or `containedTo` would block them.
+
+```json
+{
+  "imports": "features/$name/**",
+  "containedTo": "features/$name/**",
+  "exports": {
+    "path": "features/$name/pages/**",
+    "to": "app",
+    "message": "Only feature pages are public to the app."
+  }
+}
+```
+
 ---
 
 ## Boundary Diagrams
 
-Pickety can auto-generate a [Mermaid](https://mermaid.js.org/) diagram of your module boundaries. Modules are clustered by their top-level path segment, with edges labeled by rule action and name.
+Pickety can auto-generate a [Mermaid](https://mermaid.js.org/) diagram of your module boundaries. Modules are clustered by their top-level path segment, with edges labeled by rule action and name. Diagrams are generated when the config is saved or via the **Pickety: Generate Boundary Diagram** command.
 
 Add this to your `pickety.json`:
 
@@ -297,7 +327,7 @@ View these metrics anytime using **Pickety: Show Module Health**, or enforce pro
 The Module Health feature provides two interfaces depending on who is using it:
 
 - **For Humans:** Running the VS Code command opens a clean, color-coded HTML Webview panel. The table highlights healthy modules in green and unstable or problematic modules in red, making it easy to spot architectural issues at a glance.
-- **For AI Agents:** Running the `pickety check` CLI with the `health` argument outputs a clean, ASCII-formatted table directly to stdout. This allows agents to ingest the current state of your architecture and make informed decisions about where to place new code or when refactoring is needed.
+- **For AI Agents:** Running `pickety health` outputs a clean, ASCII-formatted table directly to stdout. This allows agents to ingest the current state of your architecture and make informed decisions about where to place new code or when refactoring is needed.
 
 ```json
 {

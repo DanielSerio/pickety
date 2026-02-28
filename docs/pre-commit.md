@@ -61,6 +61,31 @@ pre-commit:
 
 ---
 
+## CI Usage
+
+For CI, you can run the same command and use JSON output for structured logs:
+
+```bash
+npx pickety check --format json
+```
+
+Example GitHub Actions job:
+
+```yaml
+jobs:
+  pickety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npx pickety check --format json
+```
+
+---
+
 ## Why full check instead of staged files?
 
 Most linters only check the files you changed. Pickety is different:

@@ -1,5 +1,5 @@
 // Severity level for boundary violations
-export type Severity = "error" | "warn";
+export type Severity = "error" | "warn" | "info";
 
 // A single error found during configuration validation
 export interface ConfigError {
@@ -7,10 +7,13 @@ export interface ConfigError {
   path?: string; // JSON path (e.g., "rules.module-boundaries.severity")
 }
 
+// Warning found during configuration validation
+export type ConfigWarning = ConfigError;
+
 // Result of loading/validating configuration
 export type ConfigResult =
-  | { ok: true; config: PicketyConfig | undefined; }
-  | { ok: false; errors: ConfigError[]; };
+  | { ok: true; config: PicketyConfig | undefined; warnings?: ConfigWarning[]; }
+  | { ok: false; errors: ConfigError[]; warnings?: ConfigWarning[]; };
 
 // Object form of containedTo, allowing variable-based exemptions
 export interface ContainedToOptions {
@@ -18,16 +21,24 @@ export interface ContainedToOptions {
   unless?: Record<string, string>; // skip rule when a captured variable matches this value
 }
 
+export interface ExportRule {
+  path: string;
+  to: string;
+  message?: string;
+}
+
 // A single boundary rule: defines whether an import between two modules is allowed
 export interface BoundaryRule {
   importer?: string; // source module name or glob pattern
-  imports: string; // target module name or glob pattern
+  imports: string | string[]; // target module name or glob pattern(s)
   allow?: boolean; // defaults to false (deny)
   only?: boolean; // if true, the 'imports' can ONLY be imported by 'importer'
   containedTo?: string | ContainedToOptions; // shortcut for 'only: true' with this importer pattern
+  exports?: ExportRule | ExportRule[]; // allowlist exceptions for containedTo
   message?: string; // custom error message
   severity?: Severity; // optional per-rule severity override
   name?: string; // optional rule name for identification
+  group?: string; // optional group label for diagnostics and CLI summaries
   maxViolations?: number; // threshold: violations at or below this count are downgraded to warnings
 }
 
@@ -41,6 +52,7 @@ export interface PicketyConfig {
       rules: BoundaryRule[];
     };
   };
+  warnOnUntrackedImporters?: boolean;
   "boundary-diagrams"?: boolean | string;
   health?: HealthConfig;
 }
@@ -50,6 +62,24 @@ export interface WorkspaceContext {
   knownFiles: Set<string>;
   root: string;
   aliases: Record<string, string>;
+}
+
+// Result of matching a file path to a module definition.
+export interface ModuleMatch {
+  name: string;
+  pattern: string;
+  relativePath: string;
+  variables?: Record<string, string>;
+}
+
+// Context passed to boundary rule evaluation.
+export interface RuleContext {
+  sourceModule: string;
+  sourceRelativePath: string;
+  targetModule: string;
+  targetRelativePath: string;
+  filePath: string;
+  importStmt: ImportStatement;
 }
 
 
@@ -70,6 +100,7 @@ export interface Violation {
   message: string;
   severity: Severity;
   ruleName?: string; // the name or index of the rule that was violated
+  ruleGroup?: string; // optional group name for diagnostics and CLI summaries
   sourceModule?: string;
   targetModule?: string;
 }

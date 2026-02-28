@@ -68,6 +68,45 @@ suite("config", () => {
     }
   });
 
+  test("warnOnUntrackedImporters defaults to true", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { app: "src/app/**/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ importer: "*", imports: "app" }],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, true);
+    if (result.ok) {
+      assert.ok(result.config);
+      assert.strictEqual(result.config.warnOnUntrackedImporters, true);
+    }
+  });
+
+  test("accepts warnOnUntrackedImporters false", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        warnOnUntrackedImporters: false,
+        modules: { app: "src/app/**/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ importer: "*", imports: "app" }],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, true);
+    if (result.ok) {
+      assert.ok(result.config);
+      assert.strictEqual(result.config.warnOnUntrackedImporters, false);
+    }
+  });
+
   test("allow field is optional and not required", () => {
     const result = writeAndLoad(
       JSON.stringify({
@@ -135,6 +174,46 @@ suite("config", () => {
       assert.ok(result.config);
       assert.strictEqual(Object.keys(result.config.modules).length, 3);
       assert.strictEqual(result.config.rules["module-boundaries"].rules.length, 3);
+    }
+  });
+
+  test("accepts imports as an array of strings", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { routes: "src/routes/*", features: "src/features/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ importer: "routes", imports: ["features/**/components", "features/**/schemas"] }],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, true);
+  });
+
+  test("loads config from preset and merges overrides", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        preset: "layered",
+        modules: {
+          domain: "src/domain-core/**",
+        },
+        rules: {
+          "module-boundaries": {
+            rules: [{ importer: "presentation", imports: "domain", allow: true }],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, true);
+    if (result.ok) {
+      assert.ok(result.config);
+      assert.strictEqual(result.config.modules.domain, "src/domain-core/**");
+      const rules = result.config.rules["module-boundaries"].rules;
+      assert.ok(rules.some(rule => rule.message === "Domain should not depend on outer layers."));
+      assert.ok(rules.some(rule => rule.importer === "presentation" && rule.imports === "domain" && rule.allow === true));
     }
   });
 
@@ -268,6 +347,37 @@ suite("config", () => {
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
       assert.ok(result.errors.some(e => e.path === "rules.module-boundaries.rules[0].imports"));
+    }
+  });
+
+  test("returns error when preset is unknown", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        preset: "unknown-preset",
+      })
+    );
+
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.ok(result.errors.some(e => e.path === "preset"));
+    }
+  });
+
+  test("returns error when imports array contains non-strings", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { features: "src/features/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ importer: "features", imports: ["features", 42] }],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.ok(result.errors.some(e => e.path === "rules.module-boundaries.rules[0].imports[1]"));
     }
   });
 
@@ -411,6 +521,30 @@ suite("config", () => {
     }
   });
 
+  test("returns error for non-string group", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { features: "src/features/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [
+              {
+                importer: "features",
+                imports: "features",
+                group: 123,
+              },
+            ],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.ok(result.errors.some(e => e.path === "rules.module-boundaries.rules[0].group"));
+    }
+  });
+
   test("accepts containedTo as an object with path only", () => {
     const result = writeAndLoad(
       JSON.stringify({
@@ -437,6 +571,60 @@ suite("config", () => {
       })
     );
     assert.strictEqual(result.ok, true);
+  });
+
+  test("does not warn when containedTo variables are bound in imports", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { features: "src/features/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ imports: "features/$name/components/**/*", containedTo: "features/$name/**/*" }],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, true);
+    if (result.ok) {
+      assert.ok(!result.warnings || result.warnings.length === 0);
+    }
+  });
+
+  test("does not warn when importer variables are bound in imports", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { routes: "src/routes/*", features: "src/features/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ importer: "routes/$name", imports: "features/$name/pages", allow: true }],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, true);
+    if (result.ok) {
+      assert.ok(!result.warnings || result.warnings.length === 0);
+    }
+  });
+
+  test("warns when containedTo references an unbound variable", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { features: "src/features/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ imports: "features/components/**/*", containedTo: "features/$name/**/*" }],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, true);
+    if (result.ok) {
+      assert.ok(result.warnings && result.warnings.length > 0);
+    }
   });
 
   test("returns error when containedTo.unless is an empty object", () => {

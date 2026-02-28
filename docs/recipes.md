@@ -41,6 +41,34 @@ Enforce isolation between features and ensure they only depend on the `shared` l
 }
 ```
 
+## Feature Isolation (Per-Feature Boundaries)
+
+Keep each feature self-contained by restricting imports to the owning feature. This pattern scales well for large codebases where features should not cross-import.
+
+```json
+{
+  "modules": {
+    "features": "src/features/*"
+  },
+  "rules": {
+    "module-boundaries": {
+      "severity": "error",
+      "rules": [
+        {
+          "imports": "features/$name/**/*",
+          "containedTo": "features/$name/**/*",
+          "message": "Features must not be imported outside their own boundary."
+        }
+      ]
+    }
+  }
+}
+```
+
+This means:
+- `features/auth/**` can only be imported by other `features/auth/**` files.
+- `features/billing/**` can only be imported by other `features/billing/**` files.
+
 ## Layered Architecture (Onion)
 
 Ensure the Domain and Application layers don't depend on Infrastructure.

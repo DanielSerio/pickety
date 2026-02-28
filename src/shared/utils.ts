@@ -1,5 +1,6 @@
 import * as path from "path";
 import { minimatch } from "minimatch";
+import type { Violation } from "./types";
 
 export const CONFIG_FILENAME = "pickety.json";
 export const SOURCE_EXTENSIONS = ["ts", "tsx", "js", "jsx", "mjs", "cjs"];
@@ -48,4 +49,22 @@ export function getConfigPath(root: string): string {
  */
 export function formatHealthMetricValue(metric: string, value: number): string {
   return metric === "instability" ? value.toFixed(2) : String(value);
+}
+
+export function countViolationsBySeverity(violations: Violation[]) {
+  let errors = 0;
+  let warnings = 0;
+  let info = 0;
+
+  for (const v of violations) {
+    if (v.severity === "error") {
+      errors += 1;
+    } else if (v.severity === "warn") {
+      warnings += 1;
+    } else {
+      info += 1;
+    }
+  }
+
+  return { errors, warnings, info };
 }

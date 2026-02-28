@@ -4,6 +4,19 @@ All notable changes to the "pickety" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.3.0] - 2026-02-28
+
+### Added
+
+- **Architecture presets.** New built-in presets (`hexagonal`, `feature-modules`, `layered`) can bootstrap modules and boundary rules via a top-level `preset` key in `pickety.json`.
+- **CLI init with presets.** `pickety init --preset <name>` scaffolds a `pickety.json` using a preset.
+- **JSON schema support for `preset`.** Autocomplete and validation now include preset options.
+- **Preset tests.** Added coverage for preset merging and CLI initialization behavior.
+
+### Changed
+
+- **Preset-aware config loading.** When `preset` is provided, preset defaults are merged with user overrides, and preset rules are appended to custom rules.
+
 ## [0.2.0] - 2026-02-26
 
 ### Changed

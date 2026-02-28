@@ -38,7 +38,13 @@ export function validateContainedTo(
         }
 
         // `unless` only works when `imports` has variables to capture
-        if (typeof r.imports === "string" && !r.imports.match(/\$[\w-]+/)) {
+        const imports = Array.isArray(r.imports)
+          ? r.imports.filter((item) => typeof item === "string")
+          : typeof r.imports === "string"
+            ? [r.imports]
+            : [];
+        const hasVariables = imports.some((pattern) => pattern.match(/\$[\w-]+/));
+        if (!hasVariables) {
           errors.push({
             message: `Rule #${index}: "containedTo.unless" requires "imports" to contain at least one $variable`,
             path: `${rulePath}.containedTo.unless`,

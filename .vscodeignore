@@ -6,6 +6,8 @@ src/**
 .yarnrc
 vsc-extension-quickstart.md
 GEMINI.md
+AGENTS.md
+CLAUDE.md
 pickety.json
 node_modules/**
 out/**
@@ -21,3 +23,6 @@ fix-paths.js
 **/.vscode-test.*
 picket-boundaries.mermaid
 fixtures/**
+
+*-debug.log
+*.log

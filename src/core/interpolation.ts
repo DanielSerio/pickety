@@ -4,6 +4,17 @@ export function findVariables(pattern: string): string[] {
   return matches || [];
 }
 
+// Collects unique $variables across multiple patterns.
+export function collectVariables(patterns: string[]): string[] {
+  const vars = new Set<string>();
+  for (const pattern of patterns) {
+    for (const v of findVariables(pattern)) {
+      vars.add(v);
+    }
+  }
+  return [...vars];
+}
+
 // Matches a glob pattern with $variables against a file path using segment-based
 // matching. Avoids regex with multiple .* quantifiers to prevent ReDoS.
 // Returns captured variable values, or undefined if no match.
@@ -117,9 +128,8 @@ export function replaceVariables(
   let result = pattern;
   for (const v of variables) {
     const replacement = typeof values === "string" ? values : values[v];
-    // Use global replace to handle multiple occurrences of the same variable
-    const escapedV = v.replace(/\$/g, "\\$");
-    result = result.replace(new RegExp(escapedV, "g"), replacement);
+    // Use replaceAll to handle multiple occurrences of the same variable
+    result = result.replaceAll(v, replacement);
   }
   return result;
 }

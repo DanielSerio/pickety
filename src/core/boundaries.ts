@@ -6,6 +6,7 @@ import {
 import type { PicketyConfig, Violation, WorkspaceContext } from "../shared/types";
 import {
   normalizePath,
+  normalizeRule,
 } from "./utils";
 import { checkRule } from "./ruleChecker";
 
@@ -21,11 +22,23 @@ export function checkBoundaries(
   const { modules } = config;
   const { severity, rules } = config.rules["module-boundaries"];
   const { root } = ctx;
+  const warnOnUntrackedImporters = config.warnOnUntrackedImporters ?? true;
+  const normalizedRules = rules.map((rule, index) => normalizeRule(rule, index, severity));
 
   // Determine which module this file belongs to
   const sourceModule = matchFileToModule(filePath, modules, root);
   if (!sourceModule) {
-    return [];
+    if (warnOnUntrackedImporters) {
+      violations.push({
+        file: filePath,
+        line: 0,
+        character: 0,
+        length: 1,
+        message: "This file is not covered by any declared module. Import rules will not be enforced here.",
+        severity: "info",
+      });
+    }
+    return violations;
   }
 
   const sourceRelativePath = normalizePath(path.relative(root, filePath));
@@ -48,22 +61,20 @@ export function checkBoundaries(
     const targetRelativePath = normalizePath(path.relative(root, resolvedPath));
 
     // Check each boundary rule for a match
-    rules.forEach((rule, index) => {
-      const v = checkRule(
-        rule,
-        index,
-        severity,
-        sourceModule,
-        sourceRelativePath,
-        targetModule,
-        targetRelativePath,
-        filePath,
-        importStmt
-      );
+    const ruleContext = {
+      sourceModule,
+      sourceRelativePath,
+      targetModule,
+      targetRelativePath,
+      filePath,
+      importStmt,
+    };
+    for (const rule of normalizedRules) {
+      const v = checkRule(rule, ruleContext);
       if (v) {
         violations.push(v);
       }
-    });
+    }
   }
 
   return violations;

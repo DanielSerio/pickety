@@ -100,17 +100,21 @@ function buildMermaidContent(config: PicketyConfig, health?: ModuleHealth[]): st
   rules.forEach((rule, index) => {
     const { effectiveImporter } = resolveRuleDefaults(rule, index, globalSeverity);
     allInvolvedNodes.add(effectiveImporter);
-    allInvolvedNodes.add(rule.imports);
+    const importPatterns = Array.isArray(rule.imports) ? rule.imports : [rule.imports];
+    importPatterns.forEach((pattern) => {
+      if (typeof pattern === "string") {
+        allInvolvedNodes.add(pattern);
+      }
+    });
   });
 
   // Simple clustering - group by first segment of module name
   allInvolvedNodes.forEach((name) => {
     const parts = name.split("/");
     const cluster = parts.length > 1 ? parts[0] : "Base";
-    if (!clusters.has(cluster)) {
-      clusters.set(cluster, []);
-    }
-    clusters.get(cluster)!.push(name);
+    const existing = clusters.get(cluster) ?? [];
+    existing.push(name);
+    clusters.set(cluster, existing);
   });
 
   const nodeIds = new Map<string, string>();
@@ -160,20 +164,27 @@ function buildMermaidContent(config: PicketyConfig, health?: ModuleHealth[]): st
       globalSeverity
     );
 
+    const importPatterns = Array.isArray(rule.imports) ? rule.imports : [rule.imports];
     const fromId = getSafeId(effectiveImporter);
-    const toId = getSafeId(rule.imports);
 
-    const arrow = isAllowStyle ? "-->" : "-.->";
-    const actionLabel = allow ? "ALLOW" : "DENY";
-    const label = rule.message || `${actionLabel}: ${name}`;
+    importPatterns.forEach((pattern) => {
+      if (typeof pattern !== "string") {
+        return;
+      }
 
-    lines.push(`  ${fromId} ${arrow}|"${escapeMermaid(label)}"| ${toId}`);
+      const toId = getSafeId(pattern);
+      const arrow = isAllowStyle ? "-->" : "-.->";
+      const actionLabel = allow ? "ALLOW" : "DENY";
+      const label = rule.message || `${actionLabel}: ${name}`;
 
-    // Style the edge: green for allow, red for deny, thicker for 'only' constraints
-    const color = isAllowStyle ? "#22c55e" : "#ef4444";
-    const width = isOnly ? "4px" : "2px";
-    const dash = isAllowStyle ? "" : ",stroke-dasharray:5";
-    edgeStyles.push(`  linkStyle ${edgeIndex++} stroke:${color},stroke-width:${width}${dash}`);
+      lines.push(`  ${fromId} ${arrow}|"${escapeMermaid(label)}"| ${toId}`);
+
+      // Style the edge: green for allow, red for deny, thicker for 'only' constraints
+      const color = isAllowStyle ? "#22c55e" : "#ef4444";
+      const width = isOnly ? "4px" : "2px";
+      const dash = isAllowStyle ? "" : ",stroke-dasharray:5";
+      edgeStyles.push(`  linkStyle ${edgeIndex++} stroke:${color},stroke-width:${width}${dash}`);
+    });
   });
 
   return lines.concat(edgeStyles).join("\n");

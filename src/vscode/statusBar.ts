@@ -8,14 +8,14 @@ export class PicketyStatusBar {
     this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     this.item.command = "pickety.refresh";
     context.subscriptions.push(this.item);
-    this.item.show();
   }
 
   public update(config: PicketyConfig | undefined, diagnosticCollection: vscode.DiagnosticCollection) {
     if (!config) {
-      this.item.text = "$(warning) Pickety: No Config";
-      this.item.tooltip = "Pickety is inactive. Check pickety.json for errors.";
-      this.item.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
+      this.item.text = "";
+      this.item.tooltip = "";
+      this.item.backgroundColor = undefined;
+      this.item.hide();
       return;
     }
 
@@ -28,10 +28,12 @@ export class PicketyStatusBar {
       this.item.text = `$(shield) Pickety: ${violationCount} issue(s)`;
       this.item.tooltip = `Found ${violationCount} architectural violations. Click to refresh.`;
       this.item.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
+      this.item.show();
     } else {
       this.item.text = "$(check) Pickety";
       this.item.tooltip = "Architectural boundaries are secure. Click to refresh.";
       this.item.backgroundColor = undefined;
+      this.item.show();
     }
   }
 

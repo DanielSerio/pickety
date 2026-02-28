@@ -8,24 +8,41 @@ import { ImportGraph, getFileDependencies } from "../core/graph";
 import { SOURCE_EXTENSIONS, normalizePath } from "../shared/utils";
 import { findCycles } from "../core/utils";
 import { computeModuleHealth, checkHealthThresholds } from "../core/health";
-import { formatViolation, printImpactReport, printHealthReport } from "./formatters";
+import { buildCheckReport, formatGroupSummary, formatViolation, printImpactReport, printHealthReport } from "./formatters";
 import type { PicketyConfig, Violation, WorkspaceContext } from "../shared/types";
+
+type OutputFormat = "text" | "json";
 
 function parseArgs(argv: string[]) {
   const args = argv.slice(2);
   const command = args[0];
   let root = process.cwd();
+  let format: OutputFormat = "text";
 
   const rootFlagIndex = args.indexOf("--root");
   if (rootFlagIndex !== -1 && args[rootFlagIndex + 1]) {
     root = path.resolve(args[rootFlagIndex + 1]);
   }
 
+  const formatFlagIndex = args.indexOf("--format");
+  if (formatFlagIndex !== -1) {
+    const value = args[formatFlagIndex + 1];
+    if (!value || value.startsWith("--")) {
+      console.error('Missing value for "--format". Use "text" or "json".');
+      process.exit(1);
+    }
+    if (value !== "text" && value !== "json") {
+      console.error(`Invalid format "${value}". Use "text" or "json".`);
+      process.exit(1);
+    }
+    format = value;
+  }
+
   const target = command === "impact" && args[1] && !args[1].startsWith("--")
     ? path.resolve(root, args[1])
     : undefined;
 
-  return { command, root, target };
+  return { command, root, target, format };
 }
 
 const SOURCE_EXT_SET = new Set(SOURCE_EXTENSIONS.map((ext) => `.${ext}`));
@@ -59,6 +76,7 @@ function printUsage() {
   console.log("");
   console.log("Options:");
   console.log("  --root <path>      Workspace root (defaults to current directory)");
+  console.log("  --format <text|json>  Output format for check (defaults to text)");
 }
 
 function loadWorkspace(root: string): { config: PicketyConfig; ctx: WorkspaceContext; } {
@@ -112,7 +130,7 @@ function buildImportGraph(ctx: WorkspaceContext): ImportGraph {
   return graph;
 }
 
-function runCheck(root: string) {
+function runCheck(root: string, format: OutputFormat) {
   const { config, ctx } = loadWorkspace(root);
   const graph = new ImportGraph();
   const allViolations: Violation[] = [];
@@ -134,6 +152,12 @@ function runCheck(root: string) {
   const moduleGraph = graph.getModuleLevelGraph(config.modules, root);
   const cycles = findCycles(moduleGraph);
 
+  if (format === "json") {
+    const report = buildCheckReport(finalViolations, cycles, root);
+    console.log(JSON.stringify(report, null, 2));
+    process.exit(report.summary.errors > 0 ? 1 : 0);
+  }
+
   if (finalViolations.length === 0 && cycles.length === 0) {
     console.log("No boundary violations found.");
     process.exit(0);
@@ -150,6 +174,11 @@ function runCheck(root: string) {
   const errorCount = finalViolations.filter((v) => v.severity === "error").length + cycles.length;
   const warnCount = finalViolations.filter((v) => v.severity === "warn").length;
   const infoCount = finalViolations.filter((v) => v.severity === "info").length;
+
+  const groupSummary = formatGroupSummary(finalViolations);
+  if (groupSummary) {
+    console.log(groupSummary);
+  }
 
   console.log("");
   console.log(`Found ${finalViolations.length} violation(s): ${errorCount} error(s), ${warnCount} warning(s), ${infoCount} info(s)`);
@@ -190,7 +219,7 @@ function runHealth(root: string) {
 }
 
 function main() {
-  const { command, root, target } = parseArgs(process.argv);
+  const { command, root, target, format } = parseArgs(process.argv);
 
   if (!command || command === "--help" || command === "-h") {
     printUsage();
@@ -199,7 +228,7 @@ function main() {
 
   switch (command) {
     case "check":
-      runCheck(root);
+      runCheck(root, format);
       break;
     case "impact":
       runImpact(root, target);

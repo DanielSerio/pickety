@@ -24,13 +24,14 @@ export interface ContainedToOptions {
 // A single boundary rule: defines whether an import between two modules is allowed
 export interface BoundaryRule {
   importer?: string; // source module name or glob pattern
-  imports: string; // target module name or glob pattern
+  imports: string | string[]; // target module name or glob pattern(s)
   allow?: boolean; // defaults to false (deny)
   only?: boolean; // if true, the 'imports' can ONLY be imported by 'importer'
   containedTo?: string | ContainedToOptions; // shortcut for 'only: true' with this importer pattern
   message?: string; // custom error message
   severity?: Severity; // optional per-rule severity override
   name?: string; // optional rule name for identification
+  group?: string; // optional group label for diagnostics and CLI summaries
   maxViolations?: number; // threshold: violations at or below this count are downgraded to warnings
 }
 
@@ -74,6 +75,7 @@ export interface Violation {
   message: string;
   severity: Severity;
   ruleName?: string; // the name or index of the rule that was violated
+  ruleGroup?: string; // optional group name for diagnostics and CLI summaries
   sourceModule?: string;
   targetModule?: string;
 }

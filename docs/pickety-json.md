@@ -10,6 +10,7 @@ Pickety uses a `pickety.json` file in the workspace root to define module bounda
   "rules": {
     "module-boundaries": { ... }
   },
+  "warnOnUntrackedImporters": true,
   "boundary-diagrams": true,
   "health": { ... }
 }
@@ -70,7 +71,7 @@ An array of boundary rules. Each rule has:
 
 | Field         | Type               | Required    | Description                                                                                      |
 | ------------- | ------------------ | ----------- | ------------------------------------------------------------------------------------------------ |
-| `imports`     | `string`           | Yes         | Target module name, glob pattern, or file path glob                                              |
+| `imports`     | `string \| string[]` | Yes       | Target module name(s), glob pattern(s), or file path glob(s). Any match triggers the rule.       |
 | `importer`    | `string`           | Conditional | Source module name or glob pattern. Required unless `containedTo` is set.                        |
 | `allow`       | `boolean`          | No          | `true` to permit the import, `false` to forbid it. Defaults to `false`.                          |
 | `only`        | `boolean`          | No          | `true` = the `imports` target can **only** be used by this `importer`. Everyone else is blocked. |
@@ -78,6 +79,7 @@ An array of boundary rules. Each rule has:
 | `message`     | `string`           | No          | Custom message shown in the diagnostic                                                           |
 | `severity`    | `string`           | No          | `"error"` or `"warn"`. Overrides the rule-set severity for this rule only.                       |
 | `name`        | `string`           | No          | Rule identifier shown in diagnostics and quick-fix labels.                                       |
+| `group`       | `string`           | No          | Group label shown in diagnostics and used for CLI summaries.                                     |
 | `maxViolations` | `number`         | No          | Violations at or below this count are downgraded to `warn`. Useful for gradual adoption.         |
 
 Both `importer` and `imports` support glob patterns via [minimatch](https://github.com/isaacs/minimatch), so you can write rules like `"*"` (all modules) or `"feature-*"` (any module starting with `feature-`).
@@ -97,6 +99,18 @@ For example, `"features/**/components"` matches any file under a `components` fo
 ```
 
 This would flag an import like `import { Button } from '../features/auth/components/Button'`.
+
+### Multiple import targets
+
+You can provide a list of `imports` patterns instead of repeating rules:
+
+```json
+{
+  "importer": "routes",
+  "imports": ["features/**/components", "features/**/schemas"],
+  "message": "Routes cannot import feature components or schemas directly"
+}
+```
 
 ### Interpolation variables
 
@@ -186,6 +200,16 @@ Automatically generate a [Mermaid](https://mermaid.js.org/) diagram of your modu
 
 - `true`: Writes to `picket-boundaries.mermaid` in the workspace root.
 - `"path/to/file.mermaid"`: Writes to a custom relative path.
+
+## `warnOnUntrackedImporters`
+
+When `true` (default), Pickety emits an **info** diagnostic if a file does not match any module in `modules`. These files bypass all import rules.
+
+```json
+{
+  "warnOnUntrackedImporters": false
+}
+```
 
 ## `health`
 

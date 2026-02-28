@@ -201,6 +201,26 @@ suite("boundaries — file path glob patterns", () => {
 
     assert.strictEqual(violations.length, 2);
   });
+
+  test("imports array triggers violations for any matching target", () => {
+    const config = makeConfig([
+      { importer: "routes", imports: ["features/**/components", "features/**/schemas"] },
+    ]);
+
+    const content = [
+      `import { LoginForm } from '../../features/auth/components/LoginForm';`,
+      `import { loginSchema } from '../../features/auth/schemas/loginSchema';`,
+    ].join("\n");
+
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/routes/auth/index.ts`,
+      content,
+      config,
+      makeCtx()
+    );
+
+    assert.strictEqual(violations.length, 2);
+  });
 });
 
 suite("boundaries — interpolation variables", () => {
@@ -725,6 +745,36 @@ suite("boundaries — rule identification and severity", () => {
     );
 
     assert.strictEqual(violations[0].severity, "warn");
+  });
+
+  test("includes group and rule name in violation message", () => {
+    const config = makeConfig([
+      { importer: "features", imports: "features", name: "no-cross-feature", group: "Layering" },
+    ]);
+
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/auth/service.ts`,
+      `import { api } from '../billing/api';`,
+      config,
+      makeCtx()
+    );
+
+    assert.ok(violations[0].message.startsWith("[Layering: no-cross-feature]"));
+  });
+
+  test("includes group with default rule name when name is omitted", () => {
+    const config = makeConfig([
+      { importer: "features", imports: "features", group: "Layering" },
+    ]);
+
+    const violations = checkBoundaries(
+      `${ROOT_DIR}/src/features/auth/service.ts`,
+      `import { api } from '../billing/api';`,
+      config,
+      makeCtx()
+    );
+
+    assert.ok(violations[0].message.startsWith("[Layering: rule[0]]"));
   });
 
   test("includes custom rule name in violation message", () => {

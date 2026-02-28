@@ -177,6 +177,21 @@ suite("config", () => {
     }
   });
 
+  test("accepts imports as an array of strings", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { routes: "src/routes/*", features: "src/features/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ importer: "routes", imports: ["features/**/components", "features/**/schemas"] }],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, true);
+  });
+
   // --- Edge cases ---
 
   test("returns ok: true and undefined config when pickety.json does not exist", () => {
@@ -307,6 +322,24 @@ suite("config", () => {
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
       assert.ok(result.errors.some(e => e.path === "rules.module-boundaries.rules[0].imports"));
+    }
+  });
+
+  test("returns error when imports array contains non-strings", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { features: "src/features/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ importer: "features", imports: ["features", 42] }],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.ok(result.errors.some(e => e.path === "rules.module-boundaries.rules[0].imports[1]"));
     }
   });
 
@@ -447,6 +480,30 @@ suite("config", () => {
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
       assert.ok(result.errors.some(e => e.path === "rules.module-boundaries.rules[0].name"));
+    }
+  });
+
+  test("returns error for non-string group", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        modules: { features: "src/features/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [
+              {
+                importer: "features",
+                imports: "features",
+                group: 123,
+              },
+            ],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.ok(result.errors.some(e => e.path === "rules.module-boundaries.rules[0].group"));
     }
   });
 

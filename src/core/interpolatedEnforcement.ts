@@ -19,12 +19,15 @@ import {
  */
 export function checkInterpolatedRule(
   rule: BoundaryRule,
+  importsPattern: string,
   variables: string[],
   isOnly: boolean,
   allow: boolean,
   effectiveImporter: string,
   ruleSeverity: Severity,
   ruleName: string,
+  ruleLabel: string,
+  ruleGroup: string | undefined,
   sourceModule: string,
   sourceRelativePath: string,
   targetModule: string,
@@ -35,7 +38,7 @@ export function checkInterpolatedRule(
   if (isOnly) {
     // ONLY rule with interpolation: capture variables from target path
     const captured = captureVariablesFromPath(
-      rule.imports,
+      importsPattern,
       targetRelativePath,
       variables
     );
@@ -56,10 +59,12 @@ export function checkInterpolatedRule(
           filePath,
           importStmt,
           ruleName,
+          ruleLabel,
           message,
           ruleSeverity,
           sourceModule,
-          targetModule
+          targetModule,
+          ruleGroup
         );
       }
     }
@@ -71,8 +76,8 @@ export function checkInterpolatedRule(
     }
 
     if (allow) {
-      const generalPattern = replaceVariables(rule.imports, variables, "*");
-      const specificPattern = replaceVariables(rule.imports, variables, captured);
+      const generalPattern = replaceVariables(importsPattern, variables, "*");
+      const specificPattern = replaceVariables(importsPattern, variables, captured);
 
       const matchesGeneral = matchesModuleOrPath(targetModule, targetRelativePath, generalPattern);
       const matchesSpecific = matchesModuleOrPath(targetModule, targetRelativePath, specificPattern);
@@ -84,14 +89,16 @@ export function checkInterpolatedRule(
           filePath,
           importStmt,
           ruleName,
+          ruleLabel,
           message,
           ruleSeverity,
           sourceModule,
-          targetModule
+          targetModule,
+          ruleGroup
         );
       }
     } else {
-      const specificPattern = replaceVariables(rule.imports, variables, captured);
+      const specificPattern = replaceVariables(importsPattern, variables, captured);
       const toMatches = matchesModuleOrPath(targetModule, targetRelativePath, specificPattern);
 
       if (toMatches) {
@@ -101,10 +108,12 @@ export function checkInterpolatedRule(
           filePath,
           importStmt,
           ruleName,
+          ruleLabel,
           message,
           ruleSeverity,
           sourceModule,
-          targetModule
+          targetModule,
+          ruleGroup
         );
       }
     }

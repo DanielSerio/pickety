@@ -47,4 +47,4 @@ When Pickety flags a violation, click the **Quick Fix** (lightbulb) on the red s
 
 ---
 
-For detailed rule syntax, see [pickety.json Reference](./pickety-json.md).
+For detailed rule syntax, see [pickety.json Reference](./pickety-json.md). For CI and local enforcement, see [CLI Usage](./cli.md).

@@ -32,66 +32,86 @@ export function checkRule(
     allow,
     severity: ruleSeverity,
     name: ruleName,
+    label: ruleLabel,
+    group: ruleGroup,
     effectiveImporter,
     isOnly,
   } = resolveRuleDefaults(rule, index, globalSeverity);
 
-  const variables = findVariables(isOnly ? rule.imports : effectiveImporter);
+  const importPatterns = Array.isArray(rule.imports) ? rule.imports : [rule.imports];
 
-  if (variables.length > 0) {
-    return checkInterpolatedRule(
-      rule,
-      variables,
-      isOnly,
-      allow,
-      effectiveImporter,
-      ruleSeverity,
-      ruleName,
-      sourceModule,
-      sourceRelativePath,
-      targetModule,
-      targetRelativePath,
-      filePath,
-      importStmt
-    );
-  }
+  for (const importsPattern of importPatterns) {
+    if (typeof importsPattern !== "string") {
+      continue;
+    }
 
-  // Regular rule: no interpolation variables
-  const fromMatches = matchesModuleOrPath(sourceModule, sourceRelativePath, effectiveImporter);
-  const toMatches = matchesModuleOrPath(targetModule, targetRelativePath, rule.imports);
+    const variables = findVariables(isOnly ? importsPattern : effectiveImporter);
+    if (variables.length > 0) {
+      const violation = checkInterpolatedRule(
+        rule,
+        importsPattern,
+        variables,
+        isOnly,
+        allow,
+        effectiveImporter,
+        ruleSeverity,
+        ruleName,
+        ruleLabel,
+        ruleGroup,
+        sourceModule,
+        sourceRelativePath,
+        targetModule,
+        targetRelativePath,
+        filePath,
+        importStmt
+      );
+      if (violation) {
+        return violation;
+      }
+      continue;
+    }
 
-  if (isOnly) {
-    if (toMatches && !fromMatches) {
+    // Regular rule: no interpolation variables
+    const fromMatches = matchesModuleOrPath(sourceModule, sourceRelativePath, effectiveImporter);
+    const toMatches = matchesModuleOrPath(targetModule, targetRelativePath, importsPattern);
+
+    if (isOnly) {
+      if (toMatches && !fromMatches) {
+        const message =
+          rule.message ||
+          (rule.containedTo
+            ? `Import is restricted: "${targetModule}" is contained to "${effectiveImporter}"`
+            : `Module "${targetModule}" can only be imported by "${effectiveImporter}"`);
+
+        return createViolation(
+          filePath,
+          importStmt,
+          ruleName,
+          ruleLabel,
+          message,
+          ruleSeverity,
+          sourceModule,
+          targetModule,
+          ruleGroup
+        );
+      }
+    } else if (fromMatches && toMatches && !allow) {
       const message =
         rule.message ||
-        (rule.containedTo
-          ? `Import is restricted: "${targetModule}" is contained to "${effectiveImporter}"`
-          : `Module "${targetModule}" can only be imported by "${effectiveImporter}"`);
+        `Module "${sourceModule}" cannot import from "${targetModule}"`;
 
       return createViolation(
         filePath,
         importStmt,
         ruleName,
+        ruleLabel,
         message,
         ruleSeverity,
         sourceModule,
-        targetModule
+        targetModule,
+        ruleGroup
       );
     }
-  } else if (fromMatches && toMatches && !allow) {
-    const message =
-      rule.message ||
-      `Module "${sourceModule}" cannot import from "${targetModule}"`;
-
-    return createViolation(
-      filePath,
-      importStmt,
-      ruleName,
-      message,
-      ruleSeverity,
-      sourceModule,
-      targetModule
-    );
   }
 
   return undefined;

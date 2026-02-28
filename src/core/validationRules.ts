@@ -106,9 +106,22 @@ export function validateBoundaryRules(
         path: `${rulePath}.importer`,
       });
     }
-    if (typeof r.imports !== "string") {
+    let importPatterns: string[] | undefined;
+    if (typeof r.imports === "string") {
+      importPatterns = [r.imports];
+    } else if (Array.isArray(r.imports)) {
+      const invalidIndex = r.imports.findIndex((item) => typeof item !== "string");
+      if (invalidIndex !== -1) {
+        errors.push({
+          message: `Rule #${index}: "imports" entries must be strings`,
+          path: `${rulePath}.imports[${invalidIndex}]`,
+        });
+      } else {
+        importPatterns = r.imports as string[];
+      }
+    } else {
       errors.push({
-        message: `Rule #${index}: "imports" is required and must be a string`,
+        message: `Rule #${index}: "imports" is required and must be a string or string[]`,
         path: `${rulePath}.imports`,
       });
     }
@@ -147,6 +160,12 @@ export function validateBoundaryRules(
         path: `${rulePath}.name`,
       });
     }
+    if (r.group !== undefined && typeof r.group !== "string") {
+      errors.push({
+        message: `Rule #${index}: "group" must be a string`,
+        path: `${rulePath}.group`,
+      });
+    }
     if (r.maxViolations !== undefined) {
       if (typeof r.maxViolations !== "number" || !Number.isInteger(r.maxViolations) || r.maxViolations < 0) {
         errors.push({
@@ -156,8 +175,8 @@ export function validateBoundaryRules(
       }
     }
 
-    if (typeof r.imports === "string") {
-      const importVars = new Set(findVariables(r.imports));
+    if (importPatterns) {
+      const importVars = new Set(importPatterns.flatMap((pattern) => findVariables(pattern)));
       const warnOnUnboundVariables = (pattern: string, path: string, label: string) => {
         const vars = findVariables(pattern);
         const unbound = vars.filter((v) => !importVars.has(v));

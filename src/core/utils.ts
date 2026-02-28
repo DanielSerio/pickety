@@ -34,10 +34,15 @@ export function resolveRuleDefaults(
   globalSeverity: Severity
 ) {
   const ct = getContainedToOptions(rule);
+  const name = rule.name ?? `rule[${index}]`;
+  const group = rule.group;
+  const label = group ? `${group}: ${name}` : name;
   return {
     allow: rule.allow ?? false,
     severity: rule.severity ?? globalSeverity,
-    name: rule.name ?? `rule[${index}]`,
+    name,
+    group,
+    label,
     effectiveImporter: ct?.path || rule.importer || "*",
     isOnly: rule.only || !!rule.containedTo,
     isAllowStyle: (rule.allow ?? false) || !!rule.containedTo || rule.only,
@@ -96,19 +101,22 @@ export function createViolation(
   filePath: string,
   importStmt: ImportStatement,
   ruleName: string,
+  ruleLabel: string,
   message: string,
   severity: Severity,
   sourceModule?: string,
-  targetModule?: string
+  targetModule?: string,
+  ruleGroup?: string
 ): Violation {
   return {
     file: filePath,
     line: importStmt.line,
     character: importStmt.character,
     length: importStmt.length,
-    message: `[${ruleName}] ${message} (importing "${importStmt.specifier}")`,
+    message: `[${ruleLabel}] ${message} (importing "${importStmt.specifier}")`,
     severity,
     ruleName,
+    ruleGroup,
     sourceModule,
     targetModule,
   };

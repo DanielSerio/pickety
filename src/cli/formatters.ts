@@ -14,6 +14,109 @@ export function formatViolation(v: Violation, root: string): string {
   return `${relativePath}:${line}:${col}: ${severity} ${v.message}`;
 }
 
+export function formatGroupSummary(violations: Violation[]): string | undefined {
+  const grouped = new Map<string, number>();
+  let ungrouped = 0;
+  let hasGroup = false;
+
+  for (const v of violations) {
+    if (v.ruleGroup) {
+      hasGroup = true;
+      grouped.set(v.ruleGroup, (grouped.get(v.ruleGroup) ?? 0) + 1);
+    } else {
+      ungrouped += 1;
+    }
+  }
+
+  if (!hasGroup) {
+    return undefined;
+  }
+
+  const lines: string[] = [];
+  lines.push("");
+  lines.push("Groups:");
+  for (const [group, count] of grouped.entries()) {
+    lines.push(`  ${group}: ${count}`);
+  }
+  if (ungrouped > 0) {
+    lines.push(`  (ungrouped): ${ungrouped}`);
+  }
+  return lines.join("\n");
+}
+
+export type CheckReport = {
+  violations: Array<{
+    file: string;
+    line: number;
+    column: number;
+    length: number;
+    message: string;
+    severity: string;
+    ruleName?: string;
+    ruleGroup?: string;
+    sourceModule?: string;
+    targetModule?: string;
+  }>;
+  cycles: string[][];
+  summary: {
+    violations: number;
+    cycles: number;
+    errors: number;
+    warnings: number;
+    info: number;
+  };
+  groups: Record<string, number>;
+};
+
+export function buildCheckReport(
+  violations: Violation[],
+  cycles: string[][],
+  root: string
+): CheckReport {
+  const formattedViolations = violations.map((v) => ({
+    file: toRelativePath(root, v.file),
+    line: v.line + 1,
+    column: v.character + 1,
+    length: v.length,
+    message: v.message,
+    severity: v.severity,
+    ruleName: v.ruleName,
+    ruleGroup: v.ruleGroup,
+    sourceModule: v.sourceModule,
+    targetModule: v.targetModule,
+  }));
+
+  const errors = violations.filter((v) => v.severity === "error").length + cycles.length;
+  const warnings = violations.filter((v) => v.severity === "warn").length;
+  const info = violations.filter((v) => v.severity === "info").length;
+
+  const groups: Record<string, number> = {};
+  let ungrouped = 0;
+  for (const v of violations) {
+    if (v.ruleGroup) {
+      groups[v.ruleGroup] = (groups[v.ruleGroup] ?? 0) + 1;
+    } else {
+      ungrouped += 1;
+    }
+  }
+  if (ungrouped > 0) {
+    groups.ungrouped = ungrouped;
+  }
+
+  return {
+    violations: formattedViolations,
+    cycles,
+    summary: {
+      violations: violations.length,
+      cycles: cycles.length,
+      errors,
+      warnings,
+      info,
+    },
+    groups,
+  };
+}
+
 /**
  * Prints a grouped impact report for a single file to the console.
  */

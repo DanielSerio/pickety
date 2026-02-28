@@ -53,9 +53,21 @@
                     "markdownDescription": "Source module name or glob pattern.\n\nSupports `$variable` interpolation to match importer subdirectories with target subdirectories."
                   },
                   "imports": {
-                    "type": "string",
-                    "description": "Target module name, glob, or relative path pattern.",
-                    "markdownDescription": "Target module name, glob, or relative path pattern.\n\nSupports `$variable` interpolation."
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "description": "Target module name, glob, or relative path pattern.",
+                        "markdownDescription": "Target module name, glob, or relative path pattern.\n\nSupports `$variable` interpolation."
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "List of target module names or glob patterns. Any match triggers the rule.",
+                        "markdownDescription": "List of target module names or glob patterns. Any match triggers the rule.\n\nSupports `$variable` interpolation per entry."
+                      }
+                    ]
                   },
                   "allow": {
                     "type": "boolean",
@@ -110,6 +122,10 @@
                   "name": {
                     "type": "string",
                     "description": "Unique identifier for the rule. Used in diagnostics and 'Go to Rule' navigation."
+                  },
+                  "group": {
+                    "type": "string",
+                    "description": "Optional group label for diagnostics and CLI summaries."
                   },
                   "maxViolations": {
                     "type": "integer",

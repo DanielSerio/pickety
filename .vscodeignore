@@ -23,3 +23,6 @@ fix-paths.js
 **/.vscode-test.*
 picket-boundaries.mermaid
 fixtures/**
+
+*-debug.log
+*.log

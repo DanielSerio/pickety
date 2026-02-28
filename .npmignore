@@ -29,3 +29,5 @@ resources/*.png
 CONTRIBUTING.md
 CHANGELOG.md
 fixtures/**
+*-debug.log
+*.log

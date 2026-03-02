@@ -88,19 +88,21 @@ function mergeHealthConfig(
   return { ...preset, ...override };
 }
 
-interface MergeOptionalFieldOptions {
+interface MergeOptionalFieldsOptions {
   merged: Record<string, unknown>;
   preset: Record<string, unknown>;
   override: Record<string, unknown>;
-  key: string;
+  keys: string[];
 }
 
-function mergeOptionalField(options: MergeOptionalFieldOptions) {
-  const { merged, preset, override, key } = options;
-  if (override[key] !== undefined) {
-    merged[key] = override[key];
-  } else if (preset[key] !== undefined) {
-    merged[key] = preset[key];
+function mergeOptionalFields(options: MergeOptionalFieldsOptions) {
+  const { merged, preset, override, keys } = options;
+  for (const key of keys) {
+    if (override[key] !== undefined) {
+      merged[key] = override[key];
+    } else if (preset[key] !== undefined) {
+      merged[key] = preset[key];
+    }
   }
 }
 
@@ -173,12 +175,14 @@ function mergePresetConfig(
   merged.rules = mergeRules(preset.rules, override.rules);
 
   const presetRecord = preset as unknown as Record<string, unknown>;
-  mergeOptionalField({ merged, preset: presetRecord, override, key: "warnOnUntrackedImporters" });
-  mergeOptionalField({ merged, preset: presetRecord, override, key: "boundary-diagrams" });
-  mergeOptionalField({ merged, preset: presetRecord, override, key: "ignore" });
+  mergeOptionalFields({
+    merged,
+    preset: presetRecord,
+    override,
+    keys: ["warnOnUntrackedImporters", "boundary-diagrams", "ignore", "version"]
+  });
 
   merged.health = mergeHealthConfig(preset.health, override.health);
-  mergeOptionalField({ merged, preset: presetRecord, override, key: "version" });
 
   return merged;
 }

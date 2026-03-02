@@ -362,6 +362,7 @@ export class DocumentValidator implements vscode.Disposable {
       this.codeLensProvider?.refresh();
     } catch (e) {
       this.telemetry.logError(e instanceof Error ? e : String(e), "handleExternalChange");
+      this.outputChannel.appendLine(`Pickety: Error reading changed file ${uri.fsPath}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 

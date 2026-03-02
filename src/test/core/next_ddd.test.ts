@@ -5,7 +5,7 @@ import { checkBoundaries } from "../../core/boundaries";
 import { loadConfig } from "../../core/config";
 import { loadTsConfigAliases } from "../../core/tsconfig";
 import * as fs from "fs";
-import type { WorkspaceContext } from "../../shared/types";
+import type { WorkspaceContext, PicketyConfig } from "../../shared/types";
 
 // This test uses the actual fixture on disk
 const FIXTURE_DIR = normalizePath(path.resolve(__dirname, "../../../fixtures/next-ddd"));
@@ -19,7 +19,7 @@ function makeCtx(files: Set<string>, root: string, aliases: Record<string, strin
 }
 
 suite("Next-DDD Fixture Validation", () => {
-  let config: any;
+  let config: PicketyConfig | undefined;
   let aliases: Record<string, string>;
   let knownFiles: Set<string>;
 
@@ -56,7 +56,7 @@ suite("Next-DDD Fixture Validation", () => {
     const violations = checkBoundaries({
       filePath,
       content,
-      config,
+      config: config!,
       ctx: makeCtx(knownFiles, FIXTURE_DIR, aliases),
     });
 
@@ -73,7 +73,7 @@ suite("Next-DDD Fixture Validation", () => {
     const violations = checkBoundaries({
       filePath,
       content,
-      config,
+      config: config!,
       ctx: makeCtx(knownFiles, FIXTURE_DIR, aliases),
     });
 
@@ -86,7 +86,7 @@ suite("Next-DDD Fixture Validation", () => {
     const coreViolations = checkBoundaries({
       filePath: corePath,
       content: coreContent,
-      config,
+      config: config!,
       ctx: makeCtx(knownFiles, FIXTURE_DIR, aliases),
     });
     assert.strictEqual(coreViolations.length, 0, "Core service should be valid");
@@ -96,7 +96,7 @@ suite("Next-DDD Fixture Validation", () => {
     const domainViolations = checkBoundaries({
       filePath: domainPath,
       content: domainContent,
-      config,
+      config: config!,
       ctx: makeCtx(knownFiles, FIXTURE_DIR, aliases),
     });
     assert.strictEqual(domainViolations.length, 0, "Domain model should be valid");

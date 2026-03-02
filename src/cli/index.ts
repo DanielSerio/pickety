@@ -169,7 +169,7 @@ function loadWorkspace(root: string): WorkspaceResult {
   };
 }
 
-function buildImportGraph(ctx: WorkspaceContext, verbose: boolean): ImportGraph {
+function buildImportGraph(ctx: WorkspaceContext, _verbose: boolean): ImportGraph {
   const graph = new ImportGraph();
   for (const filePath of ctx.knownFiles) {
     try {
@@ -177,16 +177,14 @@ function buildImportGraph(ctx: WorkspaceContext, verbose: boolean): ImportGraph 
       const deps = getFileDependencies(filePath, content, ctx);
       graph.updateFile(filePath, deps);
     } catch (err) {
-      if (verbose) {
-        const detail = err instanceof Error ? err.message : String(err);
-        console.warn(`Skipping unreadable file: ${filePath} (${detail})`);
-      }
+      const detail = err instanceof Error ? err.message : String(err);
+      console.warn(`warning: Skipping unreadable file: ${filePath} (${detail})`);
     }
   }
   return graph;
 }
 
-function runCheck(root: string, format: OutputFormat, verbose: boolean): number {
+function runCheck(root: string, format: OutputFormat, _verbose: boolean): number {
   const workspace = loadWorkspace(root);
   if (!workspace.ok) {
     return workspace.exitCode;
@@ -204,10 +202,8 @@ function runCheck(root: string, format: OutputFormat, verbose: boolean): number 
       const fileDeps = getFileDependencies(filePath, content, ctx);
       graph.updateFile(filePath, fileDeps);
     } catch (err) {
-      if (verbose) {
-        const detail = err instanceof Error ? err.message : String(err);
-        console.warn(`Skipping unreadable file: ${filePath} (${detail})`);
-      }
+      const detail = err instanceof Error ? err.message : String(err);
+      console.warn(`warning: Skipping unreadable file: ${filePath} (${detail})`);
     }
   }
 

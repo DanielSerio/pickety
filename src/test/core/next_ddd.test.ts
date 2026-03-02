@@ -53,7 +53,12 @@ suite("Next-DDD Fixture Validation", () => {
     const filePath = normalizePath(path.join(FIXTURE_DIR, "features/strain/pages/StrainManagementPage.tsx"));
     const content = fs.readFileSync(filePath, "utf-8");
 
-    const violations = checkBoundaries(filePath, content, config, makeCtx(knownFiles, FIXTURE_DIR, aliases));
+    const violations = checkBoundaries({
+      filePath,
+      content,
+      config,
+      ctx: makeCtx(knownFiles, FIXTURE_DIR, aliases),
+    });
 
     // StrainManagementPage imports @/features/batch/pages/BatchPage, which matches
     // the "only" rule restricting features/*/pages/** to the app module.
@@ -65,7 +70,12 @@ suite("Next-DDD Fixture Validation", () => {
     const filePath = normalizePath(path.join(FIXTURE_DIR, "app/main.tsx"));
     const content = fs.readFileSync(filePath, "utf-8");
 
-    const violations = checkBoundaries(filePath, content, config, makeCtx(knownFiles, FIXTURE_DIR, aliases));
+    const violations = checkBoundaries({
+      filePath,
+      content,
+      config,
+      ctx: makeCtx(knownFiles, FIXTURE_DIR, aliases),
+    });
 
     assert.strictEqual(violations.length, 0, `Expected no violations in app/main.tsx, but found: ${violations.map(v => v.message).join(", ")}`);
   });
@@ -73,12 +83,22 @@ suite("Next-DDD Fixture Validation", () => {
   test("Domain and Core layers should follow rules", () => {
     const corePath = normalizePath(path.join(FIXTURE_DIR, "core/service.ts"));
     const coreContent = fs.readFileSync(corePath, "utf-8");
-    const coreViolations = checkBoundaries(corePath, coreContent, config, makeCtx(knownFiles, FIXTURE_DIR, aliases));
+    const coreViolations = checkBoundaries({
+      filePath: corePath,
+      content: coreContent,
+      config,
+      ctx: makeCtx(knownFiles, FIXTURE_DIR, aliases),
+    });
     assert.strictEqual(coreViolations.length, 0, "Core service should be valid");
 
     const domainPath = normalizePath(path.join(FIXTURE_DIR, "domain/model.ts"));
     const domainContent = fs.readFileSync(domainPath, "utf-8");
-    const domainViolations = checkBoundaries(domainPath, domainContent, config, makeCtx(knownFiles, FIXTURE_DIR, aliases));
+    const domainViolations = checkBoundaries({
+      filePath: domainPath,
+      content: domainContent,
+      config,
+      ctx: makeCtx(knownFiles, FIXTURE_DIR, aliases),
+    });
     assert.strictEqual(domainViolations.length, 0, "Domain model should be valid");
   });
 });

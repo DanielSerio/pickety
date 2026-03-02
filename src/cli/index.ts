@@ -87,8 +87,8 @@ function discoverFiles(root: string): Set<string> {
     if (!entry.isFile()) {
       continue;
     }
-    const parentPath = (entry as { parentPath?: string; path?: string }).parentPath
-      ?? (entry as { path?: string }).path
+    const parentPath = (entry as { parentPath?: string; path?: string; }).parentPath
+      ?? (entry as { path?: string; }).path
       ?? root;
     const fullPath = path.join(parentPath, entry.name);
     if (fullPath.includes("node_modules")) {
@@ -188,7 +188,7 @@ function runCheck(root: string, format: OutputFormat, verbose: boolean): number 
   for (const filePath of ctx.knownFiles) {
     try {
       const content = fs.readFileSync(filePath, "utf-8");
-      const violations = checkBoundaries(filePath, content, config, ctx);
+      const violations = checkBoundaries({ filePath, content, config, ctx });
       allViolations.push(...violations);
 
       const fileDeps = getFileDependencies(filePath, content, ctx);
@@ -256,7 +256,7 @@ function runImpact(root: string, target: string | undefined, verbose: boolean): 
   }
   const { config, ctx } = workspace;
   const graph = buildImportGraph(ctx, verbose);
-  printImpactReport(target, graph, config, root);
+  printImpactReport({ filePath: target, graph, config, root });
   return 0;
 }
 

@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import type { PicketyConfig, ModuleHealth } from "../shared/types";
+import type { PicketyConfig, ModuleHealth, ExportRule } from "../shared/types";
 import { resolveRuleDefaults, normalizePath } from "./utils";
 
 /**
@@ -77,6 +77,8 @@ function buildMermaidContent(config: PicketyConfig, health?: ModuleHealth[]): st
   const modules = config.modules;
   const rules = config.rules["module-boundaries"].rules;
   const globalSeverity = config.rules["module-boundaries"].severity;
+  const exportColor = "#14b8a6";
+  const onlyColor = "#f97316";
 
   // 1. Map health for easy access
   const healthByModule = new Map<string, ModuleHealth>();
@@ -105,6 +107,12 @@ function buildMermaidContent(config: PicketyConfig, health?: ModuleHealth[]): st
       if (typeof pattern === "string") {
         allInvolvedNodes.add(pattern);
       }
+    });
+
+    const exportsList = normalizeExports(rule.exports);
+    exportsList.forEach((entry) => {
+      allInvolvedNodes.add(entry.path);
+      allInvolvedNodes.add(entry.to);
     });
   });
 
@@ -156,36 +164,112 @@ function buildMermaidContent(config: PicketyConfig, health?: ModuleHealth[]): st
 
   const edgeStyles: string[] = [];
   let edgeIndex = 0;
+  const addEdge = (edge: {
+    fromId: string;
+    toId: string;
+    label: string;
+    color: string;
+    width?: string;
+    dash?: boolean;
+    arrow?: string;
+  }) => {
+    const arrow = edge.arrow ?? "-->";
+    const width = edge.width ?? "2px";
+    const dash = edge.dash ? ",stroke-dasharray:5" : "";
+    lines.push(`  ${edge.fromId} ${arrow}|"${escapeMermaid(edge.label)}"| ${edge.toId}`);
+    edgeStyles.push(`  linkStyle ${edgeIndex++} stroke:${edge.color},stroke-width:${width}${dash}`);
+  };
 
   rules.forEach((rule, index) => {
-    const { allow, name, effectiveImporter, isAllowStyle, isOnly } = resolveRuleDefaults(
+    const { allow, label, effectiveImporter, isAllowStyle, isOnly } = resolveRuleDefaults(
       rule,
       index,
       globalSeverity
     );
 
     const importPatterns = Array.isArray(rule.imports) ? rule.imports : [rule.imports];
-    const fromId = getSafeId(effectiveImporter);
 
     importPatterns.forEach((pattern) => {
       if (typeof pattern !== "string") {
         return;
       }
 
-      const toId = getSafeId(pattern);
-      const arrow = isAllowStyle ? "-->" : "-.->";
-      const actionLabel = allow ? "ALLOW" : "DENY";
-      const label = rule.message || `${actionLabel}: ${name}`;
+      const fromId = getSafeId(isOnly ? pattern : effectiveImporter);
+      const toId = getSafeId(isOnly ? effectiveImporter : pattern);
+      const actionLabel = isOnly
+        ? (rule.containedTo ? "CONTAINED" : "ONLY")
+        : (allow ? "ALLOW" : "DENY");
+      const edgeLabel = rule.message || `${actionLabel}: ${label}`;
+      const color = isOnly ? onlyColor : (isAllowStyle ? "#22c55e" : "#ef4444");
 
-      lines.push(`  ${fromId} ${arrow}|"${escapeMermaid(label)}"| ${toId}`);
+      const arrow = isAllowStyle || isOnly ? "-->" : "-.->";
+      addEdge({
+        fromId,
+        toId,
+        label: edgeLabel,
+        color,
+        width: isOnly ? "4px" : "2px",
+        dash: !isAllowStyle && !isOnly,
+        arrow
+      });
+    });
 
-      // Style the edge: green for allow, red for deny, thicker for 'only' constraints
-      const color = isAllowStyle ? "#22c55e" : "#ef4444";
-      const width = isOnly ? "4px" : "2px";
-      const dash = isAllowStyle ? "" : ",stroke-dasharray:5";
-      edgeStyles.push(`  linkStyle ${edgeIndex++} stroke:${color},stroke-width:${width}${dash}`);
+    const exportsList = normalizeExports(rule.exports);
+    exportsList.forEach((entry) => {
+      addEdge({
+        fromId: getSafeId(entry.to),
+        toId: getSafeId(entry.path),
+        label: `EXPORT: ${label}`,
+        color: exportColor,
+      });
     });
   });
 
+  lines.push("");
+  lines.push("  %% Legend");
+  lines.push("  subgraph Legend");
+  lines.push('    legendAllow["ALLOW"]');
+  lines.push('    legendDeny["DENY"]');
+  lines.push('    legendOnly["ONLY/CONTAINED"]');
+  lines.push('    legendExport["EXPORT EXCEPTION"]');
+  lines.push("  end");
+
+  lines.push("");
+  lines.push("  %% Legend Edges");
+  addEdge({
+    fromId: "legendAllow",
+    toId: "legendDeny",
+    label: "ALLOW",
+    color: "#22c55e",
+  });
+  addEdge({
+    fromId: "legendDeny",
+    toId: "legendAllow",
+    label: "DENY",
+    color: "#ef4444",
+    dash: true,
+    arrow: "-.->",
+  });
+  addEdge({
+    fromId: "legendOnly",
+    toId: "legendAllow",
+    label: "ONLY",
+    color: onlyColor,
+    width: "4px",
+  });
+  addEdge({
+    fromId: "legendExport",
+    toId: "legendAllow",
+    label: "EXPORT",
+    color: exportColor,
+  });
+
   return lines.concat(edgeStyles).join("\n");
+}
+
+function normalizeExports(exportsRule: ExportRule | ExportRule[] | undefined): ExportRule[] {
+  if (!exportsRule) {
+    return [];
+  }
+  return Array.isArray(exportsRule) ? exportsRule : [exportsRule];
 }

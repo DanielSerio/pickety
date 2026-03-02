@@ -7,12 +7,15 @@ import { goToRule, allowImport } from "../vscode/navigation";
 import { ConfigService } from "../services/configService";
 import { AnalysisService } from "../services/analysisService";
 
-export function registerAllCommands(
-  context: vscode.ExtensionContext,
-  configService: ConfigService,
-  analysisService: AnalysisService,
-  workspaceRoot: string
-) {
+export interface RegisterCommandsOptions {
+  context: vscode.ExtensionContext;
+  configService: ConfigService;
+  analysisService: AnalysisService;
+  workspaceRoot: string;
+}
+
+export function registerAllCommands(options: RegisterCommandsOptions) {
+  const { context, configService, analysisService, workspaceRoot } = options;
   context.subscriptions.push(
     vscode.commands.registerCommand("pickety.refresh", () => {
       configService.reload();

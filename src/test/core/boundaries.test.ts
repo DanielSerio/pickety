@@ -56,12 +56,12 @@ suite("boundaries — simple deny rules", () => {
       { importer: "features", imports: "features" },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { api } from '../billing/api';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { api } from '../billing/api';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 1);
     assert.ok(violations[0].message.includes("../billing/api"));
@@ -72,12 +72,12 @@ suite("boundaries — simple deny rules", () => {
       { importer: "features", imports: "features" },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { Button } from '../../components/Button';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { Button } from '../../components/Button';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -87,12 +87,12 @@ suite("boundaries — simple deny rules", () => {
       { importer: "*", imports: "utils" },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { helpers } from '../../utils/helpers';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { helpers } from '../../utils/helpers';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 1);
   });
@@ -102,12 +102,12 @@ suite("boundaries — simple deny rules", () => {
       { importer: "features", imports: "components", allow: true },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { Button } from '../../components/Button';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { Button } from '../../components/Button';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -121,12 +121,12 @@ suite("boundaries — simple deny rules", () => {
       },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { api } from '../billing/api';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { api } from '../billing/api';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 1);
     assert.ok(violations[0].message.includes("No cross-feature imports!"));
@@ -139,12 +139,12 @@ suite("boundaries — simple deny rules", () => {
       "warn"
     );
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { api } from '../billing/api';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { api } from '../billing/api';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations[0].severity, "warn");
   });
@@ -156,12 +156,12 @@ suite("boundaries — file path glob patterns", () => {
       { importer: "routes", imports: "features/**/components" },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/routes/auth/index.ts`,
-      `import { LoginForm } from '../../features/auth/components/LoginForm';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/routes/auth/index.ts`,
+      content: `import { LoginForm } from '../../features/auth/components/LoginForm';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 1);
   });
@@ -171,12 +171,12 @@ suite("boundaries — file path glob patterns", () => {
       { importer: "routes", imports: "features/**/components" },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/routes/auth/index.ts`,
-      `import { LoginPage } from '../../features/auth/pages/LoginPage';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/routes/auth/index.ts`,
+      content: `import { LoginPage } from '../../features/auth/pages/LoginPage';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -192,12 +192,12 @@ suite("boundaries — file path glob patterns", () => {
       `import { loginSchema } from '../../features/auth/schemas/loginSchema';`,
     ].join("\n");
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/routes/auth/index.ts`,
-      content,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/routes/auth/index.ts`,
+      content: content,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 2);
   });
@@ -212,12 +212,12 @@ suite("boundaries — file path glob patterns", () => {
       `import { loginSchema } from '../../features/auth/schemas/loginSchema';`,
     ].join("\n");
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/routes/auth/index.ts`,
-      content,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/routes/auth/index.ts`,
+      content: content,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 2);
   });
@@ -236,12 +236,12 @@ suite("boundaries — interpolation variables", () => {
     ]);
 
     // routes/auth importing features/auth/pages — same $name
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/routes/auth/index.ts`,
-      `import { LoginPage } from '../../features/auth/pages/LoginPage';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/routes/auth/index.ts`,
+      content: `import { LoginPage } from '../../features/auth/pages/LoginPage';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -256,12 +256,12 @@ suite("boundaries — interpolation variables", () => {
     ]);
 
     // routes/auth importing features/billing/pages — different $name
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/routes/auth/index.ts`,
-      `import { BillingPage } from '../../features/billing/pages/BillingPage';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/routes/auth/index.ts`,
+      content: `import { BillingPage } from '../../features/billing/pages/BillingPage';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 1);
     assert.ok(violations[0].message.includes("../../features/billing/pages/BillingPage"));
@@ -277,12 +277,12 @@ suite("boundaries — interpolation variables", () => {
     ]);
 
     // routes/auth importing components — not in the general pattern at all
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/routes/auth/index.ts`,
-      `import { Button } from '../../components/Button';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/routes/auth/index.ts`,
+      content: `import { Button } from '../../components/Button';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -298,12 +298,12 @@ suite("boundaries — interpolation variables", () => {
     ]);
 
     // routes/auth importing features/auth/hooks — matches interpolated deny
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/routes/auth/index.ts`,
-      `import { useAuth } from '../../features/auth/hooks/useAuth';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/routes/auth/index.ts`,
+      content: `import { useAuth } from '../../features/auth/hooks/useAuth';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 1);
   });
@@ -320,12 +320,12 @@ suite("boundaries — interpolation variables", () => {
     // (This test verifies that deny only applies to the captured $name)
     // We don't have features/billing/hooks in knownFiles, so import won't resolve
     // Instead, test with a non-hooks import
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/routes/auth/index.ts`,
-      `import { LoginPage } from '../../features/auth/pages/LoginPage';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/routes/auth/index.ts`,
+      content: `import { LoginPage } from '../../features/auth/pages/LoginPage';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -351,12 +351,12 @@ suite("boundaries — interpolation variables", () => {
     );
 
     // apps/web/routes/auth importing apps/web/pages/auth — both match
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/apps/web/routes/auth/index.ts`,
-      `import { LoginPage } from '../../pages/auth/LoginPage';`,
-      config,
-      makeCtx(multiVarKnownFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/apps/web/routes/auth/index.ts`,
+      content: `import { LoginPage } from '../../pages/auth/LoginPage';`,
+      config: config,
+      ctx: makeCtx(multiVarKnownFiles),
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -378,12 +378,12 @@ suite("boundaries — interpolation variables", () => {
     );
 
     // apps/web/routes/auth importing apps/web/pages/billing — $app matches but $route doesn't
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/apps/web/routes/auth/index.ts`,
-      `import { BillingPage } from '../../pages/billing/BillingPage';`,
-      config,
-      makeCtx(multiVarKnownFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/apps/web/routes/auth/index.ts`,
+      content: `import { BillingPage } from '../../pages/billing/BillingPage';`,
+      config: config,
+      ctx: makeCtx(multiVarKnownFiles),
+    });
 
     assert.strictEqual(violations.length, 1);
   });
@@ -405,12 +405,12 @@ suite("boundaries — interpolation variables", () => {
     );
 
     // apps/web/routes/auth importing apps/mobile/pages/auth — $route matches but $app doesn't
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/apps/web/routes/auth/index.ts`,
-      `import { LoginPage } from '../../../mobile/pages/auth/LoginPage';`,
-      config,
-      makeCtx(multiVarKnownFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/apps/web/routes/auth/index.ts`,
+      content: `import { LoginPage } from '../../../mobile/pages/auth/LoginPage';`,
+      config: config,
+      ctx: makeCtx(multiVarKnownFiles),
+    });
 
     assert.strictEqual(violations.length, 1);
   });
@@ -431,12 +431,12 @@ suite("boundaries — interpolation variables", () => {
     );
 
     // apps/web/routes/auth importing apps/web/internal/auth — both vars match, denied
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/apps/web/routes/auth/index.ts`,
-      `import { secrets } from '../../internal/auth/secrets';`,
-      config,
-      makeCtx(multiVarKnownFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/apps/web/routes/auth/index.ts`,
+      content: `import { secrets } from '../../internal/auth/secrets';`,
+      config: config,
+      ctx: makeCtx(multiVarKnownFiles)
+    });
 
     assert.strictEqual(violations.length, 1);
   });
@@ -453,12 +453,12 @@ suite("boundaries — interpolation variables", () => {
     ]);
 
     // A features file importing features pages — not a routes/ file, rule should not apply
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { BillingPage } from '../billing/pages/BillingPage';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { BillingPage } from '../billing/pages/BillingPage';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -473,12 +473,12 @@ suite("boundaries — interpolation variables", () => {
       },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/routes/auth/index.ts`,
-      `import { BillingPage } from '../../features/billing/pages/BillingPage';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/routes/auth/index.ts`,
+      content: `import { BillingPage } from '../../features/billing/pages/BillingPage';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 1);
     assert.ok(violations[0].message.includes("Routes must use their own feature pages"));
@@ -503,12 +503,12 @@ suite("boundaries — interpolation variables", () => {
       `import { BillingPage } from '../../features/billing/pages/BillingPage';`,
     ].join("\n");
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/routes/auth/index.ts`,
-      content,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/routes/auth/index.ts`,
+      content: content,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 2);
   });
@@ -523,12 +523,12 @@ suite("boundaries — interpolation variables", () => {
     ]);
 
     // features/auth/service.ts matches "features/$name/**/*" → $name=auth captured → deny applies
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { helpers } from '../../utils/helpers';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { helpers } from '../../utils/helpers';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 1);
   });
@@ -539,12 +539,12 @@ suite("boundaries — interpolation variables", () => {
     ]);
 
     // components/Button.tsx does not match "features/$name/**/*" → rule is skipped
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/components/Button.tsx`,
-      `import { helpers } from '../utils/helpers';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/components/Button.tsx`,
+      content: `import { helpers } from '../utils/helpers';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -564,12 +564,12 @@ suite("boundaries — module variables in modules (phase 3)", () => {
       `${ROOT_DIR}/src/features/auth/internal/secret.ts`,
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { secret } from './internal/secret';`,
-      config,
-      makeCtx(moduleFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { secret } from './internal/secret';`,
+      config: config,
+      ctx: makeCtx(moduleFiles),
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -587,12 +587,12 @@ suite("boundaries — module variables in modules (phase 3)", () => {
       `${ROOT_DIR}/src/features/billing/internal/secret.ts`,
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { secret } from '../billing/internal/secret';`,
-      config,
-      makeCtx(moduleFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { secret } from '../billing/internal/secret';`,
+      config: config,
+      ctx: makeCtx(moduleFiles),
+    });
 
     assert.strictEqual(violations.length, 1);
   });
@@ -610,12 +610,12 @@ suite("boundaries — module variables in modules (phase 3)", () => {
       `${ROOT_DIR}/src/apps/mobile/features/auth/internal/secret.ts`,
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/apps/web/features/auth/service.ts`,
-      `import { secret } from '../../../mobile/features/auth/internal/secret';`,
-      config,
-      makeCtx(moduleFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/apps/web/features/auth/service.ts`,
+      content: `import { secret } from '../../../mobile/features/auth/internal/secret';`,
+      config: config,
+      ctx: makeCtx(moduleFiles),
+    });
 
     assert.strictEqual(violations.length, 1);
   });
@@ -633,12 +633,12 @@ suite("boundaries — module variables in modules (phase 3)", () => {
       `${ROOT_DIR}/src/utils/helpers.ts`,
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { helpers } from '../../utils/helpers';`,
-      config,
-      makeCtx(moduleFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { helpers } from '../../utils/helpers';`,
+      config: config,
+      ctx: makeCtx(moduleFiles)
+    });
 
     assert.strictEqual(violations.length, 1);
   });
@@ -655,12 +655,12 @@ suite("boundaries — module variables in modules (phase 3)", () => {
       `${ROOT_DIR}/src/features/billing/api.ts`,
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { api } from '../billing/api';`,
-      config,
-      makeCtx(moduleFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { api } from '../billing/api';`,
+      config: config,
+      ctx: makeCtx(moduleFiles)
+    });
 
     assert.strictEqual(violations.length, 1);
   });
@@ -690,12 +690,12 @@ suite("boundaries — exports block (phase 3)", () => {
       `${ROOT_DIR}/src/features/auth/pages/LoginPage.tsx`,
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/app/App.tsx`,
-      `import { LoginPage } from '../features/auth/pages/LoginPage';`,
-      config,
-      makeCtx(exportFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/app/App.tsx`,
+      content: `import { LoginPage } from '../features/auth/pages/LoginPage';`,
+      config: config,
+      ctx: makeCtx(exportFiles),
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -707,12 +707,12 @@ suite("boundaries — exports block (phase 3)", () => {
       `${ROOT_DIR}/src/features/auth/pages/LoginPage.tsx`,
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/billing/service.ts`,
-      `import { LoginPage } from '../auth/pages/LoginPage';`,
-      config,
-      makeCtx(exportFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/billing/service.ts`,
+      content: `import { LoginPage } from '../auth/pages/LoginPage';`,
+      config: config,
+      ctx: makeCtx(exportFiles),
+    });
 
     assert.strictEqual(violations.length, 1);
   });
@@ -724,12 +724,12 @@ suite("boundaries — exports block (phase 3)", () => {
       `${ROOT_DIR}/src/features/auth/components/LoginForm.tsx`,
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/app/App.tsx`,
-      `import { LoginForm } from '../features/auth/components/LoginForm';`,
-      config,
-      makeCtx(exportFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/app/App.tsx`,
+      content: `import { LoginForm } from '../features/auth/components/LoginForm';`,
+      config: config,
+      ctx: makeCtx(exportFiles)
+    });
 
     assert.strictEqual(violations.length, 1);
   });
@@ -754,12 +754,12 @@ suite("boundaries — exports block (phase 3)", () => {
       `${ROOT_DIR}/src/features/auth/public/index.ts`,
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/app/App.tsx`,
-      `import { publicApi } from '../features/auth/public';`,
-      config,
-      makeCtx(exportFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/app/App.tsx`,
+      content: `import { publicApi } from '../features/auth/public';`,
+      config: config,
+      ctx: makeCtx(exportFiles)
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -781,12 +781,12 @@ suite("boundaries — exports block (phase 3)", () => {
       `${ROOT_DIR}/src/features/auth/pages/LoginPage.tsx`,
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/apps/web/App.tsx`,
-      `import { LoginPage } from '../../features/auth/pages/LoginPage';`,
-      config,
-      makeCtx(exportFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/apps/web/App.tsx`,
+      content: `import { LoginPage } from '../../features/auth/pages/LoginPage';`,
+      config: config,
+      ctx: makeCtx(exportFiles)
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -808,12 +808,12 @@ suite("boundaries — exports block (phase 3)", () => {
       `${ROOT_DIR}/src/features/auth/pages/LoginPage.tsx`,
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/app/App.tsx`,
-      `import { LoginPage } from '../features/auth/pages/LoginPage';`,
-      config,
-      makeCtx(exportFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/app/App.tsx`,
+      content: `import { LoginPage } from '../features/auth/pages/LoginPage';`,
+      config: config,
+      ctx: makeCtx(exportFiles)
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -825,12 +825,12 @@ suite("boundaries — edge cases", () => {
       { importer: "features", imports: "features" },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/config/database.ts`,
-      `import { api } from '../features/billing/api';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/config/database.ts`,
+      content: `import { api } from '../features/billing/api';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 1);
     assert.strictEqual(violations[0].severity, "info");
@@ -843,12 +843,12 @@ suite("boundaries — edge cases", () => {
     ]);
     config.warnOnUntrackedImporters = false;
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/config/database.ts`,
-      `import { api } from '../features/billing/api';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/config/database.ts`,
+      content: `import { api } from '../features/billing/api';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -858,12 +858,12 @@ suite("boundaries — edge cases", () => {
       { importer: "features", imports: "features" },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { missing } from '../billing/nonexistent';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { missing } from '../billing/nonexistent';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -873,12 +873,12 @@ suite("boundaries — edge cases", () => {
       { importer: "*", imports: "*" },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import React from 'react';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import React from 'react';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -888,12 +888,12 @@ suite("boundaries — edge cases", () => {
       { importer: "features", imports: "features" },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      "",
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: "",
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -908,12 +908,12 @@ suite("boundaries — edge cases", () => {
       `import { api } from '../billing/api';`,
     ].join("\n");
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      content,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: content,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 1);
     assert.strictEqual(violations[0].line, 1); // 0-indexed, second line
@@ -935,12 +935,12 @@ suite("boundaries — edge cases", () => {
       `import { utils } from '../billing/utils';`,
     ].join("\n");
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      content,
-      config,
-      makeCtx(filesWithBilling)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: content,
+      config: config,
+      ctx: makeCtx(filesWithBilling),
+    });
 
     assert.strictEqual(violations.length, 2);
   });
@@ -957,12 +957,12 @@ suite("boundaries — edge cases", () => {
       `${ROOT_DIR}/src/features/auth/other.ts`,
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { other } from './other';`,
-      config,
-      makeCtx(authKnownFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { other } from './other';`,
+      config: config,
+      ctx: makeCtx(authKnownFiles)
+    });
 
     // Both files are in "features" module, so this matches the deny rule
     assert.strictEqual(violations.length, 1);
@@ -975,12 +975,12 @@ suite("boundaries — aliases", () => {
   test("resolves aliased import and detects violation", () => {
     const config = makeConfig([{ importer: "features", imports: "features" }]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { api } from '@/features/billing/api';`,
-      config,
-      makeCtx(knownFiles, aliases)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { api } from '@/features/billing/api';`,
+      config: config,
+      ctx: makeCtx(knownFiles, aliases),
+    });
 
     assert.strictEqual(violations.length, 1);
     assert.ok(violations[0].message.includes("@/features/billing/api"));
@@ -989,12 +989,12 @@ suite("boundaries — aliases", () => {
   test("no violation when aliased import resolves to allowed module", () => {
     const config = makeConfig([{ importer: "features", imports: "features" }]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { Button } from '@/components/Button';`,
-      config,
-      makeCtx(knownFiles, aliases)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { Button } from '@/components/Button';`,
+      config: config,
+      ctx: makeCtx(knownFiles, aliases)
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -1006,12 +1006,12 @@ suite("boundaries — rule identification and severity", () => {
       { importer: "features", imports: "features", severity: "warn" },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { api } from '../billing/api';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { api } from '../billing/api';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations[0].severity, "warn");
   });
@@ -1021,12 +1021,12 @@ suite("boundaries — rule identification and severity", () => {
       { importer: "features", imports: "features", name: "no-cross-feature", group: "Layering" },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { api } from '../billing/api';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { api } from '../billing/api';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.ok(violations[0].message.startsWith("[Layering: no-cross-feature]"));
   });
@@ -1036,12 +1036,12 @@ suite("boundaries — rule identification and severity", () => {
       { importer: "features", imports: "features", group: "Layering" },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { api } from '../billing/api';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { api } from '../billing/api';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.ok(violations[0].message.startsWith("[Layering: rule[0]]"));
   });
@@ -1055,12 +1055,12 @@ suite("boundaries — rule identification and severity", () => {
       },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { api } from '../billing/api';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { api } from '../billing/api';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.ok(violations[0].message.startsWith("[no-cross-feature]"));
     assert.strictEqual(violations[0].ruleName, "no-cross-feature");
@@ -1072,12 +1072,12 @@ suite("boundaries — rule identification and severity", () => {
       { importer: "features", imports: "features" },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { api } from '../billing/api';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { api } from '../billing/api';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     // Second rule (index 1) was violated
     assert.ok(violations[0].message.startsWith("[rule[1]]"));
@@ -1225,12 +1225,12 @@ suite("boundaries — only and containedTo rules", () => {
     ]);
 
     // Controller importing Repository — should be a violation
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/controllers/UserController.ts`,
-      `import { repo } from '../repositories/UserRepository';`,
-      config,
-      makeCtx(customKnownFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/controllers/UserController.ts`,
+      content: `import { repo } from '../repositories/UserRepository';`,
+      config: config,
+      ctx: makeCtx(customKnownFiles),
+    });
 
     assert.strictEqual(violations.length, 1);
     assert.ok(violations[0].message.includes("can only be imported by \"services\""));
@@ -1251,12 +1251,12 @@ suite("boundaries — only and containedTo rules", () => {
     ]);
 
     // Service importing Repository — should be allowed
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/services/UserService.ts`,
-      `import { repo } from '../repositories/UserRepository';`,
-      config,
-      makeCtx(customKnownFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/services/UserService.ts`,
+      content: `import { repo } from '../repositories/UserRepository';`,
+      config: config,
+      ctx: makeCtx(customKnownFiles)
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -1272,12 +1272,12 @@ suite("boundaries — only and containedTo rules", () => {
     ]);
 
     // Billing importing Auth-internal — should be a violation
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/billing/service.ts`,
-      `import { helper } from '../auth/internal/helper';`,
-      config,
-      makeCtx(customKnownFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/billing/service.ts`,
+      content: `import { helper } from '../auth/internal/helper';`,
+      config: config,
+      ctx: makeCtx(customKnownFiles)
+    });
 
     assert.strictEqual(violations.length, 1);
     assert.ok(violations[0].message.includes("is contained to \"src/features/auth/**/*\""));
@@ -1296,12 +1296,12 @@ suite("boundaries — only and containedTo rules", () => {
 
     // Billing importing Auth-internal — $name=auth, so importer must be features/auth/**/*
     // Billing is features/billing/**/*, so it should fail.
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/billing/service.ts`,
-      `import { helper } from '../auth/internal/helper';`,
-      config,
-      makeCtx(customKnownFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/billing/service.ts`,
+      content: `import { helper } from '../auth/internal/helper';`,
+      config: config,
+      ctx: makeCtx(customKnownFiles)
+    });
 
     assert.strictEqual(violations.length, 1);
     assert.ok(violations[0].message.includes("contained to \"src/features/auth/**/*\""));
@@ -1320,12 +1320,12 @@ suite("boundaries — only and containedTo rules", () => {
     ]);
 
     // billing importing auth's component — should be a violation
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/billing/service.ts`,
-      `import { LoginForm } from '../auth/components/LoginForm';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/billing/service.ts`,
+      content: `import { LoginForm } from '../auth/components/LoginForm';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 1);
     assert.ok(violations[0].message.includes("Features components must be imported by their own feature."));
@@ -1340,12 +1340,12 @@ suite("boundaries — only and containedTo rules", () => {
     ]);
 
     // auth importing its own component — should be allowed
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/pages/LoginPage.tsx`,
-      `import { LoginForm } from '../components/LoginForm';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/pages/LoginPage.tsx`,
+      content: `import { LoginForm } from '../components/LoginForm';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -1361,12 +1361,12 @@ suite("boundaries — only and containedTo rules", () => {
     ]);
 
     // Auth importing Auth-internal — $name=auth matches both
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { helper } from './internal/helper';`,
-      config,
-      makeCtx(customKnownFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { helper } from './internal/helper';`,
+      config: config,
+      ctx: makeCtx(customKnownFiles)
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -1384,12 +1384,12 @@ suite("boundaries — only and containedTo rules", () => {
     ]);
 
     // billing importing a deeply-nested auth component — ** spans two segments
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/billing/service.ts`,
-      `import { Button } from '../auth/components/ui/atoms/Button';`,
-      config,
-      makeCtx(deepFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/billing/service.ts`,
+      content: `import { Button } from '../auth/components/ui/atoms/Button';`,
+      config: config,
+      ctx: makeCtx(deepFiles)
+    });
 
     assert.strictEqual(violations.length, 1);
   });
@@ -1405,12 +1405,12 @@ suite("boundaries — only and containedTo rules", () => {
     ]);
 
     // auth importing its own deeply-nested component — same $name, no violation
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { Button } from './components/ui/atoms/Button';`,
-      config,
-      makeCtx(deepFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { Button } from './components/ui/atoms/Button';`,
+      config: config,
+      ctx: makeCtx(deepFiles)
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -1433,12 +1433,12 @@ suite("boundaries — only and containedTo rules", () => {
     ]);
 
     // billing service importing auth repository — $name mismatch → violation
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/services/billing/BillingService.ts`,
-      `import { repo } from '../../repositories/auth/UserRepository';`,
-      config,
-      makeCtx(customKnownFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/services/billing/BillingService.ts`,
+      content: `import { repo } from '../../repositories/auth/UserRepository';`,
+      config: config,
+      ctx: makeCtx(customKnownFiles)
+    });
 
     assert.strictEqual(violations.length, 1);
   });
@@ -1458,12 +1458,12 @@ suite("boundaries — only and containedTo rules", () => {
     ]);
 
     // auth service importing auth repository — same $name → no violation
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/services/auth/UserService.ts`,
-      `import { repo } from '../../repositories/auth/UserRepository';`,
-      config,
-      makeCtx(customKnownFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/services/auth/UserService.ts`,
+      content: `import { repo } from '../../repositories/auth/UserRepository';`,
+      config: config,
+      ctx: makeCtx(customKnownFiles)
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -1476,12 +1476,12 @@ suite("boundaries — only and containedTo rules", () => {
     ]);
 
     // utils is outside the features/*/components/** pattern — rule must not apply
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/billing/service.ts`,
-      `import { helpers } from '../../utils/helpers';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/billing/service.ts`,
+      content: `import { helpers } from '../../utils/helpers';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -1501,12 +1501,12 @@ suite("boundaries — only and containedTo rules", () => {
     ]);
 
     // billing importing auth's component — still a violation despite allow: true
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/billing/service.ts`,
-      `import { LoginForm } from '../auth/components/LoginForm';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/billing/service.ts`,
+      content: `import { LoginForm } from '../auth/components/LoginForm';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 1);
   });
@@ -1522,12 +1522,12 @@ suite("boundaries — only and containedTo rules", () => {
       },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/billing/service.ts`,
-      `import { LoginForm } from '../auth/components/LoginForm';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/billing/service.ts`,
+      content: `import { LoginForm } from '../auth/components/LoginForm';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 1);
     assert.ok(violations[0].message.includes("Features components must be imported by their own feature."));
@@ -1541,12 +1541,12 @@ suite("boundaries — only and containedTo rules", () => {
       },
     ]);
 
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/auth/service.ts`,
-      `import { LoginForm } from './components/LoginForm';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/auth/service.ts`,
+      content: `import { LoginForm } from './components/LoginForm';`,
+      config: config,
+      ctx: makeCtx()
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -1576,12 +1576,12 @@ suite("boundaries — only and containedTo rules", () => {
     );
 
     // billing imports from shared/components — must be allowed (exempted by unless)
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/billing/service.ts`,
-      `import { Button } from '../shared/components/Button';`,
-      config,
-      makeCtx(sharedFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/billing/service.ts`,
+      content: `import { Button } from '../shared/components/Button';`,
+      config: config,
+      ctx: makeCtx(sharedFiles)
+    });
 
     assert.strictEqual(violations.length, 0);
   });
@@ -1611,12 +1611,12 @@ suite("boundaries — only and containedTo rules", () => {
     );
 
     // billing importing auth's component — not exempt, must still be a violation
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/billing/service.ts`,
-      `import { LoginForm } from '../auth/components/LoginForm';`,
-      config,
-      makeCtx(sharedFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/billing/service.ts`,
+      content: `import { LoginForm } from '../auth/components/LoginForm';`,
+      config: config,
+      ctx: makeCtx(sharedFiles)
+    });
 
     assert.strictEqual(violations.length, 1);
     assert.ok(violations[0].message.includes("Features components must be imported by their own feature."));
@@ -1642,12 +1642,12 @@ suite("boundaries — only and containedTo rules", () => {
     ]);
 
     // billing imports shared/layers/public — both match the unless condition → exempt
-    const noViolations = checkBoundaries(
-      `${ROOT_DIR}/src/features/billing/service.ts`,
-      `import { Button } from '../shared/layers/public/Button';`,
-      config,
-      makeCtx(layeredFiles)
-    );
+    const noViolations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/billing/service.ts`,
+      content: `import { Button } from '../shared/layers/public/Button';`,
+      config: config,
+      ctx: makeCtx(layeredFiles)
+    });
     assert.strictEqual(noViolations.length, 0);
   });
 
@@ -1668,12 +1668,12 @@ suite("boundaries — only and containedTo rules", () => {
     ]);
 
     // $name=shared matches but $layer=private does not — not all conditions met → violation
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/billing/service.ts`,
-      `import { Internal } from '../shared/layers/private/Internal';`,
-      config,
-      makeCtx(layeredFiles)
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/billing/service.ts`,
+      content: `import { Internal } from '../shared/layers/private/Internal';`,
+      config: config,
+      ctx: makeCtx(layeredFiles)
+    });
     assert.strictEqual(violations.length, 1);
   });
 
@@ -1692,12 +1692,12 @@ suite("boundaries — only and containedTo rules", () => {
     ]);
 
     // billing imports from auth/components — $zone won't match "global" → no exemption → violation
-    const violations = checkBoundaries(
-      `${ROOT_DIR}/src/features/billing/service.ts`,
-      `import { LoginForm } from '../auth/components/LoginForm';`,
-      config,
-      makeCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${ROOT_DIR}/src/features/billing/service.ts`,
+      content: `import { LoginForm } from '../auth/components/LoginForm';`,
+      config: config,
+      ctx: makeCtx()
+    });
     assert.strictEqual(violations.length, 1);
   });
 });
@@ -1745,12 +1745,12 @@ suite("regression: containedTo with unless and flat features/** modules", () => 
   test("cross-feature import from components section raises a violation", () => {
     // features/strain/pages/StrainManagementPage.tsx imports features/batch/components/index.ts
     // $feature=batch, $section=components — not exempt — must be a violation
-    const violations = checkBoundaries(
-      `${mycoRoot}/features/strain/pages/StrainManagementPage.tsx`,
-      `import { TestBatchComponent } from '../../batch/components';`,
-      makePlaceholderConfig(),
-      makePlaceholderCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${mycoRoot}/features/strain/pages/StrainManagementPage.tsx`,
+      content: `import { TestBatchComponent } from '../../batch/components';`,
+      config: makePlaceholderConfig(),
+      ctx: makePlaceholderCtx(),
+    });
     assert.strictEqual(violations.length, 1, "expected 1 violation for cross-feature component import");
   });
 
@@ -1760,36 +1760,36 @@ suite("regression: containedTo with unless and flat features/** modules", () => 
       ...mycoFiles,
       `${mycoRoot}/features/strain/components/index.ts`,
     ]);
-    const violations = checkBoundaries(
-      `${mycoRoot}/features/strain/pages/StrainManagementPage.tsx`,
-      `import { StrainCard } from '../components';`,
-      makePlaceholderConfig(),
-      { knownFiles: strainFiles, root: mycoRoot, aliases: {} }
-    );
+    const violations = checkBoundaries({
+      filePath: `${mycoRoot}/features/strain/pages/StrainManagementPage.tsx`,
+      content: `import { StrainCard } from '../components';`,
+      config: makePlaceholderConfig(),
+      ctx: { knownFiles: strainFiles, root: mycoRoot, aliases: {} }
+    });
     assert.strictEqual(violations.length, 0, "same-feature import should be allowed");
   });
 
   test("cross-feature import from pages section is exempt (unless $section=pages)", () => {
     // Importing from features/batch/pages is exempt under the unless condition
     // (pages are handled by a separate `only` rule in the real config)
-    const violations = checkBoundaries(
-      `${mycoRoot}/features/strain/pages/StrainManagementPage.tsx`,
-      `import { BatchManagementPage } from '../../batch/pages/BatchManagementPage';`,
-      makePlaceholderConfig(),
-      makePlaceholderCtx()
-    );
+    const violations = checkBoundaries({
+      filePath: `${mycoRoot}/features/strain/pages/StrainManagementPage.tsx`,
+      content: `import { BatchManagementPage } from '../../batch/pages/BatchManagementPage';`,
+      config: makePlaceholderConfig(),
+      ctx: makePlaceholderCtx(),
+    });
     assert.strictEqual(violations.length, 0, "importing from pages section should be exempt");
   });
 
   test("cross-feature import via @ alias raises a violation", () => {
     // Same violation but using the @/* path alias as in the real myco-log file
     const aliases = { "@/*": "./*" };
-    const violations = checkBoundaries(
-      `${mycoRoot}/features/strain/pages/StrainManagementPage.tsx`,
-      `import { TestBatchComponent } from '@/features/batch/components';`,
-      makePlaceholderConfig(),
-      makePlaceholderCtx(aliases)
-    );
+    const violations = checkBoundaries({
+      filePath: `${mycoRoot}/features/strain/pages/StrainManagementPage.tsx`,
+      content: `import { TestBatchComponent } from '@/features/batch/components';`,
+      config: makePlaceholderConfig(),
+      ctx: makePlaceholderCtx(aliases),
+    });
     assert.strictEqual(violations.length, 1, "expected 1 violation when importing via @ alias");
   });
 
@@ -1807,12 +1807,12 @@ suite("regression: containedTo with unless and flat features/** modules", () => 
     const content = `import { client } from '@/features/batch/api/client';`;
     const aliases = { "@/*": "./*" };
 
-    const violations = checkBoundaries(
-      filePath,
-      content,
-      makePlaceholderConfig(),
-      { knownFiles: files, root: mycoRoot, aliases }
-    );
+    const violations = checkBoundaries({
+      filePath: filePath,
+      content: content,
+      config: makePlaceholderConfig(),
+      ctx: { knownFiles: files, root: mycoRoot, aliases }
+    });
 
     assert.strictEqual(violations.length, 1, "Should block cross-feature import from non-exempt section");
     assert.ok(violations[0].message.includes("contained to \"features/batch/**\""), "Message should mention the restriction");

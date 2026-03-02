@@ -140,7 +140,7 @@ export function validateBoundaryRules(
     }
 
     if (r.containedTo !== undefined) {
-      validateContainedTo(r, index, rulePath, errors);
+      validateContainedTo({ ruleRecord: r, index, rulePath, errors });
     }
 
     if (r.message !== undefined && typeof r.message !== "string") {
@@ -217,8 +217,8 @@ export function validateBoundaryRules(
 
       if (typeof r.containedTo === "string") {
         warnOnUnboundVariables(r.containedTo, `${rulePath}.containedTo`, `"containedTo"`);
-      } else if (typeof r.containedTo === "object" && r.containedTo !== null && typeof (r.containedTo as { path?: unknown }).path === "string") {
-        warnOnUnboundVariables((r.containedTo as { path: string }).path, `${rulePath}.containedTo.path`, `"containedTo.path"`);
+      } else if (typeof r.containedTo === "object" && r.containedTo !== null && typeof (r.containedTo as { path?: unknown; }).path === "string") {
+        warnOnUnboundVariables((r.containedTo as { path: string; }).path, `${rulePath}.containedTo.path`, `"containedTo.path"`);
       }
     }
 

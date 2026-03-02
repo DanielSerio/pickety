@@ -24,6 +24,7 @@
 - Use 2-space indentation and semicolons, matching existing files.
 - ESLint is authoritative. Import names should be `camelCase` or `PascalCase`.
 - Prefix intentionally unused variables with `_` to satisfy the lint rules.
+- Functions should not have more than 3 arguments.
 
 ## Testing Guidelines
 - Tests use Mocha with the TDD interface (`suite` / `test`).

@@ -3,14 +3,20 @@ import type {
 } from "../shared/types";
 
 /**
+ * Options for validating containedTo property.
+ */
+export interface ValidateContainedToOptions {
+  ruleRecord: Record<string, unknown>;
+  index: number;
+  rulePath: string;
+  errors: ConfigError[];
+}
+
+/**
  * Validates the "containedTo" property of a boundary rule.
  */
-export function validateContainedTo(
-  r: Record<string, unknown>,
-  index: number,
-  rulePath: string,
-  errors: ConfigError[]
-): void {
+export function validateContainedTo(options: ValidateContainedToOptions): void {
+  const { ruleRecord: r, index, rulePath, errors } = options;
   if (typeof r.containedTo === "object" && r.containedTo !== null) {
     const ct = r.containedTo as Record<string, unknown>;
     if (typeof ct.path !== "string") {

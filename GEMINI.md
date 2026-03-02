@@ -50,3 +50,4 @@ The project is configured via `pickety.json` in the workspace root. It uses `jso
   - Extension behavior changes should be verified with integration tests in `src/test/extension.test.ts`.
 - **Imports:** Prefer literal union types over enums (as per global context).
 - **Dependencies:** Keep external dependencies minimal (currently uses `minimatch` and `jsonc-parser`).
+- **Functions:** Avoid more than 3 arguments per function.

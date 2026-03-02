@@ -79,34 +79,34 @@ export function checkRule(
             ? `Import is restricted: "${ctx.targetModule}" is contained to "${effectiveImporter}"`
             : `Module "${ctx.targetModule}" can only be imported by "${effectiveImporter}"`);
 
-        return createViolation(
-          ctx.filePath,
-          ctx.importStmt,
+        return createViolation({
+          filePath: ctx.filePath,
+          importStmt: ctx.importStmt,
           ruleName,
           ruleLabel,
           message,
-          ruleSeverity,
-          ctx.sourceModule,
-          ctx.targetModule,
-          ruleGroup
-        );
+          severity: ruleSeverity,
+          sourceModule: ctx.sourceModule,
+          targetModule: ctx.targetModule,
+          ruleGroup,
+        });
       }
     } else if (fromMatches && toMatches && !allow) {
       const message =
         rule.message ||
         `Module "${ctx.sourceModule}" cannot import from "${ctx.targetModule}"`;
 
-      return createViolation(
-        ctx.filePath,
-        ctx.importStmt,
+      return createViolation({
+        filePath: ctx.filePath,
+        importStmt: ctx.importStmt,
         ruleName,
         ruleLabel,
         message,
-        ruleSeverity,
-        ctx.sourceModule,
-        ctx.targetModule,
-        ruleGroup
-      );
+        severity: ruleSeverity,
+        sourceModule: ctx.sourceModule,
+        targetModule: ctx.targetModule,
+        ruleGroup,
+      });
     }
   }
 

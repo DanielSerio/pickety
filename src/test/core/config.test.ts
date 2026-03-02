@@ -107,6 +107,26 @@ suite("config", () => {
     }
   });
 
+  test("accepts ignore patterns array", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        ignore: ["tests/**", "**/*.spec.ts"],
+        modules: { app: "src/app/**/*" },
+        rules: {
+          "module-boundaries": {
+            rules: [{ importer: "*", imports: "app" }],
+          },
+        },
+      })
+    );
+
+    assert.strictEqual(result.ok, true);
+    if (result.ok) {
+      assert.ok(result.config);
+      assert.deepStrictEqual(result.config.ignore, ["tests/**", "**/*.spec.ts"]);
+    }
+  });
+
   test("allow field is optional and not required", () => {
     const result = writeAndLoad(
       JSON.stringify({
@@ -271,6 +291,20 @@ suite("config", () => {
     assert.strictEqual(result.ok, false);
     if (!result.ok) {
       assert.ok(result.errors.some(e => e.path === "rules"));
+    }
+  });
+
+  test("returns error when ignore is not an array", () => {
+    const result = writeAndLoad(
+      JSON.stringify({
+        ignore: "tests",
+        modules: { features: "src/features/*" },
+        rules: { "module-boundaries": { rules: [] } },
+      })
+    );
+    assert.strictEqual(result.ok, false);
+    if (!result.ok) {
+      assert.ok(result.errors.some(e => e.path === "ignore"));
     }
   });
 

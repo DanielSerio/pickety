@@ -3,7 +3,7 @@ import * as fs from "fs";
 import { ImportGraph, getFileDependencies } from "../core/graph";
 import { findCycles } from "../core/utils";
 import { computeModuleHealth, checkHealthThresholds } from "../core/health";
-import { normalizePath, SOURCE_GLOB } from "../shared/utils";
+import { normalizePath, SOURCE_GLOB, isIgnoredPath } from "../shared/utils";
 import type { PicketyConfig, WorkspaceContext, HealthViolation } from "../shared/types";
 import type { ConfigService } from "./configService";
 
@@ -51,9 +51,15 @@ export class AnalysisService {
     };
   }
 
-  public async scan(): Promise<boolean> {
+  public async scan(ignorePatterns?: string[]): Promise<boolean> {
     const files = await vscode.workspace.findFiles(SOURCE_GLOB, "**/node_modules/**");
-    this.knownFiles = new Set(files.map((f) => normalizePath(f.fsPath)));
+    const ignore = ignorePatterns ?? this.configService.getConfig()?.ignore;
+    this.knownFiles = new Set(
+      files
+        .map((f) => f.fsPath)
+        .filter((filePath) => !isIgnoredPath(filePath, this.workspaceRoot, ignore))
+        .map((filePath) => normalizePath(filePath))
+    );
     this.isLargeWorkspace = this.knownFiles.size > AnalysisService.MAX_FILES_THRESHOLD;
     this.importGraph.clear();
     return this.isLargeWorkspace;

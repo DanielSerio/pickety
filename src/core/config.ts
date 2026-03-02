@@ -175,6 +175,7 @@ function mergePresetConfig(
   const presetRecord = preset as unknown as Record<string, unknown>;
   mergeOptionalField({ merged, preset: presetRecord, override, key: "warnOnUntrackedImporters" });
   mergeOptionalField({ merged, preset: presetRecord, override, key: "boundary-diagrams" });
+  mergeOptionalField({ merged, preset: presetRecord, override, key: "ignore" });
 
   merged.health = mergeHealthConfig(preset.health, override.health);
   mergeOptionalField({ merged, preset: presetRecord, override, key: "version" });

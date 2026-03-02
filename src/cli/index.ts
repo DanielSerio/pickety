@@ -5,7 +5,14 @@ import { loadTsConfigAliases } from "../core/tsconfig";
 import { checkBoundaries } from "../core/boundaries";
 import { applyMaxViolations } from "../core/violations";
 import { ImportGraph, getFileDependencies } from "../core/graph";
-import { SOURCE_EXTENSIONS, normalizePath, getConfigPath, CONFIG_FILENAME, countViolationsBySeverity } from "../shared/utils";
+import {
+  SOURCE_EXTENSIONS,
+  normalizePath,
+  getConfigPath,
+  CONFIG_FILENAME,
+  countViolationsBySeverity,
+  isIgnoredPath
+} from "../shared/utils";
 import { findCycles } from "../core/utils";
 import { computeModuleHealth, checkHealthThresholds } from "../core/health";
 import { buildCheckReport, formatGroupSummary, formatViolation, printImpactReport, printHealthReport } from "./formatters";
@@ -79,7 +86,7 @@ function parseArgs(argv: string[]): ParseResult {
 
 const SOURCE_EXT_SET = new Set(SOURCE_EXTENSIONS.map((ext) => `.${ext}`));
 
-function discoverFiles(root: string): Set<string> {
+function discoverFiles(root: string, ignore: string[] | undefined): Set<string> {
   const entries = fs.readdirSync(root, { recursive: true, withFileTypes: true });
   const files = new Set<string>();
 
@@ -92,6 +99,9 @@ function discoverFiles(root: string): Set<string> {
       ?? root;
     const fullPath = path.join(parentPath, entry.name);
     if (fullPath.includes("node_modules")) {
+      continue;
+    }
+    if (isIgnoredPath(fullPath, root, ignore)) {
       continue;
     }
     if (SOURCE_EXT_SET.has(path.extname(entry.name))) {
@@ -149,7 +159,7 @@ function loadWorkspace(root: string): WorkspaceResult {
     }
   }
 
-  const knownFiles = discoverFiles(root);
+  const knownFiles = discoverFiles(root, result.config.ignore);
   const aliases = loadTsConfigAliases(root);
 
   return {

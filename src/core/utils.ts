@@ -9,6 +9,7 @@ import {
   matchesPattern,
   getConfigPath,
   formatHealthMetricValue,
+  isIgnoredPath,
 } from "../shared/utils";
 
 export {
@@ -21,6 +22,7 @@ export {
   matchesPattern,
   getConfigPath,
   formatHealthMetricValue,
+  isIgnoredPath,
 };
 
 import { minimatch } from "minimatch";

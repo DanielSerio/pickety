@@ -1,7 +1,9 @@
 import * as vscode from "vscode";
+import * as fs from "fs";
+import * as path from "path";
 import { checkBoundaries } from "../core/boundaries";
 import { applyMaxViolations } from "../core/violations";
-import { normalizePath, SOURCE_GLOB, getConfigPath } from "../shared/utils";
+import { normalizePath, SOURCE_GLOB, getConfigPath, isIgnoredPath } from "../shared/utils";
 import { reportConfigErrors, reportConfigWarnings } from "./diagnostics";
 import { generateMermaidDiagram } from "../core/diagram";
 import type { PicketyConfig, ConfigResult, Violation } from "../shared/types";
@@ -23,6 +25,7 @@ export interface DocumentValidatorOptions {
 }
 
 export class DocumentValidator implements vscode.Disposable {
+  private static readonly DIAGRAM_GITIGNORE_KEY = "pickety.diagramGitignoreAdded";
   private telemetry = TelemetryProvider.getInstance();
   private disposables: vscode.Disposable[] = [];
 
@@ -60,6 +63,7 @@ export class DocumentValidator implements vscode.Disposable {
     this.configRef.config = config;
 
     if (result.ok && result.config) {
+      const config = result.config;
       this.outputChannel.appendLine("Pickety: Import boundaries active");
       if (result.warnings && result.warnings.length > 0) {
         reportConfigWarnings({
@@ -73,11 +77,12 @@ export class DocumentValidator implements vscode.Disposable {
         const diagramPath = generateMermaidDiagram(result.config, this.workspaceRoot);
         if (diagramPath) {
           this.outputChannel.appendLine(`Pickety: Generated boundary diagram at ${diagramPath}`);
+          void this.ensureDefaultDiagramIgnored(diagramPath);
         }
       } catch (e) {
         this.outputChannel.appendLine(`Pickety: Failed to generate boundary diagram: ${e instanceof Error ? e.message : String(e)}`);
       }
-      this.analyzeOpenEditors();
+      void this.analysisService.scan(config.ignore).then(() => this.analyzeOpenEditors());
     } else if (!result.ok) {
       reportConfigErrors({
         errors: result.errors,
@@ -148,7 +153,7 @@ export class DocumentValidator implements vscode.Disposable {
       return;
     }
 
-    await this.analysisService.scan();
+    await this.analysisService.scan(config.ignore);
     const ctx = this.analysisService.getWorkspaceContext();
     const allEntries: { uri: vscode.Uri; filePath: string; violations: Violation[]; }[] = [];
 
@@ -156,6 +161,10 @@ export class DocumentValidator implements vscode.Disposable {
       const uri = vscode.Uri.file(filePath);
       let violations: Violation[] = [];
       try {
+        if (isIgnoredPath(filePath, this.workspaceRoot, config.ignore)) {
+          this.diagnosticManager.delete(uri);
+          continue;
+        }
         const raw = await vscode.workspace.fs.readFile(uri);
         const text = Buffer.from(raw).toString("utf8");
         violations = this.checkDocumentText(filePath, text, config);
@@ -316,7 +325,9 @@ export class DocumentValidator implements vscode.Disposable {
     const fileWatcher = vscode.workspace.createFileSystemWatcher(SOURCE_GLOB);
     this.disposables.push(fileWatcher);
     fileWatcher.onDidCreate((uri) => {
-      this.analysisService.getKnownFiles().add(normalizePath(uri.fsPath));
+      if (!isIgnoredPath(uri.fsPath, this.workspaceRoot, this.configService.getConfig()?.ignore)) {
+        this.analysisService.getKnownFiles().add(normalizePath(uri.fsPath));
+      }
     });
     fileWatcher.onDidDelete((uri) => {
       this.analysisService.removeFile(uri.fsPath);
@@ -328,6 +339,10 @@ export class DocumentValidator implements vscode.Disposable {
   }
 
   private async handleExternalChange(uri: vscode.Uri) {
+    const ignore = this.configService.getConfig()?.ignore;
+    if (isIgnoredPath(uri.fsPath, this.workspaceRoot, ignore)) {
+      return;
+    }
     const doc = vscode.workspace.textDocuments.find(
       (d) => normalizePath(d.uri.fsPath) === normalizePath(uri.fsPath)
     );
@@ -351,7 +366,56 @@ export class DocumentValidator implements vscode.Disposable {
   }
 
   private isSourceFile(document: vscode.TextDocument): boolean {
-    return ["typescript", "typescriptreact", "javascript", "javascriptreact"].includes(document.languageId);
+    if (!["typescript", "typescriptreact", "javascript", "javascriptreact"].includes(document.languageId)) {
+      return false;
+    }
+    const ignore = this.configService.getConfig()?.ignore;
+    return !isIgnoredPath(document.uri.fsPath, this.workspaceRoot, ignore);
+  }
+
+  private async ensureDefaultDiagramIgnored(diagramPath: string) {
+    const config = this.configService.getConfig();
+    if (!config || config["boundary-diagrams"] !== true) {
+      return;
+    }
+
+    if (this.context.workspaceState.get(DocumentValidator.DIAGRAM_GITIGNORE_KEY)) {
+      return;
+    }
+
+    const expectedPath = path.join(this.workspaceRoot, "picket-boundaries.mermaid");
+    const resolvedActual = normalizePath(path.resolve(diagramPath));
+    const resolvedExpected = normalizePath(path.resolve(expectedPath));
+    if (resolvedActual !== resolvedExpected) {
+      return;
+    }
+
+    const gitignorePath = path.join(this.workspaceRoot, ".gitignore");
+    let content = "";
+    try {
+      content = await fs.promises.readFile(gitignorePath, "utf8");
+    } catch (e) {
+      if (!(e instanceof Error) || !("code" in e) || (e as NodeJS.ErrnoException).code !== "ENOENT") {
+        this.telemetry.logError(e instanceof Error ? e : String(e), "ensureDefaultDiagramIgnored");
+        await this.context.workspaceState.update(DocumentValidator.DIAGRAM_GITIGNORE_KEY, true);
+        return;
+      }
+    }
+
+    const entry = "/picket-boundaries.mermaid";
+    const entryPattern = /(^|\r?\n)\s*\/?picket-boundaries\.mermaid\s*(#.*)?(\r?\n|$)/;
+    if (!entryPattern.test(content)) {
+      const needsNewline = content.length > 0 && !content.endsWith("\n");
+      const updated = `${content}${needsNewline ? "\n" : ""}${entry}\n`;
+      try {
+        await fs.promises.writeFile(gitignorePath, updated, "utf8");
+        this.outputChannel.appendLine("Pickety: Added picket-boundaries.mermaid to .gitignore");
+      } catch (e) {
+        this.telemetry.logError(e instanceof Error ? e : String(e), "ensureDefaultDiagramIgnored");
+      }
+    }
+
+    await this.context.workspaceState.update(DocumentValidator.DIAGRAM_GITIGNORE_KEY, true);
   }
 
   public dispose() {

@@ -4,6 +4,28 @@ All notable changes to the "pickety" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.4.0] - 2026-03-02
+
+### Added
+
+- **CLI `health` command.** `pickety health` prints a formatted table of module health metrics — afferent coupling (Ca), efferent coupling (Ce), instability, and dependency depth — with threshold violations annotated inline.
+- **CLI `impact` command.** `pickety impact <file>` shows all files and modules that transitively depend on the given file, grouped by module.
+- **`--format` flag for `check` command.** `pickety check --format json` emits a machine-readable report including cycles, a violation summary, and violations grouped by rule name/group. `--format text` (default) adds group summary blocks to the existing output.
+- **Circular dependency detection.** The workspace graph now identifies cycles across the module-level dependency graph and includes them in both CLI JSON output and VS Code diagnostics.
+- **Violation metadata.** `Violation` objects now carry `ruleName`, `ruleGroup`, `sourceModule`, and `targetModule` fields, enabling richer grouping and filtering in downstream tooling.
+
+### Changed
+
+- **BFS in `graph.ts` is now O(n).** Replaced `Array.shift()` in the transitive-dependents BFS loop with index-based iteration, eliminating quadratic behaviour for large graphs.
+- **`validateBoundaryRules()` split into per-property validators.** The monolithic function in `validationRules.ts` is now composed of focused helpers, one per rule property.
+- **`buildMermaidContent()` split into helper functions.** Node rendering, edge rendering, and health-metric overlays are now separate functions in `diagram.ts`.
+- **Path traversal check uses `path.relative()`.** The diagram output path safety check now uses `path.relative()` instead of a string prefix comparison, correctly handling symlinks and trailing slashes.
+
+### Fixed
+
+- **Parse errors in `buildImportGraph()` are now surfaced.** Previously, file parse failures during graph construction were silently skipped unless `--verbose` was passed; they are now always reported to the CLI output.
+- **Read errors in `handleExternalChange()` are now logged.** Failures to read an externally modified file are emitted to the VS Code output channel instead of being swallowed silently.
+
 ## [0.3.0] - 2026-02-28
 
 ### Added

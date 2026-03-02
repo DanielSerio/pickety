@@ -27,6 +27,40 @@ Use `--verbose` to log unreadable files.
 pickety check --verbose
 ```
 
+#### JSON output shape
+
+`--format json` emits a single JSON object:
+
+```jsonc
+{
+  "violations": [
+    {
+      "file": "src/features/auth/service.ts",
+      "message": "Features should not import other features directly",
+      "ruleName": "no-cross-feature",
+      "ruleGroup": "isolation",
+      "sourceModule": "features[auth]",
+      "targetModule": "features[billing]",
+      "severity": "error"
+    }
+  ],
+  "cycles": [
+    ["src/a.ts", "src/b.ts", "src/a.ts"]
+  ],
+  "summary": {
+    "errors": 3,
+    "warnings": 1,
+    "cycles": 1
+  },
+  "groups": {
+    "isolation": { "errors": 2, "warnings": 0 },
+    "layer-order": { "errors": 1, "warnings": 1 }
+  }
+}
+```
+
+`cycles` is an array of paths — each path is an ordered list of files that form the cycle, with the starting file repeated at the end. `groups` is only present when at least one rule has a `group` field set.
+
 ### `impact`
 
 Shows direct and transitive dependents of a target file.

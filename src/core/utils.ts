@@ -9,6 +9,7 @@ import {
   matchesPattern,
   getConfigPath,
   formatHealthMetricValue,
+  isIgnoredPath,
 } from "../shared/utils";
 
 export {
@@ -21,6 +22,7 @@ export {
   matchesPattern,
   getConfigPath,
   formatHealthMetricValue,
+  isIgnoredPath,
 };
 
 import { minimatch } from "minimatch";
@@ -126,19 +128,36 @@ export function getContainedToOptions(rule: BoundaryRule): ContainedToOptions | 
 }
 
 /**
+ * Options for creating a boundary violation.
+ */
+export interface CreateViolationOptions {
+  filePath: string;
+  importStmt: ImportStatement;
+  ruleName: string;
+  ruleLabel: string;
+  message: string;
+  severity: Severity;
+  sourceModule?: string;
+  targetModule?: string;
+  ruleGroup?: string;
+}
+
+/**
  * Helper to create a Violation object consistently.
  */
-export function createViolation(
-  filePath: string,
-  importStmt: ImportStatement,
-  ruleName: string,
-  ruleLabel: string,
-  message: string,
-  severity: Severity,
-  sourceModule?: string,
-  targetModule?: string,
-  ruleGroup?: string
-): Violation {
+export function createViolation(options: CreateViolationOptions): Violation {
+  const {
+    filePath,
+    importStmt,
+    ruleName,
+    ruleLabel,
+    message,
+    severity,
+    sourceModule,
+    targetModule,
+    ruleGroup,
+  } = options;
+
   return {
     file: filePath,
     line: importStmt.line,

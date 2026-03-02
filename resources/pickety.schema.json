@@ -179,6 +179,14 @@
       "description": "Emit an info diagnostic when a file does not match any declared module.",
       "markdownDescription": "Emit an **info** diagnostic when a file does not match any declared module. These files bypass all import rules.\n\n- `true` (default): warn when a file is outside declared modules.\n- `false`: silence this diagnostic."
     },
+    "ignore": {
+      "type": "array",
+      "description": "Glob patterns for files/directories to exclude from analysis.",
+      "markdownDescription": "Glob patterns for files/directories to exclude from analysis.\n\nExamples:\n```json\n\"ignore\": [\n  \"tests/**\",\n  \"**/*.spec.ts\"\n]\n```",
+      "items": {
+        "type": "string"
+      }
+    },
     "boundary-diagrams": {
       "oneOf": [
         {

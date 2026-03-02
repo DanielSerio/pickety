@@ -33,3 +33,12 @@ Moving beyond local logs to a cloud-based provider.
 - The Value: Detecting silent extension crashes across different OS/Node versions and understanding which features (Diagrams vs Health vs Impact) are actually used.
 - The Effort: Medium. Requires setting up a backend (AppInsights/Sentry) and ensuring strict compliance with VS Code's telemetry privacy settings.
 
+## Naming Conventions Rule Set (Files + Identifiers)
+
+Status: Not implemented.
+
+Introduce a `rules.naming-conventions` section to enforce filename and exported identifier naming patterns per module.
+
+- The Value: Standardize file and hook naming (e.g., hooks must be camelCase and start with `use`), reduce drift, and make architectural conventions explicit.
+- The Effort: Medium. Requires config/schema additions, validation, and a new enforcement pass (likely using TS AST to reliably extract exported identifiers).
+

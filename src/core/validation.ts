@@ -29,6 +29,7 @@ export function validateConfig(parsed: unknown): ConfigResult {
   const boundaryDiagrams = validateBoundaryDiagrams(obj["boundary-diagrams"], errors);
   const health = validateHealthConfig(obj.health, errors);
   const warnOnUntrackedImporters = validateWarnOnUntrackedImporters(obj.warnOnUntrackedImporters, errors);
+  const ignore = validateIgnore(obj.ignore, errors);
 
   if (errors.length > 0 || !modules || !boundaryConfig) {
     return warnings.length > 0
@@ -43,6 +44,7 @@ export function validateConfig(parsed: unknown): ConfigResult {
       rules: {
         "module-boundaries": boundaryConfig,
       },
+      ignore,
       warnOnUntrackedImporters,
       "boundary-diagrams": boundaryDiagrams,
       health,
@@ -119,4 +121,32 @@ function validateWarnOnUntrackedImporters(
   }
 
   return val;
+}
+
+function validateIgnore(
+  val: unknown,
+  errors: ConfigError[]
+): string[] | undefined {
+  if (val === undefined) {
+    return undefined;
+  }
+
+  if (!Array.isArray(val)) {
+    errors.push({
+      message: '"ignore" must be an array of glob patterns',
+      path: "ignore",
+    });
+    return undefined;
+  }
+
+  const invalid = val.find((entry) => typeof entry !== "string");
+  if (invalid !== undefined) {
+    errors.push({
+      message: '"ignore" entries must be strings',
+      path: "ignore",
+    });
+    return undefined;
+  }
+
+  return val as string[];
 }

@@ -282,4 +282,93 @@ suite('Extension Integration Test Suite', () => {
       } catch (_e) { }
     }
   }).timeout(15000);
+
+  test('External file changes re-run analysis for open documents', async () => {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      assert.fail('No workspace folder open');
+    }
+
+    const rootPath = workspaceFolders[0].uri.fsPath;
+    const isFixture = rootPath.includes('next-ddd');
+
+    const testFilePath = isFixture
+      ? path.join(rootPath, 'core', 'external_change_test.ts')
+      : path.join(rootPath, 'src', 'core', 'external_change_test.ts');
+
+    const testFileUri = vscode.Uri.file(testFilePath);
+    const validContent = 'const validVal = 42;\n';
+    const violationContent = isFixture
+      ? 'import { App } from "../app/main";\n'
+      : 'import { PicketyStatusBar } from "../vscode/statusBar";\n';
+
+    const waitForDiagnostic = async (uri: vscode.Uri, timeoutMs: number) => {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        const diagnostics = vscode.languages.getDiagnostics(uri);
+        if (diagnostics.some(d => d.source === 'pickety')) {
+          return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      throw new Error('Timed out waiting for diagnostics');
+    };
+
+    try {
+      await vscode.workspace.fs.writeFile(testFileUri, Buffer.from(validContent));
+      const doc = await vscode.workspace.openTextDocument(testFileUri);
+      await vscode.window.showTextDocument(doc);
+      await doc.save();
+
+      await vscode.commands.executeCommand('pickety.refresh');
+      await new Promise(resolve => setTimeout(resolve, 4000));
+
+      let diagnostics = vscode.languages.getDiagnostics(testFileUri);
+      let picketyDiag = diagnostics.find(d => d.source === 'pickety');
+      assert.ok(!picketyDiag, 'No diagnostics should be present for valid content');
+
+      await vscode.workspace.fs.writeFile(testFileUri, Buffer.from(violationContent));
+      await waitForDiagnostic(testFileUri, 10000);
+
+      diagnostics = vscode.languages.getDiagnostics(testFileUri);
+      picketyDiag = diagnostics.find(d => d.source === 'pickety');
+      assert.ok(picketyDiag, 'Diagnostics should update after external file change');
+    } finally {
+      try {
+        await vscode.workspace.fs.delete(testFileUri);
+      } catch (_e) { }
+    }
+  }).timeout(20000);
+
+  test('External file changes do not create diagnostics for closed files', async () => {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      assert.fail('No workspace folder open');
+    }
+
+    const rootPath = workspaceFolders[0].uri.fsPath;
+    const isFixture = rootPath.includes('next-ddd');
+
+    const testFilePath = isFixture
+      ? path.join(rootPath, 'core', 'external_change_closed_test.ts')
+      : path.join(rootPath, 'src', 'core', 'external_change_closed_test.ts');
+
+    const testFileUri = vscode.Uri.file(testFilePath);
+    const violationContent = isFixture
+      ? 'import { App } from "../app/main";\n'
+      : 'import { PicketyStatusBar } from "../vscode/statusBar";\n';
+
+    try {
+      await vscode.workspace.fs.writeFile(testFileUri, Buffer.from(violationContent));
+      await new Promise(resolve => setTimeout(resolve, 4000));
+
+      const diagnostics = vscode.languages.getDiagnostics(testFileUri);
+      const picketyDiag = diagnostics.find(d => d.source === 'pickety');
+      assert.ok(!picketyDiag, 'No diagnostics should be created for closed files');
+    } finally {
+      try {
+        await vscode.workspace.fs.delete(testFileUri);
+      } catch (_e) { }
+    }
+  }).timeout(15000);
 });

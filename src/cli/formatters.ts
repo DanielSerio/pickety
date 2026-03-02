@@ -120,14 +120,20 @@ export function buildCheckReport(
 }
 
 /**
+ * Options for printing an impact report.
+ */
+export interface ImpactReportOptions {
+  filePath: string;
+  graph: ImportGraph;
+  config: PicketyConfig;
+  root: string;
+}
+
+/**
  * Prints a grouped impact report for a single file to the console.
  */
-export function printImpactReport(
-  filePath: string,
-  graph: ImportGraph,
-  config: PicketyConfig,
-  root: string
-) {
+export function printImpactReport(options: ImpactReportOptions) {
+  const { filePath, graph, config, root } = options;
   const relativePath = toRelativePath(root, filePath);
   const directDependents = graph.getDependents(filePath);
   const transitiveDependents = graph.getTransitiveDependents(filePath);

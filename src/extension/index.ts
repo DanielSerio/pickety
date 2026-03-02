@@ -54,15 +54,15 @@ export async function activate(context: vscode.ExtensionContext) {
   const codeLensProvider = new ImpactCodeLensProvider(analysisService.getImportGraph(), workspaceRoot, { config: undefined });
   context.subscriptions.push(codeLensProvider);
 
-  const documentValidator = new DocumentValidator(
+  const documentValidator = new DocumentValidator({
     context,
     configService,
     analysisService,
     diagnosticManager,
     statusBar,
     outputChannel,
-    workspaceRoot
-  );
+    workspaceRoot,
+  });
   documentValidator.setCodeLensProvider(codeLensProvider);
   context.subscriptions.push(documentValidator);
 
@@ -76,7 +76,7 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   // Register commands
-  registerAllCommands(context, configService, analysisService, workspaceRoot);
+  registerAllCommands({ context, configService, analysisService, documentValidator, workspaceRoot });
 
   // Wire up events
   configService.onConfigChanged((res) => documentValidator.handleConfigResult(res));

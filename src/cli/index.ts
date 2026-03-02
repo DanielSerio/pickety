@@ -5,7 +5,14 @@ import { loadTsConfigAliases } from "../core/tsconfig";
 import { checkBoundaries } from "../core/boundaries";
 import { applyMaxViolations } from "../core/violations";
 import { ImportGraph, getFileDependencies } from "../core/graph";
-import { SOURCE_EXTENSIONS, normalizePath, getConfigPath, CONFIG_FILENAME, countViolationsBySeverity } from "../shared/utils";
+import {
+  SOURCE_EXTENSIONS,
+  normalizePath,
+  getConfigPath,
+  CONFIG_FILENAME,
+  countViolationsBySeverity,
+  isIgnoredPath
+} from "../shared/utils";
 import { findCycles } from "../core/utils";
 import { computeModuleHealth, checkHealthThresholds } from "../core/health";
 import { buildCheckReport, formatGroupSummary, formatViolation, printImpactReport, printHealthReport } from "./formatters";
@@ -79,7 +86,7 @@ function parseArgs(argv: string[]): ParseResult {
 
 const SOURCE_EXT_SET = new Set(SOURCE_EXTENSIONS.map((ext) => `.${ext}`));
 
-function discoverFiles(root: string): Set<string> {
+function discoverFiles(root: string, ignore: string[] | undefined): Set<string> {
   const entries = fs.readdirSync(root, { recursive: true, withFileTypes: true });
   const files = new Set<string>();
 
@@ -87,11 +94,14 @@ function discoverFiles(root: string): Set<string> {
     if (!entry.isFile()) {
       continue;
     }
-    const parentPath = (entry as { parentPath?: string; path?: string }).parentPath
-      ?? (entry as { path?: string }).path
+    const parentPath = (entry as { parentPath?: string; path?: string; }).parentPath
+      ?? (entry as { path?: string; }).path
       ?? root;
     const fullPath = path.join(parentPath, entry.name);
     if (fullPath.includes("node_modules")) {
+      continue;
+    }
+    if (isIgnoredPath(fullPath, root, ignore)) {
       continue;
     }
     if (SOURCE_EXT_SET.has(path.extname(entry.name))) {
@@ -149,7 +159,7 @@ function loadWorkspace(root: string): WorkspaceResult {
     }
   }
 
-  const knownFiles = discoverFiles(root);
+  const knownFiles = discoverFiles(root, result.config.ignore);
   const aliases = loadTsConfigAliases(root);
 
   return {
@@ -159,7 +169,7 @@ function loadWorkspace(root: string): WorkspaceResult {
   };
 }
 
-function buildImportGraph(ctx: WorkspaceContext, verbose: boolean): ImportGraph {
+function buildImportGraph(ctx: WorkspaceContext, _verbose: boolean): ImportGraph {
   const graph = new ImportGraph();
   for (const filePath of ctx.knownFiles) {
     try {
@@ -167,16 +177,14 @@ function buildImportGraph(ctx: WorkspaceContext, verbose: boolean): ImportGraph 
       const deps = getFileDependencies(filePath, content, ctx);
       graph.updateFile(filePath, deps);
     } catch (err) {
-      if (verbose) {
-        const detail = err instanceof Error ? err.message : String(err);
-        console.warn(`Skipping unreadable file: ${filePath} (${detail})`);
-      }
+      const detail = err instanceof Error ? err.message : String(err);
+      console.warn(`warning: Skipping unreadable file: ${filePath} (${detail})`);
     }
   }
   return graph;
 }
 
-function runCheck(root: string, format: OutputFormat, verbose: boolean): number {
+function runCheck(root: string, format: OutputFormat, _verbose: boolean): number {
   const workspace = loadWorkspace(root);
   if (!workspace.ok) {
     return workspace.exitCode;
@@ -188,16 +196,14 @@ function runCheck(root: string, format: OutputFormat, verbose: boolean): number 
   for (const filePath of ctx.knownFiles) {
     try {
       const content = fs.readFileSync(filePath, "utf-8");
-      const violations = checkBoundaries(filePath, content, config, ctx);
+      const violations = checkBoundaries({ filePath, content, config, ctx });
       allViolations.push(...violations);
 
       const fileDeps = getFileDependencies(filePath, content, ctx);
       graph.updateFile(filePath, fileDeps);
     } catch (err) {
-      if (verbose) {
-        const detail = err instanceof Error ? err.message : String(err);
-        console.warn(`Skipping unreadable file: ${filePath} (${detail})`);
-      }
+      const detail = err instanceof Error ? err.message : String(err);
+      console.warn(`warning: Skipping unreadable file: ${filePath} (${detail})`);
     }
   }
 
@@ -256,7 +262,7 @@ function runImpact(root: string, target: string | undefined, verbose: boolean): 
   }
   const { config, ctx } = workspace;
   const graph = buildImportGraph(ctx, verbose);
-  printImpactReport(target, graph, config, root);
+  printImpactReport({ filePath: target, graph, config, root });
   return 0;
 }
 

@@ -10,14 +10,20 @@ import {
 } from "./utils";
 import { checkRule } from "./ruleChecker";
 
+/**
+ * Options for checking import boundaries for a single file.
+ */
+export interface CheckBoundariesOptions {
+  filePath: string;
+  content: string;
+  config: PicketyConfig;
+  ctx: WorkspaceContext;
+}
+
 // Checks a single file for import boundary violations.
 // Returns a list of violations with position info for diagnostics.
-export function checkBoundaries(
-  filePath: string,
-  content: string,
-  config: PicketyConfig,
-  ctx: WorkspaceContext
-): Violation[] {
+export function checkBoundaries(options: CheckBoundariesOptions): Violation[] {
+  const { filePath, content, config, ctx } = options;
   const violations: Violation[] = [];
   const { modules } = config;
   const { severity, rules } = config.rules["module-boundaries"];

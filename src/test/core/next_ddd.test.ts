@@ -5,7 +5,7 @@ import { checkBoundaries } from "../../core/boundaries";
 import { loadConfig } from "../../core/config";
 import { loadTsConfigAliases } from "../../core/tsconfig";
 import * as fs from "fs";
-import type { WorkspaceContext } from "../../shared/types";
+import type { WorkspaceContext, PicketyConfig } from "../../shared/types";
 
 // This test uses the actual fixture on disk
 const FIXTURE_DIR = normalizePath(path.resolve(__dirname, "../../../fixtures/next-ddd"));
@@ -19,7 +19,7 @@ function makeCtx(files: Set<string>, root: string, aliases: Record<string, strin
 }
 
 suite("Next-DDD Fixture Validation", () => {
-  let config: any;
+  let config: PicketyConfig | undefined;
   let aliases: Record<string, string>;
   let knownFiles: Set<string>;
 
@@ -53,7 +53,12 @@ suite("Next-DDD Fixture Validation", () => {
     const filePath = normalizePath(path.join(FIXTURE_DIR, "features/strain/pages/StrainManagementPage.tsx"));
     const content = fs.readFileSync(filePath, "utf-8");
 
-    const violations = checkBoundaries(filePath, content, config, makeCtx(knownFiles, FIXTURE_DIR, aliases));
+    const violations = checkBoundaries({
+      filePath,
+      content,
+      config: config!,
+      ctx: makeCtx(knownFiles, FIXTURE_DIR, aliases),
+    });
 
     // StrainManagementPage imports @/features/batch/pages/BatchPage, which matches
     // the "only" rule restricting features/*/pages/** to the app module.
@@ -65,7 +70,12 @@ suite("Next-DDD Fixture Validation", () => {
     const filePath = normalizePath(path.join(FIXTURE_DIR, "app/main.tsx"));
     const content = fs.readFileSync(filePath, "utf-8");
 
-    const violations = checkBoundaries(filePath, content, config, makeCtx(knownFiles, FIXTURE_DIR, aliases));
+    const violations = checkBoundaries({
+      filePath,
+      content,
+      config: config!,
+      ctx: makeCtx(knownFiles, FIXTURE_DIR, aliases),
+    });
 
     assert.strictEqual(violations.length, 0, `Expected no violations in app/main.tsx, but found: ${violations.map(v => v.message).join(", ")}`);
   });
@@ -73,12 +83,22 @@ suite("Next-DDD Fixture Validation", () => {
   test("Domain and Core layers should follow rules", () => {
     const corePath = normalizePath(path.join(FIXTURE_DIR, "core/service.ts"));
     const coreContent = fs.readFileSync(corePath, "utf-8");
-    const coreViolations = checkBoundaries(corePath, coreContent, config, makeCtx(knownFiles, FIXTURE_DIR, aliases));
+    const coreViolations = checkBoundaries({
+      filePath: corePath,
+      content: coreContent,
+      config: config!,
+      ctx: makeCtx(knownFiles, FIXTURE_DIR, aliases),
+    });
     assert.strictEqual(coreViolations.length, 0, "Core service should be valid");
 
     const domainPath = normalizePath(path.join(FIXTURE_DIR, "domain/model.ts"));
     const domainContent = fs.readFileSync(domainPath, "utf-8");
-    const domainViolations = checkBoundaries(domainPath, domainContent, config, makeCtx(knownFiles, FIXTURE_DIR, aliases));
+    const domainViolations = checkBoundaries({
+      filePath: domainPath,
+      content: domainContent,
+      config: config!,
+      ctx: makeCtx(knownFiles, FIXTURE_DIR, aliases),
+    });
     assert.strictEqual(domainViolations.length, 0, "Domain model should be valid");
   });
 });

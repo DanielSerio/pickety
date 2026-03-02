@@ -3,12 +3,15 @@ import * as path from "path";
 import type { ConfigError, ConfigWarning } from "../shared/types";
 import { CONFIG_FILENAME } from "../shared/utils";
 
-export function reportConfigErrors(
-  errors: ConfigError[],
-  workspaceRoot: string,
-  outputChannel: vscode.OutputChannel,
-  diagnosticCollection: vscode.DiagnosticCollection
-) {
+export interface ReportConfigOptions {
+  errors: ConfigError[];
+  workspaceRoot: string;
+  outputChannel: vscode.OutputChannel;
+  diagnosticCollection: vscode.DiagnosticCollection;
+}
+
+export function reportConfigErrors(options: ReportConfigOptions) {
+  const { errors, workspaceRoot, outputChannel, diagnosticCollection } = options;
   outputChannel.appendLine("Pickety: Configuration error(s) found:");
   const configUri = vscode.Uri.file(path.join(workspaceRoot, CONFIG_FILENAME));
 
@@ -37,12 +40,15 @@ export function reportConfigErrors(
   );
 }
 
-export function reportConfigWarnings(
-  warnings: ConfigWarning[],
-  workspaceRoot: string,
-  outputChannel: vscode.OutputChannel,
-  diagnosticCollection: vscode.DiagnosticCollection
-) {
+export interface ReportConfigWarningsOptions {
+  warnings: ConfigWarning[];
+  workspaceRoot: string;
+  outputChannel: vscode.OutputChannel;
+  diagnosticCollection: vscode.DiagnosticCollection;
+}
+
+export function reportConfigWarnings(options: ReportConfigWarningsOptions) {
+  const { warnings, workspaceRoot, outputChannel, diagnosticCollection } = options;
   outputChannel.appendLine("Pickety: Configuration warning(s) found:");
   const configUri = vscode.Uri.file(path.join(workspaceRoot, CONFIG_FILENAME));
 

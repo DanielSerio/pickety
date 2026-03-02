@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import type { PicketyConfig, ModuleHealth } from "../shared/types";
+import type { PicketyConfig, ModuleHealth, ExportRule, Severity } from "../shared/types";
 import { resolveRuleDefaults, normalizePath } from "./utils";
 
 /**
@@ -39,8 +39,8 @@ export function generateMermaidDiagram(
   // Prevent path traversal: output must stay inside the workspace root
   const nRoot = normalizePath(path.resolve(root));
   const nOutput = normalizePath(path.resolve(outputPath));
-
-  if (!nOutput.startsWith(nRoot + "/")) {
+  const relative = path.relative(nRoot, nOutput);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
     console.error(`Pickety: Diagram output path "${option}" escapes the workspace root. Ignoring.`);
     return undefined;
   }
@@ -72,13 +72,18 @@ function escapeMermaid(value: string): string {
     .replace(/>/g, "#gt;");
 }
 
-function buildMermaidContent(config: PicketyConfig, health?: ModuleHealth[]): string {
-  const lines: string[] = ["graph LR"];
-  const modules = config.modules;
-  const rules = config.rules["module-boundaries"].rules;
-  const globalSeverity = config.rules["module-boundaries"].severity;
+interface DiagramContext {
+  config: PicketyConfig;
+  healthByModule: Map<string, ModuleHealth>;
+  lines: string[];
+  edgeStyles: string[];
+  nodeIds: Map<string, string>;
+  idCounter: number;
+  edgeIndex: number;
+  globalSeverity: Severity;
+}
 
-  // 1. Map health for easy access
+function buildMermaidContent(config: PicketyConfig, health?: ModuleHealth[]): string {
   const healthByModule = new Map<string, ModuleHealth>();
   if (health) {
     for (const h of health) {
@@ -86,25 +91,52 @@ function buildMermaidContent(config: PicketyConfig, health?: ModuleHealth[]): st
     }
   }
 
-  // 2. Styles
-  lines.push("");
-  lines.push("  %% Node Styles");
-  lines.push("  classDef module fill:#f1f5f9,stroke:#64748b,stroke-width:2px;");
-  lines.push("  classDef external fill:#ffffff,stroke:#94a3b8,stroke-width:1px,stroke-dasharray: 5 5;");
+  const ctx: DiagramContext = {
+    config,
+    healthByModule,
+    lines: ["graph LR"],
+    edgeStyles: [],
+    nodeIds: new Map<string, string>(),
+    idCounter: 0,
+    edgeIndex: 0,
+    globalSeverity: config.rules["module-boundaries"].severity,
+  };
 
-  // 3. Define Nodes and Cluster them
+  addStyles(ctx);
+  const clusters = discoverClusters(ctx);
+  renderClusters(ctx, clusters);
+  addRuleEdges(ctx);
+  addLegend(ctx);
+
+  return ctx.lines.concat(ctx.edgeStyles).join("\n");
+}
+
+function addStyles(ctx: DiagramContext) {
+  ctx.lines.push("");
+  ctx.lines.push("  %% Node Styles");
+  ctx.lines.push("  classDef module fill:#f1f5f9,stroke:#64748b,stroke-width:2px;");
+  ctx.lines.push("  classDef external fill:#ffffff,stroke:#94a3b8,stroke-width:1px,stroke-dasharray: 5 5;");
+}
+
+function discoverClusters(ctx: DiagramContext): Map<string, string[]> {
   const clusters = new Map<string, string[]>();
-  const allInvolvedNodes = new Set<string>(Object.keys(modules));
+  const allInvolvedNodes = new Set<string>(Object.keys(ctx.config.modules));
+  const rules = ctx.config.rules["module-boundaries"].rules;
 
-  // Add any patterns from rules that aren't explicit modules
   rules.forEach((rule, index) => {
-    const { effectiveImporter } = resolveRuleDefaults(rule, index, globalSeverity);
+    const { effectiveImporter } = resolveRuleDefaults(rule, index, ctx.globalSeverity);
     allInvolvedNodes.add(effectiveImporter);
     const importPatterns = Array.isArray(rule.imports) ? rule.imports : [rule.imports];
     importPatterns.forEach((pattern) => {
       if (typeof pattern === "string") {
         allInvolvedNodes.add(pattern);
       }
+    });
+
+    const exportsList = normalizeExports(rule.exports);
+    exportsList.forEach((entry) => {
+      allInvolvedNodes.add(entry.path);
+      allInvolvedNodes.add(entry.to);
     });
   });
 
@@ -117,75 +149,134 @@ function buildMermaidContent(config: PicketyConfig, health?: ModuleHealth[]): st
     clusters.set(cluster, existing);
   });
 
-  const nodeIds = new Map<string, string>();
-  let idCounter = 0;
-  const getSafeId = (name: string) => {
-    if (!nodeIds.has(name)) {
-      nodeIds.set(name, `n${idCounter++}`);
-    }
-    return nodeIds.get(name)!;
-  };
+  return clusters;
+}
 
+function getSafeId(ctx: DiagramContext, name: string): string {
+  if (!ctx.nodeIds.has(name)) {
+    ctx.nodeIds.set(name, `n${ctx.idCounter++}`);
+  }
+  return ctx.nodeIds.get(name)!;
+}
+
+function renderClusters(ctx: DiagramContext, clusters: Map<string, string[]>) {
   clusters.forEach((nodeNames, clusterName) => {
-    lines.push("");
-    lines.push(`  subgraph c${idCounter++} [" ${escapeMermaid(clusterName)} "]`);
+    ctx.lines.push("");
+    ctx.lines.push(`  subgraph c${ctx.idCounter++} [" ${escapeMermaid(clusterName)} "]`);
     nodeNames.forEach((name) => {
-      const id = getSafeId(name);
-      const isModule = !!modules[name];
-      const h = healthByModule.get(name);
+      const id = getSafeId(ctx, name);
+      const isModule = !!ctx.config.modules[name];
+      const h = ctx.healthByModule.get(name);
 
       let label = escapeMermaid(name);
       if (h) {
-        label += `<br/><small>Ca:${h.afferentCoupling} Ce:${h.efferentCoupling} I:${h.instability.toFixed(
-          2
-        )}</small>`;
+        label += `<br/><small>Ca:${h.afferentCoupling} Ce:${h.efferentCoupling} I:${h.instability.toFixed(2)}</small>`;
       }
 
-      // Interpolation patterns get stadium shape, others square
       const shape = name.includes("$") ? `(["${label}"])` : `["${label}"]`;
       const className = isModule ? "module" : "external";
-
-      lines.push(`    ${id}${shape}:::${className}`);
+      ctx.lines.push(`    ${id}${shape}:::${className}`);
     });
-    lines.push("  end");
+    ctx.lines.push("  end");
   });
+}
 
-  // 4. Edges (Rules)
-  lines.push("");
-  lines.push("  %% Boundary Rules");
+function addEdge(ctx: DiagramContext, edge: {
+  fromId: string;
+  toId: string;
+  label: string;
+  color: string;
+  width?: string;
+  dash?: boolean;
+  arrow?: string;
+}) {
+  const arrow = edge.arrow ?? "-->";
+  const width = edge.width ?? "2px";
+  const dash = edge.dash ? ",stroke-dasharray:5" : "";
+  ctx.lines.push(`  ${edge.fromId} ${arrow}|"${escapeMermaid(edge.label)}"| ${edge.toId}`);
+  ctx.edgeStyles.push(`  linkStyle ${ctx.edgeIndex++} stroke:${edge.color},stroke-width:${width}${dash}`);
+}
 
-  const edgeStyles: string[] = [];
-  let edgeIndex = 0;
+function addRuleEdges(ctx: DiagramContext) {
+  ctx.lines.push("");
+  ctx.lines.push("  %% Boundary Rules");
+
+  const rules = ctx.config.rules["module-boundaries"].rules;
+  const exportColor = "#14b8a6";
+  const onlyColor = "#f97316";
 
   rules.forEach((rule, index) => {
-    const { allow, name, effectiveImporter, isAllowStyle, isOnly } = resolveRuleDefaults(
+    const { allow, label, effectiveImporter, isAllowStyle, isOnly } = resolveRuleDefaults(
       rule,
       index,
-      globalSeverity
+      ctx.globalSeverity
     );
 
     const importPatterns = Array.isArray(rule.imports) ? rule.imports : [rule.imports];
-    const fromId = getSafeId(effectiveImporter);
 
     importPatterns.forEach((pattern) => {
       if (typeof pattern !== "string") {
         return;
       }
 
-      const toId = getSafeId(pattern);
-      const arrow = isAllowStyle ? "-->" : "-.->";
-      const actionLabel = allow ? "ALLOW" : "DENY";
-      const label = rule.message || `${actionLabel}: ${name}`;
+      const fromId = getSafeId(ctx, isOnly ? pattern : effectiveImporter);
+      const toId = getSafeId(ctx, isOnly ? effectiveImporter : pattern);
+      const actionLabel = isOnly
+        ? (rule.containedTo ? "CONTAINED" : "ONLY")
+        : (allow ? "ALLOW" : "DENY");
+      const edgeLabel = rule.message || `${actionLabel}: ${label}`;
+      const color = isOnly ? onlyColor : (isAllowStyle ? "#22c55e" : "#ef4444");
 
-      lines.push(`  ${fromId} ${arrow}|"${escapeMermaid(label)}"| ${toId}`);
+      addEdge(ctx, {
+        fromId,
+        toId,
+        label: edgeLabel,
+        color,
+        width: isOnly ? "4px" : "2px",
+        dash: !isAllowStyle && !isOnly,
+        arrow: isAllowStyle || isOnly ? "-->" : "-.->",
+      });
+    });
 
-      // Style the edge: green for allow, red for deny, thicker for 'only' constraints
-      const color = isAllowStyle ? "#22c55e" : "#ef4444";
-      const width = isOnly ? "4px" : "2px";
-      const dash = isAllowStyle ? "" : ",stroke-dasharray:5";
-      edgeStyles.push(`  linkStyle ${edgeIndex++} stroke:${color},stroke-width:${width}${dash}`);
+    normalizeExports(rule.exports).forEach((entry) => {
+      addEdge(ctx, {
+        fromId: getSafeId(ctx, entry.to),
+        toId: getSafeId(ctx, entry.path),
+        label: `EXPORT: ${label}`,
+        color: exportColor,
+      });
     });
   });
+}
 
-  return lines.concat(edgeStyles).join("\n");
+function addLegend(ctx: DiagramContext) {
+  ctx.lines.push("");
+  ctx.lines.push("  %% Legend");
+  ctx.lines.push("  subgraph Legend");
+  ctx.lines.push('    legendAllow["ALLOW"]');
+  ctx.lines.push('    legendDeny["DENY"]');
+  ctx.lines.push('    legendOnly["ONLY/CONTAINED"]');
+  ctx.lines.push('    legendExport["EXPORT EXCEPTION"]');
+  ctx.lines.push("  end");
+
+  ctx.lines.push("");
+  ctx.lines.push("  %% Legend Edges");
+  addEdge(ctx, { fromId: "legendAllow", toId: "legendDeny", label: "ALLOW", color: "#22c55e" });
+  addEdge(ctx, {
+    fromId: "legendDeny",
+    toId: "legendAllow",
+    label: "DENY",
+    color: "#ef4444",
+    dash: true,
+    arrow: "-.->",
+  });
+  addEdge(ctx, { fromId: "legendOnly", toId: "legendAllow", label: "ONLY", color: "#f97316", width: "4px" });
+  addEdge(ctx, { fromId: "legendExport", toId: "legendAllow", label: "EXPORT", color: "#14b8a6" });
+}
+
+function normalizeExports(exportsRule: ExportRule | ExportRule[] | undefined): ExportRule[] {
+  if (!exportsRule) {
+    return [];
+  }
+  return Array.isArray(exportsRule) ? exportsRule : [exportsRule];
 }

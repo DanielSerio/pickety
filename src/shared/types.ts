@@ -46,6 +46,7 @@ export interface BoundaryRule {
 export interface PicketyConfig {
   version?: string;
   modules: Record<string, string>; // module name -> glob pattern
+  ignore?: string[]; // glob patterns to exclude from analysis
   rules: {
     "module-boundaries": {
       severity: Severity;

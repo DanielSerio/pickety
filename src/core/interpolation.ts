@@ -35,7 +35,12 @@ export function captureVariablesFromPath(
   const maxStart = pathSegments.length - nonStarCount;
 
   for (let start = minStart; start <= maxStart; start++) {
-    const captured = tryMatchSegments(patternSegments, pathSegments, start, variables);
+    const captured = tryMatchSegments({
+      patternSegments,
+      pathSegments,
+      startOffset: start,
+      variables,
+    });
     if (captured) {
       return captured;
     }
@@ -44,14 +49,20 @@ export function captureVariablesFromPath(
   return undefined;
 }
 
+/**
+ * Options for segment-based variable matching.
+ */
+export interface MatchSegmentsOptions {
+  patternSegments: string[];
+  pathSegments: string[];
+  startOffset: number;
+  variables: string[];
+}
+
 // Attempts to match pattern segments against path segments starting at a given offset.
 // Returns captured variables on success, undefined on failure.
-export function tryMatchSegments(
-  patternSegments: string[],
-  pathSegments: string[],
-  startOffset: number,
-  variables: string[]
-): Record<string, string> | undefined {
+export function tryMatchSegments(options: MatchSegmentsOptions): Record<string, string> | undefined {
+  const { patternSegments, pathSegments, startOffset, variables } = options;
   const result: Record<string, string> = {};
   let pathIdx = startOffset;
 
@@ -67,7 +78,12 @@ export function tryMatchSegments(
       }
       // Try matching the rest of the pattern at every remaining position
       for (let skip = pathIdx; skip <= pathSegments.length - remaining.length; skip++) {
-        const subResult = tryMatchSegments(remaining, pathSegments, skip, variables);
+        const subResult = tryMatchSegments({
+          patternSegments: remaining,
+          pathSegments,
+          startOffset: skip,
+          variables,
+        });
         if (subResult) {
           return { ...result, ...subResult };
         }

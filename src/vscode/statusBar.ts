@@ -14,24 +14,37 @@ export class PicketyStatusBar {
     if (!config) {
       this.item.text = "";
       this.item.tooltip = "";
+      this.item.color = undefined;
       this.item.backgroundColor = undefined;
       this.item.hide();
       return;
     }
 
-    let violationCount = 0;
+    let errorCount = 0;
+    let warningCount = 0;
     diagnosticCollection.forEach((_uri, diagnostics) => {
-      violationCount += diagnostics.filter((d) => d.source === "pickety").length;
+      diagnostics
+        .filter((d) => d.source === "pickety")
+        .forEach((d) => {
+          if (d.severity === vscode.DiagnosticSeverity.Error) {
+            errorCount += 1;
+          } else if (d.severity === vscode.DiagnosticSeverity.Warning) {
+            warningCount += 1;
+          }
+        });
     });
 
+    const violationCount = errorCount + warningCount;
     if (violationCount > 0) {
       this.item.text = `$(shield) Pickety: ${violationCount} issue(s)`;
       this.item.tooltip = `Found ${violationCount} architectural violations. Click to refresh.`;
-      this.item.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
+      this.item.color = errorCount > 0 ? "#ff8c00" : "#f2c200";
+      this.item.backgroundColor = undefined;
       this.item.show();
     } else {
       this.item.text = "$(check) Pickety";
       this.item.tooltip = "Architectural boundaries are secure. Click to refresh.";
+      this.item.color = undefined;
       this.item.backgroundColor = undefined;
       this.item.show();
     }

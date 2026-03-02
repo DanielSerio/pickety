@@ -98,9 +98,10 @@ export class ImportGraph {
   getTransitiveDependents(file: string): Set<string> {
     const result = new Set<string>();
     const queue = [file];
+    let head = 0;
 
-    while (queue.length > 0) {
-      const current = queue.shift()!;
+    while (head < queue.length) {
+      const current = queue[head++];
       const deps = this.dependents.get(current);
       if (!deps) {
         continue;

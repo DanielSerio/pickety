@@ -37,6 +37,42 @@ export function matchesPattern(value: string, pattern: string): boolean {
   return minimatch(value, pattern) || value === pattern;
 }
 
+function hasGlob(pattern: string): boolean {
+  const tokens = ["*", "?", "[", "]", "{", "}", "(", ")", "!", "+", "@"];
+  return tokens.some((token) => pattern.includes(token));
+}
+
+export function isIgnoredPath(
+  filePath: string,
+  root: string,
+  ignore: string[] | undefined
+): boolean {
+  if (!ignore || ignore.length === 0) {
+    return false;
+  }
+
+  const relative = normalizePath(path.relative(root, path.resolve(filePath)));
+  if (relative === "" || relative.startsWith("..")) {
+    return false;
+  }
+
+  return ignore.some((raw) => {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return false;
+    }
+    const normalized = normalizePath(trimmed)
+      .replace(/^\.?\//, "")
+      .replace(/^\/+/, "");
+    const patterns = hasGlob(normalized)
+      ? [normalized]
+      : [normalized, `${normalized}/**`];
+    return patterns.some((pattern) =>
+      minimatch(relative, pattern) || minimatch(relative, `**/${pattern}`)
+    );
+  });
+}
+
 /**
  * Returns the absolute path to pickety.json for a given root.
  */

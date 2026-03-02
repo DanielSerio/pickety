@@ -41,12 +41,17 @@ export function checkInterpolatedRule(
     : evaluateStandardInterpolatedRule(args);
 }
 
+interface CaptureOptions {
+  pattern: string;
+  variables: string[];
+  moduleName: string;
+  relativePath: string;
+}
+
 function captureVariablesFromPattern(
-  pattern: string,
-  variables: string[],
-  moduleName: string,
-  relativePath: string
+  options: CaptureOptions
 ): Record<string, string> | undefined {
+  const { pattern, variables, moduleName, relativePath } = options;
   const target = pattern.includes("/") ? relativePath : moduleName;
   return captureVariablesFromPath(pattern, target, variables);
 }
@@ -65,12 +70,12 @@ function evaluateOnlyInterpolatedRule(args: InterpolatedRuleArgs): Violation | u
   } = args;
 
   // ONLY rule with interpolation: capture variables from target path
-  const captured = captureVariablesFromPattern(
-    importsPattern,
+  const captured = captureVariablesFromPattern({
+    pattern: importsPattern,
     variables,
-    ctx.targetModule,
-    ctx.targetRelativePath
-  );
+    moduleName: ctx.targetModule,
+    relativePath: ctx.targetRelativePath,
+  });
   if (!captured) {
     return undefined;
   }
@@ -91,17 +96,17 @@ function evaluateOnlyInterpolatedRule(args: InterpolatedRuleArgs): Violation | u
       rule.message ||
       `Module "${ctx.sourceModule}" is not allowed to import from "${ctx.targetModule}" (contained to "${expectedImporter}")`;
 
-    return createViolation(
-      ctx.filePath,
-      ctx.importStmt,
+    return createViolation({
+      filePath: ctx.filePath,
+      importStmt: ctx.importStmt,
       ruleName,
       ruleLabel,
       message,
-      ruleSeverity,
-      ctx.sourceModule,
-      ctx.targetModule,
-      ruleGroup
-    );
+      severity: ruleSeverity,
+      sourceModule: ctx.sourceModule,
+      targetModule: ctx.targetModule,
+      ruleGroup,
+    });
   }
 
   return undefined;
@@ -122,12 +127,12 @@ function evaluateStandardInterpolatedRule(args: InterpolatedRuleArgs): Violation
   } = args;
 
   // Normal interpolation rule: capture variables from source file path
-  const captured = captureVariablesFromPattern(
-    effectiveImporter,
+  const captured = captureVariablesFromPattern({
+    pattern: effectiveImporter,
     variables,
-    ctx.sourceModule,
-    ctx.sourceRelativePath
-  );
+    moduleName: ctx.sourceModule,
+    relativePath: ctx.sourceRelativePath,
+  });
   if (!captured) {
     return undefined;
   }
@@ -142,17 +147,17 @@ function evaluateStandardInterpolatedRule(args: InterpolatedRuleArgs): Violation
     if (matchesGeneral && !matchesSpecific) {
       const message = rule.message || `Import must match scoped pattern "${specificPattern}"`;
 
-      return createViolation(
-        ctx.filePath,
-        ctx.importStmt,
+      return createViolation({
+        filePath: ctx.filePath,
+        importStmt: ctx.importStmt,
         ruleName,
         ruleLabel,
         message,
-        ruleSeverity,
-        ctx.sourceModule,
-        ctx.targetModule,
-        ruleGroup
-      );
+        severity: ruleSeverity,
+        sourceModule: ctx.sourceModule,
+        targetModule: ctx.targetModule,
+        ruleGroup,
+      });
     }
   } else {
     const specificPattern = replaceVariables(importsPattern, variables, captured);
@@ -161,17 +166,17 @@ function evaluateStandardInterpolatedRule(args: InterpolatedRuleArgs): Violation
     if (toMatches) {
       const message = rule.message || `Module "${ctx.sourceModule}" cannot import from "${ctx.targetModule}"`;
 
-      return createViolation(
-        ctx.filePath,
-        ctx.importStmt,
+      return createViolation({
+        filePath: ctx.filePath,
+        importStmt: ctx.importStmt,
         ruleName,
         ruleLabel,
         message,
-        ruleSeverity,
-        ctx.sourceModule,
-        ctx.targetModule,
-        ruleGroup
-      );
+        severity: ruleSeverity,
+        sourceModule: ctx.sourceModule,
+        targetModule: ctx.targetModule,
+        ruleGroup,
+      });
     }
   }
 
@@ -222,7 +227,13 @@ export function isExportExempt(
   for (const { entry, pathVars, toVars } of exportsList) {
     const targetCaptured =
       pathVars.length > 0
-        ? getCaptureForPattern(entry.path, pathVars, captured, ctx.targetModule, ctx.targetRelativePath)
+        ? getCaptureForPattern({
+          pattern: entry.path,
+          variables: pathVars,
+          preferred: captured,
+          moduleName: ctx.targetModule,
+          relativePath: ctx.targetRelativePath,
+        })
         : {};
 
     if (pathVars.length > 0 && !targetCaptured) {
@@ -231,7 +242,13 @@ export function isExportExempt(
 
     const sourceCaptured =
       toVars.length > 0
-        ? getCaptureForPattern(entry.to, toVars, undefined, ctx.sourceModule, ctx.sourceRelativePath)
+        ? getCaptureForPattern({
+          pattern: entry.to,
+          variables: toVars,
+          preferred: undefined,
+          moduleName: ctx.sourceModule,
+          relativePath: ctx.sourceRelativePath,
+        })
         : {};
 
     if (toVars.length > 0 && !sourceCaptured) {
@@ -263,17 +280,18 @@ export function isExportExempt(
   return false;
 }
 
+interface GetCaptureOptions extends CaptureOptions {
+  preferred: Record<string, string> | undefined;
+}
+
 function getCaptureForPattern(
-  pattern: string,
-  variables: string[],
-  preferred: Record<string, string> | undefined,
-  moduleName: string,
-  relativePath: string
+  options: GetCaptureOptions
 ): Record<string, string> | undefined {
+  const { pattern, variables, preferred, moduleName, relativePath } = options;
   if (preferred && variables.every((v) => preferred[v] !== undefined)) {
     return preferred;
   }
-  return captureVariablesFromPattern(pattern, variables, moduleName, relativePath);
+  return captureVariablesFromPattern({ pattern, variables, moduleName, relativePath });
 }
 
 function mergeCaptures(

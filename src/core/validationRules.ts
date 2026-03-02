@@ -81,7 +81,7 @@ export function validateBoundaryRules(
 
   const validatedRules: BoundaryRule[] = [];
   bObj.rules.forEach((rule, index) => {
-    const validatedRule = validateSingleRule(rule, index, errors, warnings);
+    const validatedRule = validateSingleRule({ rule, index, errors, warnings });
     if (validatedRule) {
       validatedRules.push(validatedRule);
     }
@@ -93,12 +93,13 @@ export function validateBoundaryRules(
 /**
  * Validates a single boundary rule object.
  */
-function validateSingleRule(
-  rule: unknown,
-  index: number,
-  errors: ConfigError[],
-  warnings: ConfigWarning[]
-): BoundaryRule | undefined {
+function validateSingleRule(options: {
+  rule: unknown;
+  index: number;
+  errors: ConfigError[];
+  warnings: ConfigWarning[];
+}): BoundaryRule | undefined {
+  const { rule, index, errors, warnings } = options;
   const rulePath = `rules.module-boundaries.rules[${index}]`;
   if (typeof rule !== "object" || rule === null) {
     errors.push({ message: `Rule #${index} must be an object`, path: rulePath });
@@ -108,8 +109,8 @@ function validateSingleRule(
   const r = rule as Record<string, unknown>;
 
   // 1. Mandatory fields: importer/containedTo and imports
-  const importer = validateImporter(r, index, rulePath, errors);
-  const imports = validateImports(r, index, rulePath, errors);
+  const importer = validateImporter({ r, index, rulePath, errors });
+  const imports = validateImports({ r, index, rulePath, errors });
   if (!imports) {
     return undefined;
   }
@@ -132,7 +133,7 @@ function validateSingleRule(
   }
 
   // 3. Metadata fields (severity, name, message, etc)
-  validateRuleMetadata(r, index, rulePath, errors, validatedRule);
+  validateRuleMetadata({ r, index, rulePath, errors, result: validatedRule });
 
   // 4. Exports
   const exportsRules = validateExportRules(r, rulePath, errors);
@@ -141,17 +142,18 @@ function validateSingleRule(
   }
 
   // 5. Cross-field variable validation
-  checkVariableBindings(r, index, rulePath, imports, warnings);
+  checkVariableBindings({ r, index, rulePath, imports, warnings });
 
   return validatedRule;
 }
 
-function validateImporter(
-  r: Record<string, unknown>,
-  index: number,
-  rulePath: string,
-  errors: ConfigError[]
-): string | undefined {
+function validateImporter(options: {
+  r: Record<string, unknown>;
+  index: number;
+  rulePath: string;
+  errors: ConfigError[];
+}): string | undefined {
+  const { r, index, rulePath, errors } = options;
   const hasContainedTo =
     typeof r.containedTo === "string" ||
     (typeof r.containedTo === "object" && r.containedTo !== null);
@@ -177,12 +179,13 @@ function validateImporter(
   return undefined;
 }
 
-function validateImports(
-  r: Record<string, unknown>,
-  index: number,
-  rulePath: string,
-  errors: ConfigError[]
-): string | string[] | undefined {
+function validateImports(options: {
+  r: Record<string, unknown>;
+  index: number;
+  rulePath: string;
+  errors: ConfigError[];
+}): string | string[] | undefined {
+  const { r, index, rulePath, errors } = options;
   if (typeof r.imports === "string") {
     return r.imports;
   }
@@ -206,13 +209,14 @@ function validateImports(
   return undefined;
 }
 
-function validateRuleMetadata(
-  r: Record<string, unknown>,
-  index: number,
-  rulePath: string,
-  errors: ConfigError[],
-  result: BoundaryRule
-) {
+function validateRuleMetadata(options: {
+  r: Record<string, unknown>;
+  index: number;
+  rulePath: string;
+  errors: ConfigError[];
+  result: BoundaryRule;
+}) {
+  const { r, index, rulePath, errors, result } = options;
   if (r.allow !== undefined && typeof r.allow !== "boolean") {
     errors.push({ message: `Rule #${index}: "allow" must be a boolean`, path: `${rulePath}.allow` });
   }
@@ -285,13 +289,14 @@ function validateExportRules(
   return parseExportRule(r.exports, `${rulePath}.exports`, errors);
 }
 
-function checkVariableBindings(
-  r: Record<string, unknown>,
-  index: number,
-  rulePath: string,
-  imports: string | string[],
-  warnings: ConfigWarning[]
-) {
+function checkVariableBindings(options: {
+  r: Record<string, unknown>;
+  index: number;
+  rulePath: string;
+  imports: string | string[];
+  warnings: ConfigWarning[];
+}) {
+  const { r, index, rulePath, imports, warnings } = options;
   const importPatterns = Array.isArray(imports) ? imports : [imports];
   const importVars = new Set(collectVariables(importPatterns));
 

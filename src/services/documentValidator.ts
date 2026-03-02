@@ -398,7 +398,6 @@ export class DocumentValidator implements vscode.Disposable {
     } catch (e) {
       if (!(e instanceof Error) || !("code" in e) || (e as NodeJS.ErrnoException).code !== "ENOENT") {
         this.telemetry.logError(e instanceof Error ? e : String(e), "ensureDefaultDiagramIgnored");
-        await this.context.workspaceState.update(DocumentValidator.DIAGRAM_GITIGNORE_KEY, true);
         return;
       }
     }
@@ -413,6 +412,7 @@ export class DocumentValidator implements vscode.Disposable {
         this.outputChannel.appendLine("Pickety: Added picket-boundaries.mermaid to .gitignore");
       } catch (e) {
         this.telemetry.logError(e instanceof Error ? e : String(e), "ensureDefaultDiagramIgnored");
+        return;
       }
     }
 

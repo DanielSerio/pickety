@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import type { PicketyConfig, ModuleHealth, ExportRule } from "../shared/types";
+import type { PicketyConfig, ModuleHealth, ExportRule, Severity } from "../shared/types";
 import { resolveRuleDefaults, normalizePath } from "./utils";
 
 /**
@@ -80,7 +80,7 @@ interface DiagramContext {
   nodeIds: Map<string, string>;
   idCounter: number;
   edgeIndex: number;
-  globalSeverity: string;
+  globalSeverity: Severity;
 }
 
 function buildMermaidContent(config: PicketyConfig, health?: ModuleHealth[]): string {
@@ -124,7 +124,7 @@ function discoverClusters(ctx: DiagramContext): Map<string, string[]> {
   const rules = ctx.config.rules["module-boundaries"].rules;
 
   rules.forEach((rule, index) => {
-    const { effectiveImporter } = resolveRuleDefaults(rule, index, ctx.globalSeverity as any);
+    const { effectiveImporter } = resolveRuleDefaults(rule, index, ctx.globalSeverity);
     allInvolvedNodes.add(effectiveImporter);
     const importPatterns = Array.isArray(rule.imports) ? rule.imports : [rule.imports];
     importPatterns.forEach((pattern) => {
@@ -209,7 +209,7 @@ function addRuleEdges(ctx: DiagramContext) {
     const { allow, label, effectiveImporter, isAllowStyle, isOnly } = resolveRuleDefaults(
       rule,
       index,
-      ctx.globalSeverity as any
+      ctx.globalSeverity
     );
 
     const importPatterns = Array.isArray(rule.imports) ? rule.imports : [rule.imports];

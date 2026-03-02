@@ -142,6 +142,57 @@ export class DocumentValidator implements vscode.Disposable {
     }
   }
 
+  public async analyzeWorkspace() {
+    const config = this.configService.getConfig();
+    if (!config) {
+      return;
+    }
+
+    await this.analysisService.scan();
+    const ctx = this.analysisService.getWorkspaceContext();
+    const allEntries: { uri: vscode.Uri; filePath: string; violations: Violation[]; }[] = [];
+
+    for (const filePath of this.analysisService.getKnownFiles()) {
+      const uri = vscode.Uri.file(filePath);
+      let violations: Violation[] = [];
+      try {
+        const raw = await vscode.workspace.fs.readFile(uri);
+        const text = Buffer.from(raw).toString("utf8");
+        violations = this.checkDocumentText(filePath, text, config);
+        this.analysisService.updateFile(filePath, text, ctx);
+      } catch (e) {
+        this.telemetry.logError(e instanceof Error ? e : String(e), "analyzeWorkspace");
+      }
+      allEntries.push({ uri, filePath, violations });
+    }
+
+    const allViolations = allEntries.flatMap((e) => e.violations);
+    const adjusted = applyMaxViolations(allViolations, config);
+
+    const violationsByFile = new Map<string, Violation[]>();
+    for (const v of adjusted) {
+      const key = normalizePath(v.file);
+      const list = violationsByFile.get(key);
+      if (list) {
+        list.push(v);
+      } else {
+        violationsByFile.set(key, [v]);
+      }
+    }
+
+    for (const entry of allEntries) {
+      const key = normalizePath(entry.filePath);
+      this.diagnosticManager.setViolations(entry.uri, violationsByFile.get(key) ?? []);
+    }
+
+    this.statusBar.update(config, this.diagnosticManager.getCollection());
+
+    setTimeout(() => {
+      this.checkCircularDependencies(config);
+      this.checkHealthThresholds(config);
+    }, 0);
+  }
+
   private analyzeDocument(document: vscode.TextDocument) {
     const config = this.configService.getConfig();
     if (!config || !this.isSourceFile(document)) {

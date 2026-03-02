@@ -76,7 +76,7 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   // Register commands
-  registerAllCommands({ context, configService, analysisService, workspaceRoot });
+  registerAllCommands({ context, configService, analysisService, documentValidator, workspaceRoot });
 
   // Wire up events
   configService.onConfigChanged((res) => documentValidator.handleConfigResult(res));

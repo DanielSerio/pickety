@@ -6,21 +6,24 @@ import { showImpactCommand } from "../commands/showImpact";
 import { goToRule, allowImport } from "../vscode/navigation";
 import { ConfigService } from "../services/configService";
 import { AnalysisService } from "../services/analysisService";
+import { DocumentValidator } from "../services/documentValidator";
 
 export interface RegisterCommandsOptions {
   context: vscode.ExtensionContext;
   configService: ConfigService;
   analysisService: AnalysisService;
+  documentValidator: DocumentValidator;
   workspaceRoot: string;
 }
 
 export function registerAllCommands(options: RegisterCommandsOptions) {
-  const { context, configService, analysisService, workspaceRoot } = options;
+  const { context, configService, analysisService, documentValidator, workspaceRoot } = options;
   context.subscriptions.push(
-    vscode.commands.registerCommand("pickety.refresh", () => {
+    vscode.commands.registerCommand("pickety.refresh", async () => {
       configService.reload();
       configService.reloadAliases();
-      vscode.window.showInformationMessage("Pickety: Configuration refreshed");
+      await documentValidator.analyzeWorkspace();
+      vscode.window.showInformationMessage("Pickety: Workspace analysis refreshed");
     })
   );
 

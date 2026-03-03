@@ -4,6 +4,22 @@ All notable changes to the "pickety" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.5.0]
+
+### Added
+
+- **Default ignore patterns.** Pickety now automatically ignores common non-source files including `node_modules`, `.git`, `.next`, `dist`, `out`, `build`, and common development files like `*.test.ts`, `*.spec.ts`, `*.stories.tsx`, and `*.config.ts`.
+- **Workspace-wide violation caching.** The VS Code extension now maintains a persistent cache of violations across the entire workspace. This ensures that architectural debt tracking (`maxViolations`) remains accurate during incremental saves and prevents errors from disappearing when only a single file is analyzed.
+
+### Changed
+
+- **Status bar click behavior.** Clicking the Pickety status bar item now focuses the VS Code **Problems** view instead of triggering a full workspace refresh. This provides a more responsive and standard user experience.
+- **Incremental analysis with global awareness.** Saving a file now triggers an incremental scan that updates the global violation cache, keeping diagnostics in sync without requiring a full re-scan of the project.
+
+### Fixed
+
+- **"Disappearing errors" on save.** Resolved an issue where saving a file could cause architectural violations in other files to be incorrectly downgraded or cleared due to partial state in `maxViolations` calculations.
+
 ## [0.4.0] - 2026-03-02
 
 ### Added
@@ -80,7 +96,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Fixed
 
-- **Interpolation rules with `**` in the `imports` pattern were silently skipped.** `captureVariablesFromPath` computed the maximum starting offset as `pathSegments.length - patternSegments.length`. Because `**` counts as one pattern segment but can match zero path segments, this produced an offset of zero whenever path and pattern had equal segment counts — causing the match to fail immediately and the rule to be ignored with no error. The fix counts only non-`**` segments toward the minimum, so the correct starting offsets are tried. Rules such as `{ imports: "features/$name/components/**/*", containedTo: "features/$name/**/*" }` now enforce correctly.
+- **Interpolation rules with `**`in the`imports`pattern were silently skipped.**`captureVariablesFromPath`computed the maximum starting offset as`pathSegments.length - patternSegments.length`. Because `**` counts as one pattern segment but can match zero path segments, this produced an offset of zero whenever path and pattern had equal segment counts — causing the match to fail immediately and the rule to be ignored with no error. The fix counts only non-`**`segments toward the minimum, so the correct starting offsets are tried. Rules such as`{ imports: "features/$name/components/**/*", containedTo: "features/$name/\*_/_" }` now enforce correctly.
 
 ## [0.1.0] - 2026-02-21
 

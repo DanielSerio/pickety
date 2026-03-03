@@ -111,10 +111,7 @@ export class DocumentValidator implements vscode.Disposable {
       return;
     }
 
-    const allViolations: Violation[] = [];
-    for (const violations of this.workspaceViolations.values()) {
-      allViolations.push(...violations);
-    }
+    const allViolations = Array.from(this.workspaceViolations.values()).flat();
 
     const adjustedViolations = applyMaxViolations(allViolations, config);
 

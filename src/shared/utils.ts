@@ -42,21 +42,32 @@ function hasGlob(pattern: string): boolean {
   return tokens.some((token) => pattern.includes(token));
 }
 
+export const DEFAULT_IGNORE = [
+  "**/node_modules/**",
+  "**/.git/**",
+  "**/*.test.{ts,tsx,js,jsx}",
+  "**/*.spec.{ts,tsx,js,jsx}",
+  "**/*.stories.{ts,tsx,js,jsx}",
+  "**/*.config.{ts,tsx,js,jsx,mjs,cjs}",
+  ".next/**",
+  "dist/**",
+  "out/**",
+  "build/**",
+];
+
 export function isIgnoredPath(
   filePath: string,
   root: string,
   ignore: string[] | undefined
 ): boolean {
-  if (!ignore || ignore.length === 0) {
-    return false;
-  }
+  const allIgnore = [...DEFAULT_IGNORE, ...(ignore || [])];
 
   const relative = normalizePath(path.relative(root, path.resolve(filePath)));
   if (relative === "" || relative.startsWith("..")) {
     return false;
   }
 
-  return ignore.some((raw) => {
+  return allIgnore.some((raw) => {
     const trimmed = raw.trim();
     if (!trimmed) {
       return false;

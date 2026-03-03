@@ -6,7 +6,7 @@ export class PicketyStatusBar {
 
   constructor(context: vscode.ExtensionContext) {
     this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-    this.item.command = "pickety.refresh";
+    this.item.command = "workbench.action.problems.focus";
     context.subscriptions.push(this.item);
   }
 
@@ -37,13 +37,13 @@ export class PicketyStatusBar {
     const violationCount = errorCount + warningCount;
     if (violationCount > 0) {
       this.item.text = `$(shield) Pickety: ${violationCount} issue(s)`;
-      this.item.tooltip = `Found ${violationCount} architectural violations. Click to refresh.`;
+      this.item.tooltip = `Found ${violationCount} architectural violations. Click to view problems. Use 'Pickety: Refresh' command to re-scan workspace.`;
       this.item.color = errorCount > 0 ? "#ff8c00" : "#f2c200";
       this.item.backgroundColor = undefined;
       this.item.show();
     } else {
       this.item.text = "$(check) Pickety";
-      this.item.tooltip = "Architectural boundaries are secure. Click to refresh.";
+      this.item.tooltip = "Architectural boundaries are secure. Click to view problems. Use 'Pickety: Refresh' command to re-scan workspace.";
       this.item.color = undefined;
       this.item.backgroundColor = undefined;
       this.item.show();

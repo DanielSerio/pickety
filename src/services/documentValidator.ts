@@ -40,6 +40,7 @@ export class DocumentValidator implements vscode.Disposable {
   private readonly statusBar: PicketyStatusBar;
   private readonly outputChannel: vscode.OutputChannel;
   private readonly workspaceRoot: string;
+  private readonly workspaceViolations = new Map<string, Violation[]>();
 
   constructor(options: DocumentValidatorOptions) {
     this.context = options.context;
@@ -59,11 +60,11 @@ export class DocumentValidator implements vscode.Disposable {
 
   public handleConfigResult(result: ConfigResult) {
     this.diagnosticManager.clear();
+    this.workspaceViolations.clear();
     const config = result.ok ? result.config : undefined;
     this.configRef.config = config;
 
-    if (result.ok && result.config) {
-      const config = result.config;
+    if (result.ok && config) {
       this.outputChannel.appendLine("Pickety: Import boundaries active");
       if (result.warnings && result.warnings.length > 0) {
         reportConfigWarnings({
@@ -74,7 +75,7 @@ export class DocumentValidator implements vscode.Disposable {
         });
       }
       try {
-        const diagramPath = generateMermaidDiagram(result.config, this.workspaceRoot);
+        const diagramPath = generateMermaidDiagram(config, this.workspaceRoot);
         if (diagramPath) {
           this.outputChannel.appendLine(`Pickety: Generated boundary diagram at ${diagramPath}`);
           void this.ensureDefaultDiagramIgnored(diagramPath);
@@ -82,7 +83,9 @@ export class DocumentValidator implements vscode.Disposable {
       } catch (e) {
         this.outputChannel.appendLine(`Pickety: Failed to generate boundary diagram: ${e instanceof Error ? e.message : String(e)}`);
       }
-      void this.analysisService.scan(config.ignore).then(() => this.analyzeOpenEditors());
+
+      // Initial scan
+      void this.analyzeWorkspace();
     } else if (!result.ok) {
       reportConfigErrors({
         errors: result.errors,
@@ -102,6 +105,45 @@ export class DocumentValidator implements vscode.Disposable {
     this.statusBar.update(config, this.diagnosticManager.getCollection());
   }
 
+  private publishDiagnostics() {
+    const config = this.configService.getConfig();
+    if (!config) {
+      return;
+    }
+
+    const allViolations = Array.from(this.workspaceViolations.values()).flat();
+
+    const adjustedViolations = applyMaxViolations(allViolations, config);
+
+    // Group by file
+    const violationsByFile = new Map<string, Violation[]>();
+    for (const v of adjustedViolations) {
+      const key = normalizePath(v.file);
+      const list = violationsByFile.get(key);
+      if (list) {
+        list.push(v);
+      } else {
+        violationsByFile.set(key, [v]);
+      }
+    }
+
+    // Update diagnostics for files that have violations, OR were previously in our violations map but now have 0
+    // We only need to iterate over files that ARE or WERE in our map.
+    for (const filePath of this.workspaceViolations.keys()) {
+      const uri = vscode.Uri.file(filePath);
+      const violations = violationsByFile.get(filePath) ?? [];
+      this.diagnosticManager.setViolations(uri, violations);
+    }
+
+    this.statusBar.update(config, this.diagnosticManager.getCollection());
+
+    // Perform heavy graph analysis in background
+    setTimeout(() => {
+      this.checkCircularDependencies(config);
+      this.checkHealthThresholds(config);
+    }, 0);
+  }
+
   public analyzeOpenEditors() {
     try {
       const config = this.configService.getConfig();
@@ -109,39 +151,14 @@ export class DocumentValidator implements vscode.Disposable {
         return;
       }
 
-      const allEntries: { uri: vscode.Uri; violations: Violation[]; }[] = [];
       for (const document of vscode.workspace.textDocuments) {
         if (this.isSourceFile(document)) {
-          allEntries.push({ uri: document.uri, violations: this.checkDocument(document, config) });
+          const violations = this.checkDocument(document, config);
+          this.workspaceViolations.set(normalizePath(document.uri.fsPath), violations);
         }
       }
 
-      const allViolations = allEntries.flatMap((e) => e.violations);
-      const adjusted = applyMaxViolations(allViolations, config);
-
-      const violationsByFile = new Map<string, Violation[]>();
-      for (const v of adjusted) {
-        const key = normalizePath(v.file);
-        const list = violationsByFile.get(key);
-        if (list) {
-          list.push(v);
-        } else {
-          violationsByFile.set(key, [v]);
-        }
-      }
-
-      for (const entry of allEntries) {
-        const key = normalizePath(entry.uri.fsPath);
-        this.diagnosticManager.setViolations(entry.uri, violationsByFile.get(key) ?? []);
-      }
-
-      this.statusBar.update(config, this.diagnosticManager.getCollection());
-
-      // Perform heavy graph analysis in background
-      setTimeout(() => {
-        this.checkCircularDependencies(config);
-        this.checkHealthThresholds(config);
-      }, 0);
+      this.publishDiagnostics();
     } catch (e) {
       this.telemetry.logError(e instanceof Error ? e : String(e), "analyzeOpenEditors");
     }
@@ -155,51 +172,27 @@ export class DocumentValidator implements vscode.Disposable {
 
     await this.analysisService.scan(config.ignore);
     const ctx = this.analysisService.getWorkspaceContext();
-    const allEntries: { uri: vscode.Uri; filePath: string; violations: Violation[]; }[] = [];
 
     for (const filePath of this.analysisService.getKnownFiles()) {
-      const uri = vscode.Uri.file(filePath);
-      let violations: Violation[] = [];
       try {
+        const uri = vscode.Uri.file(filePath);
         if (isIgnoredPath(filePath, this.workspaceRoot, config.ignore)) {
+          this.workspaceViolations.delete(normalizePath(filePath));
           this.diagnosticManager.delete(uri);
           continue;
         }
+
         const raw = await vscode.workspace.fs.readFile(uri);
         const text = Buffer.from(raw).toString("utf8");
-        violations = this.checkDocumentText(filePath, text, config);
+        const violations = this.checkDocumentText(filePath, text, config);
+        this.workspaceViolations.set(normalizePath(filePath), violations);
         this.analysisService.updateFile(filePath, text, ctx);
       } catch (e) {
         this.telemetry.logError(e instanceof Error ? e : String(e), "analyzeWorkspace");
       }
-      allEntries.push({ uri, filePath, violations });
     }
 
-    const allViolations = allEntries.flatMap((e) => e.violations);
-    const adjusted = applyMaxViolations(allViolations, config);
-
-    const violationsByFile = new Map<string, Violation[]>();
-    for (const v of adjusted) {
-      const key = normalizePath(v.file);
-      const list = violationsByFile.get(key);
-      if (list) {
-        list.push(v);
-      } else {
-        violationsByFile.set(key, [v]);
-      }
-    }
-
-    for (const entry of allEntries) {
-      const key = normalizePath(entry.filePath);
-      this.diagnosticManager.setViolations(entry.uri, violationsByFile.get(key) ?? []);
-    }
-
-    this.statusBar.update(config, this.diagnosticManager.getCollection());
-
-    setTimeout(() => {
-      this.checkCircularDependencies(config);
-      this.checkHealthThresholds(config);
-    }, 0);
+    this.publishDiagnostics();
   }
 
   private analyzeDocument(document: vscode.TextDocument) {
@@ -208,14 +201,9 @@ export class DocumentValidator implements vscode.Disposable {
       return;
     }
 
-    if (this.hasMaxViolationsRules(config)) {
-      this.analyzeOpenEditors();
-      return;
-    }
-
     const violations = this.checkDocument(document, config);
-    this.diagnosticManager.setViolations(document.uri, violations);
-    this.statusBar.update(config, this.diagnosticManager.getCollection());
+    this.workspaceViolations.set(normalizePath(document.uri.fsPath), violations);
+    this.publishDiagnostics();
   }
 
   private analyzeDocumentText(document: vscode.TextDocument, text: string) {
@@ -224,14 +212,9 @@ export class DocumentValidator implements vscode.Disposable {
       return;
     }
 
-    if (this.hasMaxViolationsRules(config)) {
-      this.analyzeOpenEditorsWithOverride(document, text);
-      return;
-    }
-
     const violations = this.checkDocumentText(document.uri.fsPath, text, config);
-    this.diagnosticManager.setViolations(document.uri, violations);
-    this.statusBar.update(config, this.diagnosticManager.getCollection());
+    this.workspaceViolations.set(normalizePath(document.uri.fsPath), violations);
+    this.publishDiagnostics();
   }
 
   private checkDocument(document: vscode.TextDocument, config: PicketyConfig): Violation[] {
